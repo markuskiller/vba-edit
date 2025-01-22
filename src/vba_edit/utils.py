@@ -698,7 +698,7 @@ def check_office_app(app: OfficeApp) -> None:
                 )
 
         else:
-            logger.info("--> VBA project model access is enabled (no furhter action needed)")
+            logger.info("--> VBA project model access is enabled (no further action needed)")
     except Exception as e:
         logger.warning(f"Failed to check {app.app_name}: {e}")
     finally:
