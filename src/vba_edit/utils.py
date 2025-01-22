@@ -708,7 +708,7 @@ def check_office_app(app: OfficeApp) -> None:
 def check_vba_trust_access(app_name: Optional[str] = None) -> None:
     if not app_name:
         app_name = "Office applications"
-    logger.info(f"Checking VBA Trust Access errors for MS {app_name} ...")
+    logger.info(f"Checking VBA Trust Access errors for MS {app_name.title()} ...")
     logger.debug(
         f"If Trust Access is disabled, this command can be used to extract the MS {app_name.title()} error messages for debugging purposes."
     )
