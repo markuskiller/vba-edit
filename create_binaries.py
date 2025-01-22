@@ -5,7 +5,7 @@ from PyInstaller.__main__ import run
 # Get the absolute path to the src directory
 src_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "src", "vba_edit")
 
-# Build Word VBA executable
+# Build Word-VBA executable
 word_vba_args = [
     os.path.join(src_dir, "word_vba.py"),  # Full path to entry point
     "--onefile",
@@ -15,7 +15,7 @@ word_vba_args = [
     src_dir,  # Add src directory to Python path
 ]
 
-# Build Excel VBA executable
+# Build Excel-VBA executable
 excel_vba_args = [
     os.path.join(src_dir, "excel_vba.py"),  # Full path to entry point
     "--onefile",
@@ -25,11 +25,21 @@ excel_vba_args = [
     src_dir,  # Add src directory to Python path
 ]
 
-# Build Access VBA executable
+# Build Access-VBA executable
 access_vba_args = [
     os.path.join(src_dir, "access_vba.py"),  # Full path to entry point
     "--onefile",
     "--name=access-vba",
+    "--clean",
+    "--paths",
+    src_dir,  # Add src directory to Python path
+]
+
+# Build PowerPoint-VBA executable
+powerpoint_vba_args = [
+    os.path.join(src_dir, "powerpoint_vba.py"),  # Full path to entry point
+    "--onefile",
+    "--name=powerpoint-vba",
     "--clean",
     "--paths",
     src_dir,  # Add src directory to Python path
@@ -44,3 +54,6 @@ run(excel_vba_args)
 
 print("Building access-vba.exe...")
 run(access_vba_args)
+
+print("Building powerpoint-vba.exe...")
+run(powerpoint_vba_args)

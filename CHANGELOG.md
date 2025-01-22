@@ -10,9 +10,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Support for macro-enabled MS PowerPoint documents
-- Option to show program's version number and exit added to all cli interfaces (`--version`)
-- `check all` subcommand for cli entry points, which processes all suported MS Office apps in a single call (replaces calling `python -m vba_edit.utils`)
-<!-- ### Changed -->
+- Option to show program's version number and exit added to all CLI interfaces (`--version`)
+- `check all` subcommand for CLI entry points, which processes all suported MS Office apps in a single call (replaces calling `python -m vba_edit.utils`)
+### Changed
+
+- Updated build script `create_binaries.py` to create Windows stand-alone binaries for all entry points (``access-vba.exe``, ``excel-vba.exe``, ``powerpoint-vba.exe``, ``word-vba.exe``)
 <!-- -  -->
 
 ### Fixed
@@ -55,7 +57,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - basic tests for entry points ``word-vba`` & ``excel-vba``
-- introducing binary distribution cli tools on Windows
+- introducing script to create binary distribution CLI tools on Windows
 - ``excel-vba`` no longer relies on xlwings being installed
 - ``xlwings`` is now an optional import
 - ``--xlwings|-x`` command-line option to be able to use ``xlwings`` if installed
