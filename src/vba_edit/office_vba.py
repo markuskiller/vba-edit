@@ -151,21 +151,47 @@ class VBADocumentNames:
     }
 
     @classmethod
-    def is_document_module(cls, name: str) -> bool:
-        """Check if a name matches any known document module name."""
-        # Handle standard document modules (Excel/Word)
-        if name in cls.EXCEL_WORKBOOK_NAMES or name in cls.WORD_DOCUMENT_NAMES:
-            return True
-
-        # Handle Excel sheets
-        if any(name.startswith(prefix) and name[len(prefix) :].isdigit() for prefix in cls.EXCEL_SHEET_PREFIXES):
-            return True
-
-        # Handle PowerPoint slides
-        if any(name.startswith(prefix) and name[len(prefix) :].isdigit() for prefix in cls.POWERPOINT_SLIDE_PREFIXES):
-            return True
-
-        return False
+    def is_document_module(cls, name: str, app_type: str) -> bool:
+        """Check if a name matches document module patterns for specific Office app.
+        
+        Args:
+            name: Name to check
+            app_type: Office application type ('word', 'excel', 'powerpoint', 'access')
+            
+        Returns:
+            bool: True if name matches document module pattern for the app
+            
+        Raises:
+            ValueError: If app_type is not supported
+        """
+        app_type = app_type.lower()
+        
+        if app_type not in {'word', 'excel', 'powerpoint', 'access'}:
+            raise ValueError(f"Unsupported application type: {app_type}")
+            
+        # Access has no document modules
+        if app_type == 'access':
+            return False
+            
+        # Word document check
+        if app_type == 'word':
+            return name in cls.WORD_DOCUMENT_NAMES
+            
+        # Excel specific checks
+        if app_type == 'excel':
+            if name in cls.EXCEL_WORKBOOK_NAMES:
+                return True
+            return any(
+                name.startswith(prefix) and name[len(prefix):].isdigit()
+                for prefix in cls.EXCEL_SHEET_PREFIXES
+            )
+            
+        # PowerPoint specific checks
+        if app_type == 'powerpoint':
+            return any(
+                name.startswith(prefix) and name[len(prefix):].isdigit()
+                for prefix in cls.POWERPOINT_SLIDE_PREFIXES
+            )
 
 
 # VBA type definitions and constants
@@ -228,6 +254,15 @@ class VBAComponentHandler:
     analyzing module types, handling headers, and preparing content for import/export
     operations. It serves as a utility class for the main Office-specific handlers.
     """
+    def __init__(self, app_name: str):
+        """Initialize component handler.
+        
+        Args:
+            app_name: Name of Office application ('word', 'excel', 'powerpoint', 'access')
+        """
+        self.app_name = app_name.lower()
+        if self.app_name not in {'word', 'excel', 'powerpoint', 'access'}:
+            raise ValueError(f"Unsupported application type: {app_name}")
 
     def get_component_info(self, component: Any) -> Dict[str, Any]:
         """Get detailed information about a VBA component.
@@ -308,8 +343,8 @@ class VBAComponentHandler:
         suffix = file_path.suffix.lower()
         name = file_path.stem
 
-        # Check if it's a known document module name in any language
-        if VBADocumentNames.is_document_module(name):
+        # Check if it's a known document module name for this app type
+        if VBADocumentNames.is_document_module(name, self.app_name):
             return VBAModuleType.DOCUMENT
 
         if suffix == ".bas":
@@ -522,7 +557,7 @@ class OfficeVBAHandler(ABC):
             self.save_headers = save_headers
             self.app = None
             self.doc = None
-            self.component_handler = VBAComponentHandler()
+            self.component_handler = VBAComponentHandler(app_name=self.app_name)
 
             # Configure logging
             log_level = logging.DEBUG if verbose else logging.INFO
