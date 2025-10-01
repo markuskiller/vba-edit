@@ -1,7 +1,10 @@
-# vba-editRD
-This is a fork of [vba-edit](https://github.com/markuskiller/vba-edit), extended to optionally use RubberduckVBA folder annotations when importing/exporting from/to folder hierarchies.
-
 [vba-edit](https://github.com/markuskiller/vba-edit) enables seamless Microsoft Office VBA code editing in your preferred editor or IDE, facilitating the use of coding assistants and version control workflows.
+
+[![CI](https://github.com/markuskiller/vba-edit/actions/workflows/test.yaml/badge.svg)](https://github.com/markuskiller/vba-edit/actions/workflows/test.yaml)
+[![PyPI - Version](https://img.shields.io/pypi/v/vba-edit.svg)](https://pypi.org/project/vba-edit)
+[![PyPI - Python Version](https://img.shields.io/pypi/pyversions/vba-edit.svg)](https://pypi.org/project/vba-edit)
+[![PyPI - Downloads](https://img.shields.io/pypi/dm/vba-edit)](https://pypi.org/project/vba-edit)
+[![License](https://img.shields.io/badge/License-BSD_3--Clause-blue.svg)](https://opensource.org/licenses/BSD-3-Clause)
 
 ## Features
 
@@ -12,7 +15,10 @@ This is a fork of [vba-edit](https://github.com/markuskiller/vba-edit), extended
 - Handle different character encodings
 - Integration with version control systems
 - Support for UserForms and class modules
-- Optionally uses RubberduckVBA folder annotations when importing/exporting from/to folder hierarchies
+- **NEW** Uses RubberduckVBA folder annotations when importing/exporting from/to folder hierarchies
+
+> [!NOTE]
+> Inspired by code from ``xlwings vba edit`` ([xlwings-Project](https://www.xlwings.org/)) under the BSD 3-Clause License.
 
 ## Quick Start
 
@@ -92,6 +98,7 @@ Each tool supports three main commands (plus `check {all}` for troubleshooting):
 --verbose, -v                Enable detailed logging
 --logfile, -l                Enable file logging
 --rubberduck-folders         Use RubberduckVBA folder annotations
+--version                    Show program's version number and exit
 ```
 
 ### Excel-Specific Features
@@ -139,10 +146,20 @@ End Sub
 - UserForms require `--save-headers` option (`edit` process is aborted if this is not the case)
 - If `*.header` files are modified on their own, the corresponding `*.cls`, `*.bas` or `*.frm` file needs to be saved in order to sync the complete module back into the VBA project model
 
-## Development Setup
+## Links
 
-see ./docs/development/DEVELOPMENT.md
+- [Homepage](https://langui.ch/current-projects/vba-edit/)
+- [Documentation](https://github.com/markuskiller/vba-edit/blob/main/README.md)
+- [Source Code](https://github.com/markuskiller/vba-edit)
+- [Changelog](https://github.com/markuskiller/vba-edit/blob/main/CHANGELOG.md)
+- [Changelog of latest dev version](https://github.com/markuskiller/vba-edit/blob/dev/CHANGELOG.md)
+- [Video Tutorial](https://www.youtube.com/watch?v=xoO-Fx0fTpM) (xlwings walkthrough, with similar functionality)
 
 ## License
 
 BSD 3-Clause License
+
+## Acknowledgments
+
+- Big 'Thank you' to major contributor to `vba-edit v0.4.0`: @onderhold
+- This project is heavily inspired by code from `xlwings vba edit`, maintained by the [xlwings-Project](https://www.xlwings.org/) under the BSD 3-Clause License.
