@@ -125,6 +125,7 @@ Common Options
 .. code:: text
 
    --file, -f                   Path to Office document (optional)
+   --conf, -c                   Supply config file
    --vba-directory              Directory for VBA files
    --encoding, -e               Specify character encoding
    --detect-encoding, -d        Auto-detect encoding
