@@ -18,7 +18,7 @@ As an exception, the developer may ask for a translation of terms and sentences 
 
 ## Version Control
 
-Currently, onderhold is new to working with Git, Github and Copilot.
+Currently, some developers are new to working with Git, Github and Copilot.
 When working on a feature, suggest which branch to use.
 
 When the developer asks questions about tools he uses, switch to a different chat reserved for these questions.
