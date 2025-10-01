@@ -22,6 +22,12 @@
 
 ## Quick Start
 
+### Installation
+
+```bash
+pip install vba-edit
+```
+
 ### Prerequisites
 
 Enable "Trust access to the VBA project object model" in your Office application's Trust Center settings:
@@ -30,6 +36,9 @@ Enable "Trust access to the VBA project object model" in your Office application
 2. Go to File > Options > Trust Center > Trust Center Settings
 3. Select "Macro Settings"
 4. Check "Trust access to the VBA project object model"
+
+> [!NOTE]
+> In MS Access, Trust Access to VBA project object model is always enabled if database is stored in trusted location.
 
 ### Basic Usage
 
