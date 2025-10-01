@@ -30,9 +30,7 @@ def sample_vba_files(temp_dir):
     """Create sample VBA files for testing."""
     # Create standard module
     standard_module = temp_dir / "TestModule.bas"
-    standard_module.write_text(
-        'Attribute VB_Name = "TestModule"\n' "Sub Test()\n" '    Debug.Print "Hello"\n' "End Sub"
-    )
+    standard_module.write_text('Attribute VB_Name = "TestModule"\nSub Test()\n    Debug.Print "Hello"\nEnd Sub')
 
     # Create class module
     class_module = temp_dir / "TestClass.cls"
@@ -270,7 +268,7 @@ def test_component_header_handling():
     handler = VBAComponentHandler()
 
     # Test header splitting
-    content = 'Attribute VB_Name = "TestModule"\n' "Option Explicit\n" "Sub Test()\n" "End Sub"
+    content = 'Attribute VB_Name = "TestModule"\nOption Explicit\nSub Test()\nEnd Sub'
     header, code = handler.split_vba_content(content)
     assert 'Attribute VB_Name = "TestModule"' in header
     assert "Option Explicit" in code
@@ -376,6 +374,46 @@ def test_watch_changes_handling(mock_word_handler, temp_dir):
         # This should exit after DocumentClosedError is raised
         with pytest.raises(DocumentClosedError):
             handler.watch_changes()
+
+
+def test_watchfiles_integration():
+    """Test that watchfiles is properly integrated and can be imported."""
+    watchfiles = pytest.importorskip("watchfiles", reason="watchfiles not available")
+
+    # Verify the Change enum has expected values
+    assert hasattr(watchfiles.Change, "added")
+    assert hasattr(watchfiles.Change, "modified")
+    assert hasattr(watchfiles.Change, "deleted")
+
+
+def test_watchfiles_change_detection(mock_word_handler, temp_dir):
+    """Test watchfiles change detection with mocked file changes."""
+    handler = mock_word_handler
+
+    # Create a test VBA file
+    test_module = temp_dir / "TestModule.bas"
+    test_module.write_text('Attribute VB_Name = "TestModule"\nSub Test()\nEnd Sub')
+
+    # Mock watchfiles.watch to simulate file changes
+    from watchfiles import Change
+
+    mock_changes = [(Change.modified, str(test_module))]
+
+    with patch("watchfiles.watch") as mock_watch:
+        mock_watch.return_value = [mock_changes]
+
+        # Mock document status to exit after one iteration
+        handler.is_document_open = Mock(side_effect=[True, False])
+
+        # Test the watchfiles integration
+        with patch.object(handler, "_handle_file_change"):
+            try:
+                handler.watch_changes()
+            except DocumentClosedError:
+                pass  # Expected when document becomes unavailable
+
+            # Verify that watchfiles.watch was called
+            assert mock_watch.called
 
 
 if __name__ == "__main__":

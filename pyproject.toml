@@ -1,18 +1,19 @@
 [build-system]
-requires = ["setuptools", "wheel"]
+requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "vba_edit"                     
-version = "0.4.0a3"                     
+version = "0.4.0a2"                     
 description = "Enable seamless MS Office VBA code editing in preferred editor or IDE (facilitating the use of coding assistants and version control workflows)"
 authors = [
-    {name = "Markus Killer", email = "m.killer@langui.ch"}
+    {name = "Markus Killer", email = "m.killer@langui.ch"},
+    {name = "onderhold"}
 ]
 readme = "README.rst"                  
 requires-python = ">=3.9"             # Minimum Python version
 license = {file = "LICENSE"}          
-keywords = ["VBA", "Word", "PyPI"]
+keywords = ["vba", "excel", "word", "office", "automation", "macro", "PyPI"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
@@ -27,7 +28,12 @@ classifiers = [
     "Operating System :: Microsoft :: Windows",
     "Topic :: Office/Business :: Office Suites",
 ]
-dependencies = ["chardet", "pywin32 >= 224;platform_system=='Windows'" ,"watchgod"]               # Required dependencies
+dependencies = [
+    "chardet",
+    "pywin32 >= 224;platform_system=='Windows'",
+    "watchfiles",  # replaced watchgod
+    "tomli>=2.0.0; python_version < '3.11'",
+]
 
 [project.optional-dependencies]
 dev = [
@@ -35,18 +41,21 @@ dev = [
     "bumpver",
     "ruff",
     "pytest",
-    "pytest-cov",
+    "pytest-cov>=4.0.0",
     "twine",
     "wheel",
     "pyinstaller",
 ]
 all = [
-    "xlwings",
-    
+    "xlwings>=0.28.0"
 ]
 
-[package]
-include = ["vba_edit", "src", "vba_edit.*"]
+# Fügen Sie diese Sektion hinzu:
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-dir]
+"" = "src"
 
 [project.scripts]
 word-vba =  "vba_edit.word_vba:main"
@@ -94,5 +103,82 @@ push            = false
     "src/vba_edit/__init__.py" = ["{version}"]
     "setup.cfg" = ['version = {version}']
     
+# MyPy Type Checker Configuration
+[tool.mypy]
+python_version = "3.8"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+check_untyped_defs = true
+disallow_untyped_decorators = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_no_return = true
+warn_unreachable = true
+strict_equality = true
 
+[[tool.mypy.overrides]]
+module = [
+    "win32com.*",
+    "pythoncom.*",
+    "pywintypes.*",
+    "watchfiles.*",  # replaced watchgod
+]
+ignore_missing_imports = true
+
+# Pytest Configuration
+[tool.pytest.ini_options]
+minversion = "7.0"
+addopts = "-ra -q --strict-markers --strict-config"
+testpaths = ["tests"]
+filterwarnings = [
+    "error",
+    "ignore::UserWarning",
+    "ignore::DeprecationWarning",
+]
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "integration: marks tests as integration tests",
+    "unit: marks tests as unit tests",
+]
+
+# Coverage Configuration
+[tool.coverage.run]
+source = ["src"]
+omit = [
+    "*/tests/*",
+    "*/test_*",
+    "*/conftest.py",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "if self.debug:",
+    "if settings.DEBUG",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if 0:",
+    "if __name__ == .__main__.:",
+    "class .*\\(Protocol\\):",
+    "@(abc\\.)?abstractmethod",
+]
+
+# Flake8 Configuration (in pyproject.toml format for compatibility)
+[tool.flake8]
+max-line-length = 120
+extend-ignore = ["E203", "W503"]
+exclude = [
+    ".git",
+    "__pycache__",
+    "build",
+    "dist",
+    ".eggs",
+    "*.egg-info",
+    ".venv",
+    ".env",
+]
 

@@ -133,6 +133,8 @@ def get_document_paths(
         DocumentNotFoundError: If no valid document path can be found
         PathError: If VBA directory path is invalid
     """
+    logger.debug(f"get_document_paths: doc_path={doc_path}, active_doc_path={active_doc_path}, vba_dir={vba_dir}")
+
     # Try explicit path first
     try:
         if doc_path:
@@ -142,6 +144,7 @@ def get_document_paths(
         else:
             raise DocumentNotFoundError("No valid document path provided and no active document found")
     except DocumentNotFoundError as e:
+        logger.debug(f"get_document_paths: document validation failed: {e}")
         if active_doc_path and not doc_path:
             # If using active document and it failed, add more context
             raise DocumentNotFoundError(f"Active document not accessible: {e}") from e
@@ -153,10 +156,14 @@ def get_document_paths(
     else:
         vba_path = doc_path_resolved.parent
 
+    logger.debug(f"get_document_paths: resolved doc_path={doc_path_resolved}, vba_path(pre-mkdir)={vba_path}")
+
     # Ensure VBA directory exists
     try:
         vba_path.mkdir(parents=True, exist_ok=True)
+        logger.debug(f"get_document_paths: ensured VBA directory exists: {vba_path}")
     except Exception as e:
+        logger.exception("get_document_paths: failed to create/access VBA directory")
         raise PathError(f"Failed to create/access VBA directory: {e}")
 
     return doc_path_resolved, vba_path

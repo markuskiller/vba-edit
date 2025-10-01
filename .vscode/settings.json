@@ -1,4 +1,9 @@
 {
+    "python.formatting.provider": "black",
+    "editor.formatOnSave": true,
+    "python.linting.ruffEnabled": true,
+    "python.defaultInterpreterPath": "./.venv/Scripts/python.exe",
+
     "python.testing.pytestArgs": [],
     "python.testing.unittestEnabled": false,
     "python.testing.pytestEnabled": true,
@@ -6,5 +11,6 @@
         "MD024": {
             "siblings_only": true
         }
-    }
+    },
+    "gitflow.disableOnRepo": true
 }
