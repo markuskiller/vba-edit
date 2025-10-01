@@ -103,7 +103,8 @@ Each tool supports three main commands (plus `check {all}` for troubleshooting):
 --vba-directory              Directory for VBA files
 --encoding, -e               Specify character encoding
 --detect-encoding, -d        Auto-detect encoding
---save-headers               Save module headers separately
+--save-headers               Save module headers separately (default: False)
+--in-file-headers            Include VBA headers directly in code files (default: True)
 --verbose, -v                Enable detailed logging
 --logfile, -l                Enable file logging
 --rubberduck-folders         Use RubberduckVBA folder annotations
@@ -144,7 +145,7 @@ End Sub
 ## Best Practices
 
 1. **New Projects and Workflows**: Use default settings (in-file headers + Rubberduck folders)
-2. **Workflows with version < v0.4.0 **: Add `--save-headers --no-in-file-headers` for compatibility
+2. **Workflows with version < v0.4.0 **: Add `--save-headers=True --in-file-headers=False` for compatibility
 3. Always backup your Office files before using vba-edit
 4. Use version control (git) to track your VBA code
 5. Run `export` after changing form layouts or module properties
