@@ -7,8 +7,7 @@ name = "vba_edit"
 version = "0.4.0a2"                     
 description = "Enable seamless MS Office VBA code editing in preferred editor or IDE (facilitating the use of coding assistants and version control workflows)"
 authors = [
-    {name = "Markus Killer", email = "m.killer@langui.ch"},
-    {name = "onderhold"}
+    {name = "Markus Killer", email = "m.killer@langui.ch"}
 ]
 readme = "README.rst"                  
 requires-python = ">=3.9"             # Minimum Python version
