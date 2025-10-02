@@ -80,7 +80,7 @@ IMPORTANT:
 
     # Add --version argument to the main parser
     parser.add_argument(
-        "--version", action="version", version=f"{package_name_formatted} v{package_version} ({entry_point_name})"
+        "--version", "-V", action="version", version=f"{package_name_formatted} v{package_version} ({entry_point_name})"
     )
     add_common_arguments(parser)
 

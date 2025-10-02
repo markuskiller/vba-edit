@@ -80,7 +80,7 @@ IMPORTANT:
 
     # Add --version argument to the main parser
     parser.add_argument(
-        "--version", action="version", version=f"{package_name_formatted} v{package_version} ({entry_point_name})"
+        "--version", "-V", action="version", version=f"{package_name_formatted} v{package_version} ({entry_point_name})"
     )
 
     subparsers = parser.add_subparsers(dest="command", required=True)
