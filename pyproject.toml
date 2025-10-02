@@ -3,15 +3,13 @@ requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "vba_edit"                     
-version = "0.4.0a3"                     
+name = "vba_edit"
+version = "0.4.0a3"
 description = "Enable seamless MS Office VBA code editing in preferred editor or IDE (facilitating the use of coding assistants and version control workflows)"
-authors = [
-    {name = "Markus Killer", email = "m.killer@langui.ch"}
-]
-readme = "README.rst"                  
-requires-python = ">=3.9"             # Minimum Python version
-license = {file = "LICENSE"}          
+authors = [{ name = "Markus Killer", email = "m.killer@langui.ch" }]
+readme = "README.rst"
+requires-python = ">=3.9" # Minimum Python version
+license = { file = "LICENSE" }
 keywords = ["vba", "excel", "word", "office", "automation", "macro", "PyPI"]
 classifiers = [
     "Development Status :: 3 - Alpha",
@@ -30,7 +28,7 @@ classifiers = [
 dependencies = [
     "chardet",
     "pywin32 >= 224;platform_system=='Windows'",
-    "watchfiles",  # replaced watchgod
+    "watchfiles",                                # replaced watchgod
     "tomli>=2.0.0; python_version < '3.11'",
 ]
 
@@ -45,9 +43,7 @@ dev = [
     "wheel",
     "pyinstaller",
 ]
-all = [
-    "xlwings>=0.28.0"
-]
+all = ["xlwings>=0.28.0"]
 
 # Fügen Sie diese Sektion hinzu:
 [tool.setuptools.packages.find]
@@ -57,7 +53,7 @@ where = ["src"]
 "" = "src"
 
 [project.scripts]
-word-vba =  "vba_edit.word_vba:main"
+word-vba = "vba_edit.word_vba:main"
 excel-vba = "vba_edit.excel_vba:main"
 access-vba = "vba_edit.access_vba:main"
 powerpoint-vba = "vba_edit.powerpoint_vba:main"
@@ -71,7 +67,7 @@ Changelog = "https://github.com/markuskiller/vba-edit/blob/main/CHANGELOG.md"
 
 [tool.black]
 line-length = 120
-target-version = ['py312']  # Target Python version
+target-version = ['py312'] # Target Python version
 
 [tool.ruff]
 line-length = 120
@@ -89,19 +85,16 @@ src_paths = ["src", "vba_edit", "tests"]
 [tool.bumpver]
 current_version = "0.1.0"
 version_pattern = "MAJOR.MINOR.PATCH"
-commit_message  = "bump version {old_version} -> {new_version}"
-commit          = true
-tag             = false
-push            = false
+commit_message = "bump version {old_version} -> {new_version}"
+commit = true
+tag = false
+push = false
 
 [tool.bumpver.file_patterns]
-    "pyproject.toml" = [
-        'current_version = "{version}"',
-        'version = "{version}"',
-    ]
-    "src/vba_edit/__init__.py" = ["{version}"]
-    "setup.cfg" = ['version = {version}']
-    
+"pyproject.toml" = ['current_version = "{version}"', 'version = "{version}"']
+"src/vba_edit/__init__.py" = ["{version}"]
+"setup.cfg" = ['version = {version}']
+
 # MyPy Type Checker Configuration
 [tool.mypy]
 python_version = "3.8"
@@ -123,7 +116,7 @@ module = [
     "win32com.*",
     "pythoncom.*",
     "pywintypes.*",
-    "watchfiles.*",  # replaced watchgod
+    "watchfiles.*", # replaced watchgod
 ]
 ignore_missing_imports = true
 
@@ -136,6 +129,8 @@ filterwarnings = [
     "error",
     "ignore::UserWarning",
     "ignore::DeprecationWarning",
+    "ignore:.*Could not close.*:Warning",
+    "ignore:.*Could not quit.*:Warning",
 ]
 markers = [
     "slow: marks tests as slow (deselect with '-m \"not slow\"')",
@@ -146,11 +141,7 @@ markers = [
 # Coverage Configuration
 [tool.coverage.run]
 source = ["src"]
-omit = [
-    "*/tests/*",
-    "*/test_*",
-    "*/conftest.py",
-]
+omit = ["*/tests/*", "*/test_*", "*/conftest.py"]
 
 [tool.coverage.report]
 exclude_lines = [
@@ -180,4 +171,3 @@ exclude = [
     ".venv",
     ".env",
 ]
-

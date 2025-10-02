@@ -114,3 +114,18 @@ def access_only(request):
     """Check if running in Access-only mode."""
     selected = request.getfixturevalue("selected_apps")
     return selected == ["access"]
+
+import win32com.client
+
+@pytest.fixture(scope="session", autouse=True)
+def cleanup_office_apps():
+    """Clean up Office applications after all tests."""
+    yield
+    
+    import warnings
+    for app_name in ["Word.Application", "Excel.Application"]:
+        try:
+            app = win32com.client.GetObject(Class=app_name)
+            app.Quit()
+        except:
+            pass  # Already closed - this is fine
