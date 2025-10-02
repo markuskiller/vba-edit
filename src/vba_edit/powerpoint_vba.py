@@ -114,7 +114,7 @@ IMPORTANT:
     check_subparser.add_parser(
         "all", help="Check Trust Access to VBA project model of all suported Office applications"
     )
-    add_common_arguments(check_parser)
+
 
     return parser
 
