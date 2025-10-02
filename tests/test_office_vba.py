@@ -350,6 +350,7 @@ def test_access_handler_functionality(mock_access_handler, sample_vba_files):
     handler._update_document_module("TestModule", "' Test Code", components)
     mock_code_module.AddFromString.assert_called_once_with("' Test Code")
 
+
 @pytest.mark.skip(reason="File watching too difficult to mock properly, sucessfully tested in live interaction")
 def test_watch_changes_handling(mock_word_handler, temp_dir):
     """Test file watching functionality."""
@@ -358,6 +359,7 @@ def test_watch_changes_handling(mock_word_handler, temp_dir):
     test_module.write_text("' Test Code")
 
     start_time = 0
+
     def mock_time():
         nonlocal start_time
         start_time += 31
@@ -365,12 +367,13 @@ def test_watch_changes_handling(mock_word_handler, temp_dir):
 
     with patch("time.time", side_effect=mock_time), patch("time.sleep"):
         handler.is_document_open = Mock(side_effect=[True, False])
-        
+
         # Call the actual method
         handler.watch_changes()  # Changed from edit_vba()
-        
+
         # Verify it ran
         assert handler.is_document_open.call_count >= 1
+
 
 def test_watchfiles_integration():
     """Test that watchfiles is properly integrated and can be imported."""
@@ -381,6 +384,7 @@ def test_watchfiles_integration():
     assert hasattr(watchfiles.Change, "modified")
     assert hasattr(watchfiles.Change, "deleted")
 
+
 @pytest.mark.skip(reason="File watching too difficult to mock properly, sucessfully tested in live interaction")
 def test_watchfiles_change_detection(mock_word_handler, temp_dir):
     """Test watchfiles change detection with mocked file changes."""
@@ -389,18 +393,20 @@ def test_watchfiles_change_detection(mock_word_handler, temp_dir):
     test_module.write_text('Attribute VB_Name = "TestModule"\nSub Test()\nEnd Sub')
 
     from watchfiles import Change
+
     mock_changes = [(Change.modified, str(test_module))]
 
     with patch("watchfiles.watch") as mock_watch:
         # Return iterator that yields once then stops
         mock_watch.return_value = iter([mock_changes])  # Added iter()
-        
+
         handler.is_document_open = Mock(side_effect=[False])  # Exit immediately
-        
+
         with patch.object(handler, "import_single_file"):
             handler.watch_changes()
-            
+
         assert mock_watch.called
+
 
 if __name__ == "__main__":
     pytest.main(["-v", __file__])

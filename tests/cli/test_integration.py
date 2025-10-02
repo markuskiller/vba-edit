@@ -59,22 +59,22 @@ class TestCLIIntegration:
                 break
 
         assert folder_match is not None, f"No @Folder annotation found in content:\n{class_content}"
-        assert (
-            folder_match.group(1) == "Business.Domain"
-        ), f"Expected folder 'Business.Domain', but found '{folder_match.group(1)}'"
+        assert folder_match.group(1) == "Business.Domain", (
+            f"Expected folder 'Business.Domain', but found '{folder_match.group(1)}'"
+        )
 
         # Check if the file is in the expected subdirectory (optional verification)
         business_dir = vba_dir / "Business" / "Domain"
         if business_dir.exists():
             # File should be in the Business/Domain subdirectory
-            assert (
-                class_file.parent == business_dir
-            ), f"TestClass.cls should be in {business_dir}, but found in {class_file.parent}"
+            assert class_file.parent == business_dir, (
+                f"TestClass.cls should be in {business_dir}, but found in {class_file.parent}"
+            )
         else:
             # If folder structure wasn't created, file should be in root
-            assert (
-                class_file.parent == vba_dir
-            ), f"TestClass.cls should be in root {vba_dir}, but found in {class_file.parent}"
+            assert class_file.parent == vba_dir, (
+                f"TestClass.cls should be in root {vba_dir}, but found in {class_file.parent}"
+            )
 
     @pytest.mark.integration
     @pytest.mark.com

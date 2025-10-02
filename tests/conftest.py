@@ -16,7 +16,7 @@ def pytest_configure(config):
     """Register custom marks."""
     markers = [
         "excel: mark test as Excel-specific",
-        "word: mark test as Word-specific", 
+        "word: mark test as Word-specific",
         "access: mark test as Access-specific",
         "office: mark test as general Office test",
         "com: marks tests that require COM initialization",
@@ -31,7 +31,7 @@ def pytest_generate_tests(metafunc):
     if "vba_app" in metafunc.fixturenames:
         # Import here to avoid circular import issues
         from tests.cli.helpers import get_installed_apps
-        
+
         # Get selected apps from command line
         apps_option = metafunc.config.getoption("--apps")
         if apps_option.lower() == "all":
@@ -115,14 +115,17 @@ def access_only(request):
     selected = request.getfixturevalue("selected_apps")
     return selected == ["access"]
 
+
 import win32com.client
+
 
 @pytest.fixture(scope="session", autouse=True)
 def cleanup_office_apps():
     """Clean up Office applications after all tests."""
     yield
-    
+
     import warnings
+
     for app_name in ["Word.Application", "Excel.Application"]:
         try:
             app = win32com.client.GetObject(Class=app_name)
