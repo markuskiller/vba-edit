@@ -6,6 +6,20 @@
 [![PyPI - Downloads](https://img.shields.io/pypi/dm/vba-edit)](https://pypi.org/project/vba-edit)
 [![License](https://img.shields.io/badge/License-BSD_3--Clause-blue.svg)](https://opensource.org/licenses/BSD-3-Clause)
 
+
+# vba-edit 0.4.0
+
+## New features
+- PowerPoint is supported via `powerpoint-vba` command
+- New `check all` subcommand for CLI entry points, which processes all suported MS Office apps in a single call to determine if trust access to the VBA project object model is granted.
+
+Thanks to major contributions from @onderhold, vba-edit now also includes:
+
+## New opt-in features
+- `--in-file-headers`: Embed VBA headers directly in code files
+- `--rubberduck-folders`: Organize modules by @Folder annotations
+- `--conf`: TOML configuration files with smart placeholders
+
 ## Features
 
 - Edit VBA code in your favorite code editor or IDE
@@ -15,7 +29,10 @@
 - Handle different character encodings
 - Integration with version control systems
 - Support for UserForms and class modules
-- **NEW** Uses RubberduckVBA folder annotations when importing/exporting from/to folder hierarchies
+
+## Choose your workflow
+- **Simple VBA editing**: Use default behavior (no changes needed)
+- **RubberduckVBA teams**: Enable new features via `--in-file-headers --rubberduck-folders`
 
 > [!NOTE]
 > Inspired by code from ``xlwings vba edit`` ([xlwings-Project](https://www.xlwings.org/)) under the BSD 3-Clause License.
@@ -23,9 +40,8 @@
 ## Quick Start
 
 ### Installation
-
 ```bash
-pip install vba-edit
+pip install -U vba-edit
 ```
 
 ### Prerequisites
@@ -99,17 +115,17 @@ Each tool supports three main commands (plus `check {all}` for troubleshooting):
 ### Common Options
 
 ```text
---file, -f                   Path to Office document (optional)
+--file, -f                   Path to Office document
 --conf, -c                   Supply config file
 --vba-directory              Directory for VBA files
+--rubberduck-folders         Use RubberduckVBA folder annotations
+--save-headers               Save module headers separately
+--in-file-headers            Include VBA headers directly in code files
 --encoding, -e               Specify character encoding
 --detect-encoding, -d        Auto-detect encoding
---save-headers               Save module headers separately (default: False)
---in-file-headers            Include VBA headers directly in code files (default: True)
 --verbose, -v                Enable detailed logging
 --logfile, -l                Enable file logging
---rubberduck-folders         Use RubberduckVBA folder annotations
---version                    Show program's version number and exit
+--version, -V                Show program's version number and exit
 ```
 
 ### Excel-Specific Features
@@ -120,12 +136,7 @@ For Excel users who also have xlwings installed:
 excel-vba edit -x  # Use xlwings wrapper
 ```
 
-## New Features (v0.4.0+)
-
-### In-File Headers (Default: Enabled)
-VBA headers are now embedded directly in code files by default:
-
-**MyClass.cls:**
+## Example of `--in-file-headers --rubberduck-folders` (v0.4.0+)
 ```vba
 VERSION 1.0 CLASS
 BEGIN
@@ -145,9 +156,8 @@ End Sub
 
 ## Best Practices
 
-1. **New Projects and Workflows**: Use default settings (in-file headers + Rubberduck folders)
-2. **Workflows with version < v0.4.0 **: Add `--save-headers=True --in-file-headers=False` for compatibility
-3. Always backup your Office files before using vba-edit
+1. **New Projects and Workflows**: Consider activating `--in-file-headers --rubberduck-folders`
+3. Always backup your Office files before using `vba-edit`
 4. Use version control (git) to track your VBA code
 5. Run `export` after changing form layouts or module properties
 6. Consider using `--detect-encoding` for non-English VBA code
