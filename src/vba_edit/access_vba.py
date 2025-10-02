@@ -109,6 +109,10 @@ IMPORTANT:
         "check",
         help="Check if the MS Access VBA project object model' is accessible",
     )
+    check_subparser = check_parser.add_subparsers(dest="subcommand", required=False)
+    check_subparser.add_parser(
+        "all", help="Check Trust Access to VBA project model of all suported Office applications"
+    )
     add_common_arguments(check_parser)
 
     return parser
