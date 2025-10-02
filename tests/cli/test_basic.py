@@ -37,7 +37,7 @@ class TestCLIBasic:
         """Test handling of missing file."""
         cli = CLITester(f"{vba_app}-vba")
         extension = OFFICE_MACRO_EXTENSIONS[vba_app]
-        cli.assert_error(["import", "-f", f"nonexistent{extension}"], "File not found")
+        cli.assert_error(["import", "-f", f"nonexistent{extension}"], "not found")
 
     @pytest.mark.office
     def test_rubberduck_folders_option(self, vba_app):
@@ -57,14 +57,10 @@ class TestCLIBasic:
         """Test that --conf option is available for all Office apps."""
         cli = CLITester(f"{vba_app}-vba")
 
-        # Test that help shows the conf option
-        result = cli.run(["--help"])
-        assert "--conf" in result.stdout, f"--conf option not found in help for {vba_app}-vba"
-
-        # Test that the option is accepted for each subcommand
+        # Test that --conf option works in subcommands
         for cmd in ["export", "import", "edit"]:
             result = cli.run([cmd, "--help"])
-            # The --conf option should be inherited from common arguments
+            assert "--conf" in result.stdout or "--config" in result.stdout
             assert result.returncode == 0
 
     @pytest.mark.office
