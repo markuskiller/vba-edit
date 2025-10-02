@@ -28,9 +28,8 @@ import pytest
 # The order of imports doesn't matter for test discovery, but we organize them logically
 from tests.cli.test_basic import *  # Basic CLI functionality tests
 from tests.cli.test_config import *  # Configuration file tests
-from tests.cli.test_integration import *  # Integration tests with real Office documents
 from tests.cli.test_debugging import *  # Debugging tests that write option values to files
-
+from tests.cli.test_integration import *  # Integration tests with real Office documents
 
 if __name__ == "__main__":
     pytest.main(["-v", __file__])

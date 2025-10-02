@@ -1,17 +1,17 @@
 """Tests for path utilities."""
 
-import tempfile
 import sys
+import tempfile
 from pathlib import Path
 
 import pytest
 
+from vba_edit.exceptions import DocumentNotFoundError, PathError
 from vba_edit.path_utils import (
+    create_relative_path,
     resolve_path,
     validate_document_path,
-    create_relative_path,
 )
-from vba_edit.exceptions import DocumentNotFoundError, PathError
 
 
 def test_resolve_path():

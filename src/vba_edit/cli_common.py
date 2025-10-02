@@ -2,10 +2,11 @@
 
 import argparse
 import logging
-import re
 import os
+import re
 from pathlib import Path
-from typing import Dict, Any, Optional
+from typing import Any, Dict, Optional
+
 from vba_edit.utils import get_windows_ansi_codepage
 
 # Prefer stdlib tomllib (Py 3.11+), fallback to tomli for older envs

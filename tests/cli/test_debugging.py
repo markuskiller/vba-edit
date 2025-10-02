@@ -1,22 +1,25 @@
 """CLI option debugging tests that write effective values to files."""
 
-import pytest
 import subprocess
 from pathlib import Path
-from .helpers import CLITester, temp_office_doc
-from vba_edit.office_vba import OFFICE_MACRO_EXTENSIONS
+
+import pytest
+
 from vba_edit.cli_common import (
+    CONFIG_KEY_FILE,
+    CONFIG_KEY_RUBBERDUCK_FOLDERS,
+    #    CONFIG_KEY_OPEN_FOLDER,
+    CONFIG_KEY_VBA_DIRECTORY,
+    CONFIG_KEY_VERBOSE,
+    CONFIG_SECTION_GENERAL,
     PLACEHOLDER_CONFIG_PATH,
     PLACEHOLDER_FILE_NAME,
     PLACEHOLDER_FILE_PATH,
     PLACEHOLDER_VBA_PROJECT,
-    CONFIG_SECTION_GENERAL,
-    CONFIG_KEY_FILE,
-    CONFIG_KEY_VBA_DIRECTORY,
-    CONFIG_KEY_VERBOSE,
-    CONFIG_KEY_RUBBERDUCK_FOLDERS,
-    #    CONFIG_KEY_OPEN_FOLDER,
 )
+from vba_edit.office_vba import OFFICE_MACRO_EXTENSIONS
+
+from .helpers import CLITester, temp_office_doc
 
 
 class TestCLIOptionsDebugging:

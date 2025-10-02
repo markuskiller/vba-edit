@@ -7,27 +7,27 @@ from pathlib import Path
 
 from vba_edit import __name__ as package_name
 from vba_edit import __version__ as package_version
+from vba_edit.cli_common import (
+    add_common_arguments,
+    add_encoding_arguments,
+    add_excel_specific_arguments,
+    add_header_arguments,
+    add_metadata_arguments,
+    process_config_file,
+    validate_header_options,
+)
 from vba_edit.exceptions import (
     ApplicationError,
     DocumentClosedError,
     DocumentNotFoundError,
     PathError,
-    VBAError,
-    VBAAccessError,
     RPCError,
+    VBAAccessError,
+    VBAError,
 )
 from vba_edit.office_vba import ExcelVBAHandler
 from vba_edit.path_utils import get_document_paths
-from vba_edit.utils import setup_logging, get_windows_ansi_codepage, get_active_office_document
-from vba_edit.cli_common import (
-    add_common_arguments,
-    process_config_file,
-    add_encoding_arguments,
-    add_header_arguments,
-    add_metadata_arguments,
-    add_excel_specific_arguments,
-    validate_header_options,
-)
+from vba_edit.utils import get_active_office_document, get_windows_ansi_codepage, setup_logging
 
 # Configure module logger
 logger = logging.getLogger(__name__)

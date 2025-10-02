@@ -5,7 +5,7 @@ import os
 import sys
 from functools import wraps
 from pathlib import Path
-from typing import Dict, Callable, Optional, Tuple
+from typing import Callable, Dict, Optional, Tuple
 
 import chardet
 import pywintypes

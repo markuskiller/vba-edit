@@ -1,12 +1,14 @@
 """Basic CLI functionality tests."""
 
 import pytest
-from .helpers import CLITester, temp_office_doc
-from vba_edit.office_vba import OFFICE_MACRO_EXTENSIONS
+
 from vba_edit.cli_common import (
-    CONFIG_SECTION_GENERAL,
     CONFIG_KEY_VERBOSE,
+    CONFIG_SECTION_GENERAL,
 )
+from vba_edit.office_vba import OFFICE_MACRO_EXTENSIONS
+
+from .helpers import CLITester, temp_office_doc
 
 
 class TestCLIBasic:

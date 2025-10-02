@@ -1,8 +1,10 @@
 """Integration tests with real Office documents."""
 
 import pytest
-from .helpers import CLITester, temp_office_doc
+
 from vba_edit.office_vba import RUBBERDUCK_FOLDER_PATTERN
+
+from .helpers import CLITester, temp_office_doc
 
 
 class TestCLIIntegration:

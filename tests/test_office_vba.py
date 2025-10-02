@@ -1,21 +1,21 @@
 """Tests for Office VBA handling."""
 
 import tempfile
-import pythoncom
-from pathlib import Path
-from unittest.mock import Mock, patch, PropertyMock
 from contextlib import contextmanager
+from pathlib import Path
+from unittest.mock import Mock, PropertyMock, patch
 
 import pytest
+import pythoncom
 
+from vba_edit.exceptions import DocumentClosedError, DocumentNotFoundError, RPCError
 from vba_edit.office_vba import (
-    VBAComponentHandler,
-    WordVBAHandler,
-    ExcelVBAHandler,
     AccessVBAHandler,
+    ExcelVBAHandler,
+    VBAComponentHandler,
     VBAModuleType,
+    WordVBAHandler,
 )
-from vba_edit.exceptions import DocumentNotFoundError, DocumentClosedError, RPCError
 
 
 @pytest.fixture

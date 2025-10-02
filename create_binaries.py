@@ -1,6 +1,7 @@
 import argparse
 import os
 import sys
+
 from PyInstaller.__main__ import run
 
 

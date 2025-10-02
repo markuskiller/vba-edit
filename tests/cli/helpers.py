@@ -1,16 +1,17 @@
 """Test helpers for CLI interface testing."""
 
+import atexit
 import subprocess
 import time
-from typing import List, Optional
-import pytest
-import win32com.client
-import pythoncom
 from pathlib import Path
-import atexit
+from typing import List, Optional
 
-from vba_edit.office_vba import OFFICE_MACRO_EXTENSIONS, SUPPORTED_APPS
+import pytest
+import pythoncom
+import win32com.client
+
 from vba_edit.exceptions import VBAError
+from vba_edit.office_vba import OFFICE_MACRO_EXTENSIONS, SUPPORTED_APPS
 
 # Global application instances
 _app_instances = {}

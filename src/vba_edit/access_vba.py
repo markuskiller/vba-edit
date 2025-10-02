@@ -5,6 +5,14 @@ from pathlib import Path
 
 from vba_edit import __name__ as package_name
 from vba_edit import __version__ as package_version
+from vba_edit.cli_common import (
+    add_common_arguments,
+    add_encoding_arguments,
+    add_header_arguments,
+    add_metadata_arguments,
+    process_config_file,
+    validate_header_options,
+)
 from vba_edit.exceptions import (
     ApplicationError,
     DocumentClosedError,
@@ -17,15 +25,6 @@ from vba_edit.exceptions import (
 from vba_edit.office_vba import AccessVBAHandler
 from vba_edit.path_utils import get_document_paths
 from vba_edit.utils import get_active_office_document, get_windows_ansi_codepage, setup_logging
-from vba_edit.cli_common import (
-    add_common_arguments,
-    add_encoding_arguments,
-    add_header_arguments,
-    process_config_file,
-    add_metadata_arguments,
-    validate_header_options,
-)
-
 
 # Configure module logger
 logger = logging.getLogger(__name__)

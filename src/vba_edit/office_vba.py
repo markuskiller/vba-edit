@@ -1,4 +1,3 @@
-from abc import ABC, abstractmethod
 import datetime
 import json
 import logging
@@ -7,33 +6,33 @@ import re
 import shutil
 import sys
 import time
+from abc import ABC, abstractmethod
 from enum import Enum, auto
 from pathlib import Path
-from typing import Dict, Optional, Any, Tuple
+from typing import Any, Dict, Optional, Tuple
 
 # Third-party imports
 import win32com.client
 from watchfiles import Change, watch
 
-# Updated local imports
-from vba_edit.path_utils import (
-    resolve_path,
-    get_document_paths,
-)
-
-from vba_edit.utils import (
-    is_vba_access_error,
-    get_vba_error_details,
-)
-
 from vba_edit.exceptions import (
-    VBAError,
-    VBAAccessError,
     DocumentClosedError,
     DocumentNotFoundError,
-    RPCError,
-    check_rpc_error,
     PathError,
+    RPCError,
+    VBAAccessError,
+    VBAError,
+    check_rpc_error,
+)
+
+# Updated local imports
+from vba_edit.path_utils import (
+    get_document_paths,
+    resolve_path,
+)
+from vba_edit.utils import (
+    get_vba_error_details,
+    is_vba_access_error,
 )
 
 """
