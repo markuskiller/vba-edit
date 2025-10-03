@@ -351,7 +351,7 @@ def test_access_handler_functionality(mock_access_handler, sample_vba_files):
     mock_code_module.AddFromString.assert_called_once_with("' Test Code")
 
 
-@pytest.mark.skip(reason="File watching too difficult to mock properly, sucessfully tested in live interaction")
+@pytest.mark.skip(reason="File watching too difficult to mock properly, successfully tested in live interaction")
 def test_watch_changes_handling(mock_word_handler, temp_dir):
     """Test file watching functionality."""
     handler = mock_word_handler
