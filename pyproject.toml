@@ -83,8 +83,8 @@ ignore = ["F401"] # Unused import
 
 [tool.ruff.lint.per-file-ignores]
 # Allow unused imports in test files (fixtures, etc)
-"tests/**/*.py" = ["F401", "F811"]        # F811 = redefinition of unused name
-"tests/**/conftest.py" = ["F401", "F403"] # F403 = import *
+"tests/**" = ["E402", "E722", "F403"]
+"tests/**/*.py" = ["F401", "F811"]    # F811 = redefinition of unused name
 
 [tool.isort]
 profile = "black"
