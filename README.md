@@ -1,6 +1,6 @@
 # [vba-edit](https://github.com/markuskiller/vba-edit) 
 
-**Edit VBA code in VS Code, Sublime, or any editor you love.** Real-time sync with MS Office apps (support for Excel, Word, PowerPoint & Access). Git-friendly. No more VBA editor pain.
+**Edit VBA code in VS Code, Sublime, or any editor you love.** Real-time sync with MS Office apps (support for **Excel**, **Word**, **PowerPoint** & **Access**). Git-friendly. No more VBA editor pain.
 
 
 [![CI](https://github.com/markuskiller/vba-edit/actions/workflows/test.yaml/badge.svg)](https://github.com/markuskiller/vba-edit/actions/workflows/test.yaml)
@@ -25,7 +25,7 @@ excel-vba edit    # or word-vba edit
 
 ```text
 Excel/Word/
-PowerPoint                                 Your Editor
+PowerPoint/Access                          Your Editor
 ┌──────────────────┐                   ┌──────────────────┐
 │                  │                   │                  │
 │   VBA Project    │  ←── vba-edit ──→ │   .bas/.cls      │
@@ -52,7 +52,9 @@ PowerPoint                                 Your Editor
 **Windows Only** | **MS Office**
 
 Enable VBA access in Office:
+
 `File → Options → Trust Center → Trust Center Settings → Macro Settings`
+
 ☑️ **Trust access to the VBA project object model**
 
 > 💡 Can't find it? Run `excel-vba check` to verify settings
@@ -71,7 +73,7 @@ excel-vba export --vba-directory ./src/vba
 git add . && git commit -m "Updated reports module"
 ``` 
 
-### Advanced: RubberduckVBA Style (big thank you to @onderhold!)
+### Support for RubberduckVBA Style (big thank you to @onderhold!)
 
 ```bash
 excel-vba edit --rubberduck-folders --in-file-headers
@@ -115,23 +117,23 @@ excel-vba edit --rubberduck-folders --in-file-headers
 | `--rubberduck-folders` | Organize by @Folder |
 
 
-### Command Line Tools
+## Command Line Tools
 
-## App-specific tools
+### App-specific tools
 
 - `word-vba`
 - `excel-vba`
 - `access-vba`
 - `powerpoint-vba`
 
-## Commands
+### Commands
 
 - `edit`: Live sync between editor and Office (Word/Excel only)
 - `export`: Export VBA modules to files
 - `import`: Import VBA modules from files
 - `check {all}`: Check if 'Trust Access to the VBA project object model' is enabled
 
-## Options
+### Options
 
 ```text
 --file, -f                   Path to Office document
@@ -147,7 +149,7 @@ excel-vba edit --rubberduck-folders --in-file-headers
 --version, -V                Show program's version number and exit
 ```
 
-## Example of `--in-file-headers --rubberduck-folders` (v0.4.0+)
+### Example of `--in-file-headers --rubberduck-folders` (v0.4.0+)
 
 ```vba
 VERSION 1.0 CLASS
@@ -166,11 +168,11 @@ Public Sub DoSomething()
 End Sub
 ```
 
-> [!NOTE]
+> [!CAUTION]
 > **1.** Always backup your Office files before using `vba-edit` **2.** Use version control (git) to track your VBA code **3.** Run `export` after changing form layouts or module properties
 
 
-## Known Limitations
+### Known Limitations
 
 - UserForms require `--save-headers` option (`edit` process is aborted if this is not the case)
 - If `*.header` files are modified on their own, the corresponding `*.cls`, `*.bas` or `*.frm` file needs to be saved in order to sync the complete module back into the VBA project model
