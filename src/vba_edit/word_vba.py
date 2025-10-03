@@ -110,7 +110,7 @@ IMPORTANT:
     )
     check_subparser = check_parser.add_subparsers(dest="subcommand", required=False)
     check_subparser.add_parser(
-        "all", help="Check Trust Access to VBA project model of all suported Office applications"
+        "all", help="Check Trust Access to VBA project model of all supported Office applications"
     )
 
     return parser
