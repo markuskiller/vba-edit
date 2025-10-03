@@ -372,13 +372,13 @@ def add_common_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--rubberduck-folders",
         action="store_true",
-        default=None,
+        default=False,
         help="If a module contains a RubberduckVBA '@Folder annotation, organize folders in the file system accordingly",
     )
     parser.add_argument(
         "--open-folder",
         action="store_true",
-        default=None,
+        default=False,
         help="Open the export directory in file explorer after successful export",
     )
 
@@ -425,13 +425,13 @@ def add_header_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--save-headers",
         action="store_true",
-        default=None,
+        default=False,
         help="Save VBA component headers to separate .header files (default: False)",
     )
     parser.add_argument(
         "--in-file-headers",
         action="store_true",
-        default=None,
+        default=False,
         help="Include VBA headers directly in code files instead of separate .header files (default: True)",
     )
 

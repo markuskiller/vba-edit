@@ -672,9 +672,9 @@ class OfficeVBAHandler(ABC):
         encoding: str = "cp1252",
         verbose: bool = False,
         save_headers: bool = False,
-        use_rubberduck_folders: bool = True,
+        use_rubberduck_folders: bool = False,
         open_folder: bool = False,
-        in_file_headers: bool = True,
+        in_file_headers: bool = False,
     ):
         """Initialize the VBA handler."""
         try:
