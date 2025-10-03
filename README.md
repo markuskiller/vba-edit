@@ -79,6 +79,16 @@ git add . && git commit -m "Updated reports module"
 excel-vba edit --rubberduck-folders --in-file-headers
 ``` 
 
+## Quick Reference
+
+| Command | What it does |
+|---------|-------------|
+| `excel-vba edit` | Start live editing |
+| `excel-vba export` | One-time export |
+| `excel-vba check` | Verify status of *Trust access* to the VBA project object model |
+| `--vba-directory ./src` | Custom folder |
+| `--rubberduck-folders` | Organize by @Folder |
+
 ## Troubleshooting
 
 | Issue | Solution |
@@ -106,17 +116,6 @@ excel-vba edit --rubberduck-folders --in-file-headers
 - Class modules with custom attributes
 
 
-## Quick Reference
-
-| Command | What it does |
-|---------|-------------|
-| `excel-vba edit` | Start live editing |
-| `excel-vba export` | One-time export |
-| `excel-vba check` | Verify status of *Trust access* to the VBA project object model |
-| `--vba-directory ./src` | Custom folder |
-| `--rubberduck-folders` | Organize by @Folder |
-
-
 ## Command Line Tools
 
 ### App-specific tools
@@ -128,7 +127,7 @@ excel-vba edit --rubberduck-folders --in-file-headers
 
 ### Commands
 
-- `edit`: Live sync between editor and Office (Word/Excel only)
+- `edit`: Live sync between editor and Office
 - `export`: Export VBA modules to files
 - `import`: Import VBA modules from files
 - `check {all}`: Check if 'Trust Access to the VBA project object model' is enabled
@@ -169,7 +168,7 @@ End Sub
 ```
 
 > [!CAUTION]
-> **1.** Always backup your Office files before using `vba-edit` **2.** Use version control (git) to track your VBA code **3.** Run `export` after changing form layouts or module properties
+> **1.** Always **backup your Office files** before using `vba-edit` **2.** Use **version control (git)** to track your VBA code **3.** Run `export` after changing **form layouts** or module properties
 
 
 ### Known Limitations
