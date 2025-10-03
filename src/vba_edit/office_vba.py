@@ -646,23 +646,19 @@ class OfficeVBAHandler(ABC):
     for application-dependent operations.
 
     Args:
-        doc_path (str): Path to the Office document
-        vba_dir (Optional[str]): Directory for VBA files (defaults to current directory)
-        encoding (str): Character encoding for VBA files (default: cp1252)
-        verbose (bool): Enable verbose logging
-        save_headers (bool): Whether to save VBA component headers to separate files
+        doc_path: Path to the Office document
+        vba_dir: Directory for VBA files (defaults to current directory)
+        encoding: Character encoding for VBA files (default: cp1252)
+        verbose: Enable verbose logging (default: False)
+        save_headers: Save VBA headers to separate .header files (default: False)
+        use_rubberduck_folders: Organize by RubberduckVBA @Folder annotations (default: False)
+        in_file_headers: Embed headers in code files instead of separate files (default: False)
+        open_folder: Open VBA directory after export (default: False)
 
     Attributes:
-        doc_path (Path): Resolved path to the Office document
-        vba_dir (Path): Resolved path to VBA directory
-        encoding (str): Character encoding for file operations
-        verbose (bool): Verbose logging flag
-        save_headers (bool): Header saving flag
-        use_rubberduck_folders (bool): Using Rubberduck folder structure flag
-        open_folder (bool): Whether to open the VBA directory after export
         app: Office application COM object
         doc: Office document COM object
-        component_handler (VBAComponentHandler): Utility handler for VBA components
+        component_handler: Utility handler for VBA components
     """
 
     def __init__(
