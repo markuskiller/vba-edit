@@ -25,7 +25,7 @@ def test_rubberduck_folders_option():
 
     # Test that check command doesn't have rubberduck option
     args = parser.parse_args(["check"])
-    assert not hasattr(args, "--rubberduck_folders")
+    assert not hasattr(args, "rubberduck_folders")
 
 
 @patch("vba_edit.excel_vba.ExcelVBAHandler")
