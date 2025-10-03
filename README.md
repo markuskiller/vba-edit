@@ -28,9 +28,9 @@ Excel/Word/
 PowerPoint/Access                          Your Editor
 ┌──────────────────┐                   ┌──────────────────┐
 │                  │                   │                  │
-│   VBA Project    │  ←── vba-edit ──→ │   .bas/.cls      │
-│   (Office VBA-   │  (watches &       │   .frm files     │
-│     Editor)      │     syncs live)   │                  │
+│   VBA Project    │  ←── vba-edit ──→ │   .bas/.cls      │ ← modern coding-
+│   (Office VBA-   │  (watches &       │   .frm files     │   assistants
+│     Editor)      │     syncs live)   │                  │     
 └──────────────────┘                   └──────────────────┘
                                                 ↓
                                        ┌──────────────────┐
