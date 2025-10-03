@@ -9,7 +9,7 @@ from pywintypes import com_error as COM_ERROR
 
 from vba_edit.exceptions import DocumentNotFoundError, EncodingError
 from vba_edit.path_utils import get_document_paths
-from vba_edit.utils import detect_vba_encoding, is_office_app_installed, VBAFileChangeHandler
+from vba_edit.utils import VBAFileChangeHandler, detect_vba_encoding, is_office_app_installed
 
 
 def test_get_document_paths(tmp_path):

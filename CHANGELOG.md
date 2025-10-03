@@ -5,26 +5,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.4.0-a3] - unreleased
 
 ### Added
-
+- `--in-file-headers` option for embedding VBA headers in code files (@onderhold)
+- Better support for VBA class modules with custom attributes (@onderhold)
+- Enhanced VB_PredeclaredId handling for class modules (@onderhold)
 - Support for macro-enabled MS PowerPoint documents
 - Option to show program's version number and exit added to all cli interfaces (`--version`)
 - `check all` subcommand for cli entry points, which processes all suported MS Office apps in a single call (replaces calling `python -m vba_edit.utils`)
-<!-- ### Changed -->
-<!-- -  -->
+- new option `--rubbderduck-folders`
+
+### Changed
+- **BREAKING**: Default behavior uses in-file headers (`--in-file-headers=True`) (@onderhold)
+- **BREAKING**: Rubberduck folders enabled by default (`--rubberduck-folders=True`) (@onderhold)
+- Improved version control compatibility with embedded headers (@onderhold)
+- Streamlined project setup by extending pyproject.toml and .gitignore, while reducing requirements.txt to the bare minimum that VS Code needs. Thus setup.cfg became superfluous.
+- Some refactoring: handling common cli options now in separate module cli_common.py
 
 ### Fixed
-
 - fix check for form safety on `export` (if edit command is run without `--save-headers` option, forms cannot be processed correctly -> check for forms and abort if `--save-headers` is not enabled)
 - fix header file handling (`--save-headers`) in already populated `--vba-directory` (only 1 header file was created rather than one per *.cls, *.bas or *.frm file) - calling it on empty `--vba-directory` worked as expected
-
-<!-- -  -->
-<!-- ### Removed -->
-<!-- -  -->
-<!-- ### Security -->
-<!-- -  -->
 
 ## [0.3.0] - 2025-01-19
 

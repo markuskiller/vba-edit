@@ -5,7 +5,7 @@ import os
 import sys
 from functools import wraps
 from pathlib import Path
-from typing import Dict, Callable, Optional, Tuple
+from typing import Callable, Dict, Optional, Tuple
 
 import chardet
 import pywintypes
@@ -698,7 +698,7 @@ def check_office_app(app: OfficeApp) -> None:
                 )
 
         else:
-            logger.info("--> VBA project model access is enabled (no furhter action needed)")
+            logger.info("--> VBA project model access is enabled (no further action needed)")
     except Exception as e:
         logger.warning(f"Failed to check {app.app_name}: {e}")
     finally:
@@ -708,7 +708,7 @@ def check_office_app(app: OfficeApp) -> None:
 def check_vba_trust_access(app_name: Optional[str] = None) -> None:
     if not app_name:
         app_name = "Office applications"
-    logger.info(f"Checking VBA Trust Access errors for MS {app_name} ...")
+    logger.info(f"Checking VBA Trust Access errors for MS {app_name.title()} ...")
     logger.debug(
         f"If Trust Access is disabled, this command can be used to extract the MS {app_name.title()} error messages for debugging purposes."
     )

@@ -1,6 +1,4 @@
-Copyright (c) 2024, Markus Killer
-All rights reserved.
-
+Copyright (c) 2024 - 2025, Markus Killer
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without modification,
@@ -28,5 +26,5 @@ ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-This project includes components from the xlwings project, which is also licensed 
+This project includes components from the xlwings project, which is also licensed
 under the BSD 3-Clause License. See LICENSES/LICENSE-xlwings.txt for the full license text.
