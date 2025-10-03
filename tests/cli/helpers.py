@@ -69,7 +69,7 @@ def _wait_for_app_ready(app, app_type, timeout=10.0):
             _ = app.Name
             time.sleep(0.2)  # Small additional delay
             return
-        except:
+        except Exception:
             time.sleep(0.1)
 
     raise RuntimeError(f"{app_type} application not ready within {timeout} seconds")

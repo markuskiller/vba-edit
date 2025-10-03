@@ -78,13 +78,15 @@ respect-gitignore = true
 src = ["src", "vba_edit", "tests"]
 
 [tool.ruff.lint]
-# Don't remove imports that look unused but are fixtures
-ignore = ["F401"] # Unused import
+ignore = [] # Remove F401
 
 [tool.ruff.lint.per-file-ignores]
-# Allow unused imports in test files (fixtures, etc)
-"tests/**" = ["E402", "E722", "F403"]
-"tests/**/*.py" = ["F401", "F811"]    # F811 = redefinition of unused name
+"tests/**/conftest.py" = ["F401", "E402"]
+"tests/**/helpers.py" = ["F401"]
+"tests/**/test_*.py" = [
+    "F401",
+    "F811",
+] # Allow fixture imports in all test files
 
 [tool.isort]
 profile = "black"

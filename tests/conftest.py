@@ -1,6 +1,7 @@
 """Pytest configuration file."""
 
 import pytest
+import win32com.client
 
 
 def pytest_addoption(parser):
@@ -116,9 +117,6 @@ def access_only(request):
     return selected == ["access"]
 
 
-import win32com.client
-
-
 @pytest.fixture(scope="session", autouse=True)
 def cleanup_office_apps():
     """Clean up Office applications after all tests."""
@@ -130,5 +128,5 @@ def cleanup_office_apps():
         try:
             app = win32com.client.GetObject(Class=app_name)
             app.Quit()
-        except:
+        except Exception:
             pass  # Already closed - this is fine
