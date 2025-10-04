@@ -24,19 +24,29 @@ excel-vba edit    # or word-vba edit
 ## How It Works
 
 ```text
-Excel/Word/
-PowerPoint/Access                          Your Editor
-┌──────────────────┐                   ┌──────────────────┐
-│                  │                   │                  │
-│   VBA Project    │  ←── vba-edit ──→ │   .bas/.cls      │ ← modern coding-
-│   (Office VBA-   │  (watches &       │   .frm files     │   assistants
-│     Editor)      │     syncs live)   │                  │     
-└──────────────────┘                   └──────────────────┘
-                                                ↓
-                                       ┌──────────────────┐
-                                       │       (Git)      │
-                                       │  version control │
-                                       └──────────────────┘
+
+                         ←── vba-edit ──→
+
+Excel / Word                 COMMANDS            Your favourite
+PowerPoint / Access              ↓                   Editor
+
+┌──────────────────┐                          ┌──────────────────┐
+│                  │    ←──    EDIT (once →)  │                  │
+│   VBA Project    │      (watches & syncs    │  (e.g. VS CODE)  │ 
+│                  │       live back to       │                  │     latest
+│  (Office VBA-    │       office)            │   .bas           │   ← AI coding-  
+│    Editor)       │                          │   .cls           │     assistants
+│                  │           EXPORT ──→     │   .frm           │   
+│                  │                          │                  │ 
+│                  │       ←── IMPORT         │                  │ 
+└──────────────────┘                          └──────────────────┘
+                                                       ↓
+                                              ┌──────────────────┐
+                                              │                  │
+                                              │    (e.g. Git)    │                                              │                  │
+                                              │  version control │
+                                              │                  │                                              └──────────────────┘
+
 ```
 
 ## Why vba-edit?
