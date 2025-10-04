@@ -22,7 +22,7 @@ except ImportError:
 logger = logging.getLogger(__name__)
 
 
-def handle_export_with_warnings(handler, save_metadata: bool = False, overwrite: bool = True, interactive: bool = True):
+def handle_export_with_warnings(handler, save_metadata: bool = False, overwrite: bool = True, interactive: bool = True, force_overwrite: bool = False):
     """Handle VBA export with user confirmation for warnings.
     
     This helper wraps the export_vba() call and handles VBAExportWarning exceptions
@@ -34,6 +34,7 @@ def handle_export_with_warnings(handler, save_metadata: bool = False, overwrite:
         save_metadata: Whether to save metadata file
         overwrite: Whether to overwrite existing files
         interactive: Whether to show warnings and prompt for confirmation
+        force_overwrite: If True, skip all confirmation prompts (use with caution)
     
     Returns:
         None
@@ -41,6 +42,11 @@ def handle_export_with_warnings(handler, save_metadata: bool = False, overwrite:
     Raises:
         SystemExit: If user cancels the export or an error occurs
     """
+    # If force_overwrite is set, skip all interactive prompts
+    if force_overwrite:
+        logger.info("--force-overwrite flag is set: skipping all confirmation prompts")
+        interactive = False
+    
     try:
         handler.export_vba(save_metadata=save_metadata, overwrite=overwrite, interactive=interactive)
     except VBAExportWarning as warning:
@@ -505,4 +511,18 @@ def add_metadata_arguments(parser: argparse.ArgumentParser) -> None:
         action="store_true",
         default=None,
         help="Save metadata file with character encoding information (default: False)",
+    )
+
+
+def add_export_arguments(parser: argparse.ArgumentParser) -> None:
+    """Add export-specific arguments to a parser.
+
+    Args:
+        parser: The argument parser to add arguments to
+    """
+    parser.add_argument(
+        "--force-overwrite",
+        action="store_true",
+        default=False,
+        help="Force overwrite of existing files without prompting for confirmation (use with caution)",
     )

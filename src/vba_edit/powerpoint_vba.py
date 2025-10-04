@@ -8,6 +8,7 @@ from vba_edit import __version__ as package_version
 from vba_edit.cli_common import (
     add_common_arguments,
     add_encoding_arguments,
+    add_export_arguments,
     add_header_arguments,
     add_metadata_arguments,
     handle_export_with_warnings,
@@ -104,6 +105,7 @@ IMPORTANT:
     add_encoding_arguments(export_parser, default_encoding)
     add_header_arguments(export_parser)
     add_metadata_arguments(export_parser)
+    add_export_arguments(export_parser)
 
     # Check command
     check_parser = subparsers.add_parser(
@@ -195,7 +197,13 @@ def handle_powerpoint_vba_command(args: argparse.Namespace) -> None:
                 handler.import_vba()
             elif args.command == "export":
                 # For export command, always overwrite
-                handle_export_with_warnings(handler, save_metadata=getattr(args, "save_metadata", False), overwrite=True, interactive=True)
+                handle_export_with_warnings(
+                    handler, 
+                    save_metadata=getattr(args, "save_metadata", False), 
+                    overwrite=True, 
+                    interactive=True,
+                    force_overwrite=getattr(args, "force_overwrite", False)
+                )
         except (DocumentClosedError, RPCError) as e:
             logger.error(str(e))
             sys.exit(1)
