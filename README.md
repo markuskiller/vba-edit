@@ -43,10 +43,11 @@ PowerPoint / Access              ↓                   Editor
                                                        ↓
                                               ┌──────────────────┐
                                               │                  │
-                                              │    (e.g. Git)    │                                              │                  │
+                                              │    (e.g. Git)    │
                                               │  version control │
-                                              │                  │                                              └──────────────────┘
-
+                                              │                  │
+                                              │                  │
+                                              └──────────────────┘
 ```
 
 ## Why vba-edit?
