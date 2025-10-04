@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "vba_edit"
-version = "0.4.0a3"
+version = "0.4.0-rc1"
 description = "Enable seamless MS Office VBA code editing in preferred editor or IDE (facilitating the use of coding assistants and version control workflows)"
 authors = [{ name = "Markus Killer", email = "m.killer@langui.ch" }]
 readme = "README.md"
@@ -35,7 +35,6 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
     "black",
-    "bumpver",
     "ruff",
     "pytest",
     "pytest-cov>=4.0.0",
@@ -92,18 +91,6 @@ profile = "black"
 line_length = 120
 src_paths = ["src", "vba_edit", "tests"]
 
-[tool.bumpver]
-current_version = "0.1.0"
-version_pattern = "MAJOR.MINOR.PATCH"
-commit_message = "bump version {old_version} -> {new_version}"
-commit = true
-tag = false
-push = false
-
-[tool.bumpver.file_patterns]
-"pyproject.toml" = ['current_version = "{version}"', 'version = "{version}"']
-"src/vba_edit/__init__.py" = ["{version}"]
-"setup.cfg" = ['version = {version}']
 
 # MyPy Type Checker Configuration
 [tool.mypy]
