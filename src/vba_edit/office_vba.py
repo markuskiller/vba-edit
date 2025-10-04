@@ -1702,6 +1702,9 @@ class OfficeVBAHandler(ABC):
             #     else:
             #         subprocess.run(["xdg-open", str(self.vba_dir)])
 
+        except VBAExportWarning:
+            # Let warnings propagate to CLI layer for user interaction
+            raise
         except Exception as e:
             error_msg = "Failed to export VBA content"
             logger.error(f"{error_msg}: {str(e)}")

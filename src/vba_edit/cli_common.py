@@ -48,7 +48,7 @@ def handle_export_with_warnings(handler, save_metadata: bool = False, overwrite:
             file_count = warning.context["file_count"]
             print(f"\nWARNING: Found {file_count} existing VBA file(s) in the VBA directory.")
             print("Continuing will overwrite these files with content from the document.")
-            if not confirm_action("Do you want to continue?", default_yes=False):
+            if not confirm_action("Do you want to continue?", default=False):
                 print("Export cancelled by user.")
                 import sys
                 sys.exit(0)
@@ -60,7 +60,7 @@ def handle_export_with_warnings(handler, save_metadata: bool = False, overwrite:
             new_mode = warning.context["new_mode"]
             print(f"\nWARNING: Header storage mode has changed from {old_mode} to {new_mode}.")
             print("Continuing will re-export all forms and clean up old .header files if needed.")
-            if not confirm_action("Do you want to continue?", default_yes=True):
+            if not confirm_action("Do you want to continue?", default=True):
                 print("Export cancelled by user.")
                 import sys
                 sys.exit(0)
