@@ -7,7 +7,7 @@ name = "vba_edit"
 version = "0.4.0a3"
 description = "Enable seamless MS Office VBA code editing in preferred editor or IDE (facilitating the use of coding assistants and version control workflows)"
 authors = [{ name = "Markus Killer", email = "m.killer@langui.ch" }]
-readme = "README.rst"
+readme = "README.md"
 requires-python = ">=3.9" # Minimum Python version
 license = { file = "LICENSE" }
 keywords = ["vba", "excel", "word", "office", "automation", "macro", "PyPI"]
@@ -45,7 +45,6 @@ dev = [
 ]
 all = ["xlwings>=0.28.0"]
 
-# Fügen Sie diese Sektion hinzu:
 [tool.setuptools.packages.find]
 where = ["src"]
 
@@ -67,11 +66,11 @@ Changelog = "https://github.com/markuskiller/vba-edit/blob/main/CHANGELOG.md"
 
 [tool.black]
 line-length = 120
-target-version = ['py312'] # Target Python version
+target-version = ['py313'] # Target Python version
 
 [tool.ruff]
 line-length = 120
-target-version = 'py312'
+target-version = 'py313'
 fix = true
 show-fixes = true
 respect-gitignore = true
