@@ -96,9 +96,12 @@ excel-vba edit --rubberduck-folders --in-file-headers
 |---------|-------------|
 | `excel-vba edit` | Start live editing |
 | `excel-vba export` | One-time export |
+| `excel-vba export --force-overwrite` | Export without confirmation prompts |
 | `excel-vba check` | Verify status of *Trust access* to the VBA project object model |
 | `--vba-directory ./src` | Custom folder |
 | `--rubberduck-folders` | Organize by @Folder |
+| `--in-file-headers` | Embed headers in code files |
+| `--force-overwrite` | Skip safety prompts (automation) |
 
 ## Troubleshooting
 
@@ -109,6 +112,25 @@ excel-vba edit --rubberduck-folders --in-file-headers
 | Forms not working | Add `--in-file-headers` flag |
 
 
+## Safety Features
+
+**🛡️ Data Loss Prevention** (v0.4.0+)
+
+vba-edit now protects your work with smart safety checks:
+
+- **Overwrite Protection**: Warns before overwriting existing VBA files
+- **Header Mode Detection**: Alerts when switching between header storage modes
+- **Orphaned File Cleanup**: Automatically removes stale `.header` files on mode change
+- **UserForm Validation**: Prevents exports without proper header handling
+
+**Bypass for Automation**: Use `--force-overwrite` flag to skip prompts in CI/CD pipelines:
+```bash
+excel-vba export --vba-directory ./src --force-overwrite
+```
+
+> ⚠️ **Note**: `--force-overwrite` suppresses all safety prompts. Use with caution!
+
+
 ## Features
 
 **🚀 Core**
@@ -116,7 +138,13 @@ excel-vba edit --rubberduck-folders --in-file-headers
 - Full Git/version control support
 - All Office apps: Excel, Word, Access & **NEW v0.4.0+** PowerPoint
 
-**📁 Organization** 
+**�️ Safety** (NEW v0.4.0+)
+- Automatic detection of existing files before overwrite
+- Header mode change warnings with cleanup
+- UserForm header validation
+- Optional `--force-overwrite` for automation
+
+**�📁 Organization** 
 - **NEW v0.4.0+** RubberduckVBA folder structure support
 - **NEW v0.4.0+** Smart file organization with `@Folder` annotations
 - **NEW v0.4.0+** TOML config files for team standards

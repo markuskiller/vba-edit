@@ -11,20 +11,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - new option `--in-file-headers`: embedding VBA headers in code files (@onderhold)
 - new option `--rubbderduck-folders`: support for rubberduckVBA-style folders (@onderhold)
 - new option `--conf`: support for config files  (@onderhold)
+- new option `--force-overwrite`: skip safety prompts for automated exports (CI/CD friendly)
+- **Safety Features**: Automatic warnings before overwriting existing VBA files
+- **Safety Features**: Detection and warning when header storage mode changes between exports
+- **Safety Features**: Automatic cleanup of orphaned `.header` files when switching modes
+- **Safety Features**: Enhanced UserForm validation - prevents export without proper header handling (`--in-file-headers` or `--save-headers`)
 - Better support for VBA class modules with custom attributes (@onderhold)
 - Enhanced `VB_PredeclaredId` handling for class modules (@onderhold)
 - Support for macro-enabled MS PowerPoint documents
 - `check all` subcommand for cli entry points, which processes all suported MS Office apps in a single call (replaces calling `python -m vba_edit.utils`)
 - Option to show program's version number and exit added to all cli interfaces (`--version`)
+- Metadata tracking: exports now save `header_mode` to detect configuration changes between runs
 
 ### Changed
 - Improved version control compatibility with embedded headers (@onderhold)
 - Streamlined project setup by extending pyproject.toml and .gitignore, while reducing requirements.txt to the bare minimum that VS Code needs. Thus setup.cfg became superfluous. (@onderhold)
 - Some refactoring: handling common cli options now in separate module cli_common.py (@onderhold)
+- **Architecture**: Refactored warning handling logic into centralized helper function (`handle_export_with_warnings()` in `cli_common.py`)
+- **Architecture**: Core logic (`office_vba.py`) now raises `VBAExportWarning` exceptions instead of handling user interaction
+- **Architecture**: CLI layer handles all user prompts via shared helper, eliminating code duplication across entry points
 
 ### Fixed
 - fix check for form safety on `export` (if edit command is run without `--save-headers` option, forms cannot be processed correctly -> check for forms and abort if `--save-headers` is not enabled)
 - fix header file handling (`--save-headers`) in already populated `--vba-directory` (only 1 header file was created rather than one per *.cls, *.bas or *.frm file) - calling it on empty `--vba-directory` worked as expected
+- **Fixed**: `--in-file-headers` validation now correctly allows UserForm exports (was incorrectly rejected even when flag was set)
+- **Fixed**: Boolean logic error in `_check_form_safety()` that caused false rejections
+
+### Security
+- Export operations now require explicit user confirmation when:
+  - Overwriting existing VBA files (prevents accidental data loss)
+  - Changing header storage modes (prevents configuration drift and orphaned files)
+- Confirmation prompts can be bypassed with `--force-overwrite` flag for automation scenarios
 
 ## [0.3.0] - 2025-01-19
 
