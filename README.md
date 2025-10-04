@@ -41,9 +41,9 @@ PowerPoint/Access                          Your Editor
 
 ## Why vba-edit?
 
-- **Use YOUR editor** - VS Code, Sublime, Vim, whatever you love 
+- **Use YOUR editor** - VS Code, PyCharm, Wing IDE, Vim, etc. whatever you love 
 - **AI-ready** - Use Copilot, ChatGPT, or any coding assistant 
-- **Team-friendly** - Share code via Git, not email attachments 
+- **Team-friendly** - Share code via Git, no COM add-ins needed 
 - **Real version control** - Diff, merge, and track changes properly 
 - **Well-organized** - Keep your VBA structured, clean, and consistent
 
@@ -55,7 +55,7 @@ Enable VBA access in Office:
 
 `File → Options → Trust Center → Trust Center Settings → Macro Settings`
 
-☑️ **Trust access to the VBA project object model**
+✅ **Trust access to the VBA project object model**
 
 > 💡 Can't find it? Run `excel-vba check` to verify settings
 
@@ -193,4 +193,4 @@ BSD 3-Clause License
 
 **vba-edit** builds on an excellent idea first implemented for Excel in [xlwings](https://www.xlwings.org/) (BSD-3).
 
-Special thanks to **@onderhold** for RubberduckVBA integration and folder support in v0.4.0.
+Special thanks to **@onderhold** for improved header handling, RubberduckVBA folder and config file support in v0.4.0.
