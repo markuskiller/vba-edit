@@ -432,7 +432,7 @@ def add_header_arguments(parser: argparse.ArgumentParser) -> None:
         "--in-file-headers",
         action="store_true",
         default=False,
-        help="Include VBA headers directly in code files instead of separate .header files (default: True)",
+        help="Include VBA headers directly in code files instead of separate .header files (default: False)",
     )
 
 
