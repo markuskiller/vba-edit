@@ -22,6 +22,7 @@ from vba_edit.exceptions import (
     RPCError,
     VBAAccessError,
     VBAError,
+    VBAExportWarning,
     check_rpc_error,
 )
 
@@ -31,6 +32,7 @@ from vba_edit.path_utils import (
     resolve_path,
 )
 from vba_edit.utils import (
+    confirm_action,
     get_vba_error_details,
     is_vba_access_error,
 )
@@ -694,6 +696,7 @@ class OfficeVBAHandler(ABC):
             logger.debug(f"VBA directory: {self.vba_dir}")
             logger.debug(f"Using encoding: {encoding}")
             logger.debug(f"Save headers: {save_headers}")
+            logger.debug(f"In-file headers: {in_file_headers}")
             logger.debug(f"Rubberduck folders: {use_rubberduck_folders}")
             logger.debug(f"Open folder after export: {open_folder}")
 
@@ -811,16 +814,16 @@ class OfficeVBAHandler(ABC):
             vba_dir: Directory to check for .frm files
 
         Raises:
-            VBAError: If .frm files are found and save_headers is False
+            VBAError: If .frm files are found and neither save_headers nor in_file_headers is enabled
         """
-        if not self.save_headers:
+        if not self.save_headers and not self.in_file_headers:
             form_files = list(vba_dir.glob("*.frm"))
             if form_files:
                 form_names = ", ".join(f.stem for f in form_files)
                 error_msg = (
-                    f"\nERROR: Found UserForm files ({form_names}) but --save-headers is not enabled!\n"
+                    f"\nERROR: Found UserForm files ({form_names}) but preferred header option is not enabled!\n"
                     f"UserForms require their full header information to maintain form specifications.\n"
-                    f"Please re-run the command with the --save-headers flag to preserve form settings."
+                    f"Please re-run the command with --in-file-headers or --save-headers flag to preserve form settings."
                 )
                 logger.error(error_msg)
                 sys.exit(1)
@@ -851,6 +854,114 @@ class OfficeVBAHandler(ABC):
             except Exception as e:
                 raise VBAError("Failed to save document") from e
 
+    def _check_header_mode_change(self) -> bool:
+        """Check if the header storage mode has changed since last export.
+
+        Returns:
+            bool: True if header mode has changed or no metadata exists
+        """
+        metadata_path = self.vba_dir / "vba_metadata.json"
+        if not metadata_path.exists():
+            return False  # No metadata, first export
+
+        try:
+            with open(metadata_path, "r", encoding="utf-8") as f:
+                metadata = json.load(f)
+
+            old_mode = metadata.get("header_mode", "none")
+            new_mode = "inline" if self.in_file_headers else ("separate" if self.save_headers else "none")
+
+            if old_mode != new_mode:
+                logger.debug(f"Header mode changed: {old_mode} -> {new_mode}")
+                return True
+
+            return False
+
+        except Exception as e:
+            logger.warning(f"Could not read metadata: {str(e)}")
+            return False  # If we can't read metadata, don't force overwrite
+
+    def _get_header_modes(self) -> Tuple[str, str]:
+        """Get old and new header modes for display.
+        
+        Returns:
+            Tuple: (old_mode_description, new_mode_description)
+        """
+        metadata_path = self.vba_dir / "vba_metadata.json"
+        old_mode = "none (code only)"
+        
+        if metadata_path.exists():
+            try:
+                with open(metadata_path, "r", encoding="utf-8") as f:
+                    metadata = json.load(f)
+                mode = metadata.get("header_mode", "none")
+                if mode == "inline":
+                    old_mode = "inline (headers embedded in code files)"
+                elif mode == "separate":
+                    old_mode = "separate (headers in .header files)"
+                else:
+                    old_mode = "none (code only, no headers saved)"
+            except Exception:
+                pass
+        
+        # Determine new mode
+        if self.in_file_headers:
+            new_mode = "inline (headers embedded in code files)"
+        elif self.save_headers:
+            new_mode = "separate (headers in .header files)"
+        else:
+            new_mode = "none (code only, no headers saved)"
+        
+        return old_mode, new_mode
+
+    def _cleanup_old_header_files(self) -> None:
+        """Clean up old .header files when switching header storage modes.
+        
+        This prevents orphaned .header files from remaining when switching
+        from --save-headers to --in-file-headers or no headers.
+        """
+        try:
+            # Find all .header files
+            header_files = list(self.vba_dir.glob("*.header"))
+            if self.use_rubberduck_folders:
+                header_files.extend(self.vba_dir.rglob("*.header"))
+            
+            if header_files:
+                logger.info(f"Cleaning up {len(header_files)} old .header file(s)...")
+                for header_file in header_files:
+                    try:
+                        header_file.unlink()
+                        logger.debug(f"Removed old header file: {header_file.name}")
+                    except OSError as e:
+                        logger.warning(f"Could not remove {header_file.name}: {e}")
+        except Exception as e:
+            logger.warning(f"Error during header file cleanup: {e}")
+            # Don't fail the export if cleanup fails
+
+    def _check_existing_vba_files(self) -> list:
+        """Check if VBA files already exist in the export directory.
+        
+        Returns:
+            list: List of existing VBA file paths
+        """
+        existing_files = []
+        vba_extensions = [".bas", ".cls", ".frm"]
+        
+        try:
+            if self.use_rubberduck_folders:
+                # Check recursively
+                for ext in vba_extensions:
+                    existing_files.extend(self.vba_dir.rglob(f"*{ext}"))
+            else:
+                # Check only root directory
+                for ext in vba_extensions:
+                    existing_files.extend(self.vba_dir.glob(f"*{ext}"))
+            
+            return existing_files
+        except Exception as e:
+            logger.debug(f"Error checking for existing files: {e}")
+            return []
+
     def _save_metadata(self, encodings: Dict[str, Dict[str, Any]]) -> None:
         """Save metadata including encoding information.
 
@@ -865,6 +976,7 @@ class OfficeVBAHandler(ABC):
                 "source_document": str(self.doc_path),
                 "export_date": datetime.datetime.now().isoformat(),
                 "encoding_mode": "fixed",
+                "header_mode": "inline" if self.in_file_headers else ("separate" if self.save_headers else "none"),
                 "encodings": encodings,
             }
 
@@ -1474,8 +1586,17 @@ class OfficeVBAHandler(ABC):
             logger.error(f"Failed to process {file_path.name}: {str(e)}")
             raise VBAError(f"Failed to import {file_path.name}") from e
 
-    def export_vba(self, save_metadata: bool = False, overwrite: bool = True) -> None:
-        """Export VBA modules to files."""
+    def export_vba(self, save_metadata: bool = False, overwrite: bool = True, interactive: bool = True) -> None:
+        """Export VBA modules to files.
+        
+        Args:
+            save_metadata: Whether to save metadata file
+            overwrite: Whether to overwrite existing files
+            interactive: Whether to prompt for confirmation on warnings (set False to skip prompts)
+        
+        Raises:
+            VBAExportWarning: When user confirmation is needed (only if interactive=True)
+        """
         logger.debug("Starting export_vba operation")
         try:
             # Ensure document is open
@@ -1490,6 +1611,25 @@ class OfficeVBAHandler(ABC):
                 logger.info(f"No VBA components found in the {self.document_type}.")
                 return
 
+            # Check if files already exist and raise warning if interactive
+            if interactive and overwrite:
+                existing_files = self._check_existing_vba_files()
+                if existing_files:
+                    raise VBAExportWarning("existing_files", {"file_count": len(existing_files), "files": existing_files})
+
+            # Check if header mode has changed and raise warning if interactive
+            if interactive:
+                header_mode_changed = self._check_header_mode_change()
+                if header_mode_changed:
+                    old_mode, new_mode = self._get_header_modes()
+                    raise VBAExportWarning("header_mode_changed", {"old_mode": old_mode, "new_mode": new_mode})
+            
+            # If we get here, either interactive=False or no warnings were triggered
+            # Clean up old header files if header mode changed (for non-interactive retries)
+            if self._check_header_mode_change():
+                overwrite = True
+                self._cleanup_old_header_files()
+
             # Track exported files for metadata
             encoding_data = {}
 
@@ -1500,17 +1640,23 @@ class OfficeVBAHandler(ABC):
                     final_file = resolve_path(f"{base_name}{info['extension']}", self.vba_dir)
                     header_file = resolve_path(f"{base_name}.header", self.vba_dir) if self.save_headers else None
 
-                    # Handle both code and header files
-                    files_to_check = [(final_file, False)]
-                    if header_file:
-                        files_to_check.append((header_file, True))
-
-                    # Check each file
-                    should_export = False
-                    for file_path, is_header in files_to_check:
-                        if overwrite or not file_path.exists():
-                            should_export = True
-                            break
+                    # When using in_file_headers, always export to ensure headers are embedded
+                    # When using save_headers, check both code and header files
+                    should_export = overwrite
+                    
+                    if not overwrite:
+                        if self.in_file_headers:
+                            # For in-file headers, only skip if the file exists
+                            # (we can't tell if it has headers without reading it, so safer to re-export)
+                            should_export = not final_file.exists()
+                        else:
+                            # For separate headers, check both code and header files
+                            files_to_check = [final_file]
+                            if header_file:
+                                files_to_check.append(header_file)
+                            
+                            # Export if any file is missing
+                            should_export = any(not f.exists() for f in files_to_check)
 
                     if should_export:
                         self.export_component(component, self.vba_dir)
@@ -1524,11 +1670,19 @@ class OfficeVBAHandler(ABC):
 
             self._check_form_safety(self.vba_dir)  # Check for forms before proceeding
 
-            # Save metadata if requested
-            if save_metadata:
+            # Check if we have any UserForms (in exported data or existing files)
+            has_forms = any(info.get("type") == "UserForm" for info in encoding_data.values())
+            if not has_forms:
+                # Also check for existing .frm files in case they were skipped
+                has_forms = bool(list(self.vba_dir.glob("*.frm")))
+            
+            # Save metadata if requested, or if we have forms (to track header mode)
+            if save_metadata or has_forms:
                 logger.debug("Saving metadata...")
                 self._save_metadata(encoding_data)
                 logger.debug("Metadata saved")
+            else:
+                logger.debug("Skipping metadata save (no forms and not requested)")
 
             # Show exported files to user if requested
 

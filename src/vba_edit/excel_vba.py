@@ -13,6 +13,7 @@ from vba_edit.cli_common import (
     add_excel_specific_arguments,
     add_header_arguments,
     add_metadata_arguments,
+    handle_export_with_warnings,
     process_config_file,
     validate_header_options,
 )
@@ -186,7 +187,7 @@ def handle_excel_vba_command(args: argparse.Namespace) -> None:
         try:
             if args.command == "edit":
                 print("NOTE: Deleting a VBA module file will also delete it in the VBA editor!")
-                handler.export_vba(overwrite=False)
+                handle_export_with_warnings(handler, overwrite=False, interactive=True)
                 try:
                     handler.watch_changes()
                 except (DocumentClosedError, RPCError) as e:
@@ -196,7 +197,7 @@ def handle_excel_vba_command(args: argparse.Namespace) -> None:
             elif args.command == "import":
                 handler.import_vba()
             elif args.command == "export":
-                handler.export_vba(save_metadata=getattr(args, "save_metadata", False), overwrite=True)
+                handle_export_with_warnings(handler, save_metadata=getattr(args, "save_metadata", False), overwrite=True, interactive=True)
         except (DocumentClosedError, RPCError) as e:
             logger.error(str(e))
             sys.exit(1)

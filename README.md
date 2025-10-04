@@ -31,22 +31,22 @@ Excel / Word                 COMMANDS            Your favourite
 PowerPoint / Access              ↓                   Editor
 
 ┌──────────────────┐                          ┌──────────────────┐
-│                  │    ←──    EDIT (once →)  │                  │
-│   VBA Project    │      (watches & syncs    │  (e.g. VS CODE)  │ 
-│                  │       live back to       │                  │     latest
-│  (Office VBA-    │       office)            │   .bas           │   ← AI coding-  
+│                  │                          │                  │
+│   VBA Project    │    ←──    EDIT* (once →) │  (e.g. VS CODE)  │ 
+│                  │                          │                  │     latest
+│  (Office VBA-    │           EXPORT ──→     │   .bas           │   ← AI coding-  
 │    Editor)       │                          │   .cls           │     assistants
-│                  │           EXPORT ──→     │   .frm           │   
+│                  │       ←── IMPORT         │   .frm           │   
+│                  │                          │  (.frx binary)   │ 
 │                  │                          │                  │ 
-│                  │       ←── IMPORT         │                  │ 
 └──────────────────┘                          └──────────────────┘
                                                        ↓
                                               ┌──────────────────┐
                                               │                  │
-                                              │    (e.g. Git)    │
-                                              │  version control │
-                                              │                  │
-                                              │                  │
+ * watches & syncs                            │    (e.g. Git)    │
+   back to Office                             │  version control │
+   VBA-Editor live                            │                  │
+   on save [CTRL+S]                           │                  │
                                               └──────────────────┘
 ```
 

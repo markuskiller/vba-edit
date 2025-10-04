@@ -10,6 +10,7 @@ from vba_edit.cli_common import (
     add_encoding_arguments,
     add_header_arguments,
     add_metadata_arguments,
+    handle_export_with_warnings,
     process_config_file,
     validate_header_options,
 )
@@ -182,7 +183,7 @@ def handle_word_vba_command(args: argparse.Namespace) -> None:
                 # Display warning about module deletion
                 print("NOTE: Deleting a VBA module file will also delete it in the VBA editor!")
                 # For edit command, first export without overwriting
-                handler.export_vba(overwrite=False)
+                handle_export_with_warnings(handler, overwrite=False, interactive=True)
                 try:
                     handler.watch_changes()
                 except (DocumentClosedError, RPCError) as e:
@@ -193,7 +194,7 @@ def handle_word_vba_command(args: argparse.Namespace) -> None:
                 handler.import_vba()
             elif args.command == "export":
                 # For export command, always overwrite
-                handler.export_vba(save_metadata=getattr(args, "save_metadata", False), overwrite=True)
+                handle_export_with_warnings(handler, save_metadata=getattr(args, "save_metadata", False), overwrite=True, interactive=True)
         except (DocumentClosedError, RPCError) as e:
             logger.error(str(e))
             sys.exit(1)

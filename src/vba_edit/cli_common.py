@@ -7,7 +7,8 @@ import re
 from pathlib import Path
 from typing import Any, Dict, Optional
 
-from vba_edit.utils import get_windows_ansi_codepage
+from vba_edit.exceptions import VBAExportWarning
+from vba_edit.utils import confirm_action, get_windows_ansi_codepage
 
 # Prefer stdlib tomllib (Py 3.11+), fallback to tomli for older envs
 try:
@@ -19,6 +20,53 @@ except ImportError:
         import toml as toml_lib  # Fall back to toml package if tomli isn't available
 
 logger = logging.getLogger(__name__)
+
+
+def handle_export_with_warnings(handler, save_metadata: bool = False, overwrite: bool = True, interactive: bool = True):
+    """Handle VBA export with user confirmation for warnings.
+    
+    This helper wraps the export_vba() call and handles VBAExportWarning exceptions
+    by prompting the user for confirmation. This centralizes the warning handling
+    logic that would otherwise be duplicated across all CLI entry points.
+    
+    Args:
+        handler: The VBA handler instance (WordVBAHandler, ExcelVBAHandler, etc.)
+        save_metadata: Whether to save metadata file
+        overwrite: Whether to overwrite existing files
+        interactive: Whether to show warnings and prompt for confirmation
+    
+    Returns:
+        None
+    
+    Raises:
+        SystemExit: If user cancels the export or an error occurs
+    """
+    try:
+        handler.export_vba(save_metadata=save_metadata, overwrite=overwrite, interactive=interactive)
+    except VBAExportWarning as warning:
+        if warning.warning_type == "existing_files":
+            file_count = warning.context["file_count"]
+            print(f"\nWARNING: Found {file_count} existing VBA file(s) in the VBA directory.")
+            print("Continuing will overwrite these files with content from the document.")
+            if not confirm_action("Do you want to continue?", default_yes=False):
+                print("Export cancelled by user.")
+                import sys
+                sys.exit(0)
+            # User confirmed, retry with interactive=False to skip further prompts
+            handler.export_vba(save_metadata=save_metadata, overwrite=True, interactive=False)
+            
+        elif warning.warning_type == "header_mode_changed":
+            old_mode = warning.context["old_mode"]
+            new_mode = warning.context["new_mode"]
+            print(f"\nWARNING: Header storage mode has changed from {old_mode} to {new_mode}.")
+            print("Continuing will re-export all forms and clean up old .header files if needed.")
+            if not confirm_action("Do you want to continue?", default_yes=True):
+                print("Export cancelled by user.")
+                import sys
+                sys.exit(0)
+            # User confirmed, retry with overwrite=True and interactive=False
+            handler.export_vba(save_metadata=save_metadata, overwrite=True, interactive=False)
+
 
 # Placeholder constants
 PLACEHOLDER_CONFIG_PATH = "{config.path}"
