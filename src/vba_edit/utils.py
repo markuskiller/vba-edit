@@ -30,31 +30,31 @@ logger = logging.getLogger(__name__)
 
 def confirm_action(message: str, default: bool = False) -> bool:
     """Prompt user for yes/no confirmation.
-    
+
     Args:
         message: The confirmation message to display
         default: Default answer if user just presses Enter (True=yes, False=no)
-    
+
     Returns:
         bool: True if user confirms, False otherwise
     """
     suffix = " [Y/n]: " if default else " [y/N]: "
     prompt = message + suffix
-    
+
     while True:
         try:
             response = input(prompt).strip().lower()
-            
+
             if not response:  # User pressed Enter
                 return default
-            
-            if response in ('y', 'yes'):
+
+            if response in ("y", "yes"):
                 return True
-            elif response in ('n', 'no'):
+            elif response in ("n", "no"):
                 return False
             else:
                 print("Please enter 'y' or 'n'")
-                
+
         except (EOFError, KeyboardInterrupt):
             print()  # New line after ^C
             return False

@@ -22,23 +22,29 @@ except ImportError:
 logger = logging.getLogger(__name__)
 
 
-def handle_export_with_warnings(handler, save_metadata: bool = False, overwrite: bool = True, interactive: bool = True, force_overwrite: bool = False):
+def handle_export_with_warnings(
+    handler,
+    save_metadata: bool = False,
+    overwrite: bool = True,
+    interactive: bool = True,
+    force_overwrite: bool = False,
+):
     """Handle VBA export with user confirmation for warnings.
-    
+
     This helper wraps the export_vba() call and handles VBAExportWarning exceptions
     by prompting the user for confirmation. This centralizes the warning handling
     logic that would otherwise be duplicated across all CLI entry points.
-    
+
     Args:
         handler: The VBA handler instance (WordVBAHandler, ExcelVBAHandler, etc.)
         save_metadata: Whether to save metadata file
         overwrite: Whether to overwrite existing files
         interactive: Whether to show warnings and prompt for confirmation
         force_overwrite: If True, skip all confirmation prompts (use with caution)
-    
+
     Returns:
         None
-    
+
     Raises:
         SystemExit: If user cancels the export or an error occurs
     """
@@ -46,7 +52,7 @@ def handle_export_with_warnings(handler, save_metadata: bool = False, overwrite:
     if force_overwrite:
         logger.info("--force-overwrite flag is set: skipping all confirmation prompts")
         interactive = False
-    
+
     try:
         handler.export_vba(save_metadata=save_metadata, overwrite=overwrite, interactive=interactive)
     except VBAExportWarning as warning:
@@ -57,10 +63,11 @@ def handle_export_with_warnings(handler, save_metadata: bool = False, overwrite:
             if not confirm_action("Do you want to continue?", default=False):
                 print("Export cancelled by user.")
                 import sys
+
                 sys.exit(0)
             # User confirmed, retry with interactive=False to skip further prompts
             handler.export_vba(save_metadata=save_metadata, overwrite=True, interactive=False)
-            
+
         elif warning.warning_type == "header_mode_changed":
             old_mode = warning.context["old_mode"]
             new_mode = warning.context["new_mode"]
@@ -69,6 +76,7 @@ def handle_export_with_warnings(handler, save_metadata: bool = False, overwrite:
             if not confirm_action("Do you want to continue?", default=True):
                 print("Export cancelled by user.")
                 import sys
+
                 sys.exit(0)
             # User confirmed, retry with overwrite=True and interactive=False
             handler.export_vba(save_metadata=save_metadata, overwrite=True, interactive=False)

@@ -197,11 +197,11 @@ def handle_word_vba_command(args: argparse.Namespace) -> None:
             elif args.command == "export":
                 # For export command, always overwrite
                 handle_export_with_warnings(
-                    handler, 
-                    save_metadata=getattr(args, "save_metadata", False), 
-                    overwrite=True, 
+                    handler,
+                    save_metadata=getattr(args, "save_metadata", False),
+                    overwrite=True,
                     interactive=True,
-                    force_overwrite=getattr(args, "force_overwrite", False)
+                    force_overwrite=getattr(args, "force_overwrite", False),
                 )
         except (DocumentClosedError, RPCError) as e:
             logger.error(str(e))

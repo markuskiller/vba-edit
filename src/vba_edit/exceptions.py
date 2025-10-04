@@ -74,18 +74,18 @@ class VBAExportError(VBAError):
 
 class VBAExportWarning(Exception):
     """Warning raised when export requires user confirmation.
-    
+
     This exception signals that the export operation needs user interaction.
     The CLI layer catches this and handles the user prompts.
-    
+
     Note: This does NOT inherit from VBAError to avoid being caught by
     generic VBAError handlers in the CLI layer.
-    
+
     Attributes:
         warning_type: Type of warning ("existing_files" or "header_mode_changed")
         context: Dictionary with context-specific information for displaying to user
     """
-    
+
     def __init__(self, warning_type: str, context: dict):
         self.warning_type = warning_type
         self.context = context

@@ -32,7 +32,6 @@ from vba_edit.path_utils import (
     resolve_path,
 )
 from vba_edit.utils import (
-    confirm_action,
     get_vba_error_details,
     is_vba_access_error,
 )
@@ -883,13 +882,13 @@ class OfficeVBAHandler(ABC):
 
     def _get_header_modes(self) -> Tuple[str, str]:
         """Get old and new header modes for display.
-        
+
         Returns:
             Tuple: (old_mode_description, new_mode_description)
         """
         metadata_path = self.vba_dir / "vba_metadata.json"
         old_mode = "none (code only)"
-        
+
         if metadata_path.exists():
             try:
                 with open(metadata_path, "r", encoding="utf-8") as f:
@@ -903,7 +902,7 @@ class OfficeVBAHandler(ABC):
                     old_mode = "none (code only, no headers saved)"
             except Exception:
                 pass
-        
+
         # Determine new mode
         if self.in_file_headers:
             new_mode = "inline (headers embedded in code files)"
@@ -911,12 +910,12 @@ class OfficeVBAHandler(ABC):
             new_mode = "separate (headers in .header files)"
         else:
             new_mode = "none (code only, no headers saved)"
-        
+
         return old_mode, new_mode
 
     def _cleanup_old_header_files(self) -> None:
         """Clean up old .header files when switching header storage modes.
-        
+
         This prevents orphaned .header files from remaining when switching
         from --save-headers to --in-file-headers or no headers.
         """
@@ -925,7 +924,7 @@ class OfficeVBAHandler(ABC):
             header_files = list(self.vba_dir.glob("*.header"))
             if self.use_rubberduck_folders:
                 header_files.extend(self.vba_dir.rglob("*.header"))
-            
+
             if header_files:
                 logger.info(f"Cleaning up {len(header_files)} old .header file(s)...")
                 for header_file in header_files:
@@ -940,13 +939,13 @@ class OfficeVBAHandler(ABC):
 
     def _check_existing_vba_files(self) -> list:
         """Check if VBA files already exist in the export directory.
-        
+
         Returns:
             list: List of existing VBA file paths
         """
         existing_files = []
         vba_extensions = [".bas", ".cls", ".frm"]
-        
+
         try:
             if self.use_rubberduck_folders:
                 # Check recursively
@@ -956,7 +955,7 @@ class OfficeVBAHandler(ABC):
                 # Check only root directory
                 for ext in vba_extensions:
                     existing_files.extend(self.vba_dir.glob(f"*{ext}"))
-            
+
             return existing_files
         except Exception as e:
             logger.debug(f"Error checking for existing files: {e}")
@@ -1588,12 +1587,12 @@ class OfficeVBAHandler(ABC):
 
     def export_vba(self, save_metadata: bool = False, overwrite: bool = True, interactive: bool = True) -> None:
         """Export VBA modules to files.
-        
+
         Args:
             save_metadata: Whether to save metadata file
             overwrite: Whether to overwrite existing files
             interactive: Whether to prompt for confirmation on warnings (set False to skip prompts)
-        
+
         Raises:
             VBAExportWarning: When user confirmation is needed (only if interactive=True)
         """
@@ -1615,7 +1614,9 @@ class OfficeVBAHandler(ABC):
             if interactive and overwrite:
                 existing_files = self._check_existing_vba_files()
                 if existing_files:
-                    raise VBAExportWarning("existing_files", {"file_count": len(existing_files), "files": existing_files})
+                    raise VBAExportWarning(
+                        "existing_files", {"file_count": len(existing_files), "files": existing_files}
+                    )
 
             # Check if header mode has changed and raise warning if interactive
             if interactive:
@@ -1623,7 +1624,7 @@ class OfficeVBAHandler(ABC):
                 if header_mode_changed:
                     old_mode, new_mode = self._get_header_modes()
                     raise VBAExportWarning("header_mode_changed", {"old_mode": old_mode, "new_mode": new_mode})
-            
+
             # If we get here, either interactive=False or no warnings were triggered
             # Clean up old header files if header mode changed (for non-interactive retries)
             if self._check_header_mode_change():
@@ -1643,7 +1644,7 @@ class OfficeVBAHandler(ABC):
                     # When using in_file_headers, always export to ensure headers are embedded
                     # When using save_headers, check both code and header files
                     should_export = overwrite
-                    
+
                     if not overwrite:
                         if self.in_file_headers:
                             # For in-file headers, only skip if the file exists
@@ -1654,7 +1655,7 @@ class OfficeVBAHandler(ABC):
                             files_to_check = [final_file]
                             if header_file:
                                 files_to_check.append(header_file)
-                            
+
                             # Export if any file is missing
                             should_export = any(not f.exists() for f in files_to_check)
 
@@ -1675,7 +1676,7 @@ class OfficeVBAHandler(ABC):
             if not has_forms:
                 # Also check for existing .frm files in case they were skipped
                 has_forms = bool(list(self.vba_dir.glob("*.frm")))
-            
+
             # Save metadata if requested, or if we have forms (to track header mode)
             if save_metadata or has_forms:
                 logger.debug("Saving metadata...")
