@@ -89,7 +89,8 @@ RUBBERDUCK_FOLDER_PATTERN = re.compile(r"'\s*@folder\s*(?:\(\s*)?[\"']([^\"']+)[
 SUPPORTED_APPS = [
     "word",
     "excel",
-    # "access",
+    "powerpoint",
+    "access",
 ]
 
 
@@ -1114,7 +1115,7 @@ class OfficeVBAHandler(ABC):
             if module_type == VBAModuleType.FORM or (module_type == VBAModuleType.CLASS and header):
                 logger.debug(f"Using full import for {module_type.name.lower()} with headers: {name}")
                 components.Remove(component)
-                self._import_via_temp_file(name, full_content, components)
+                self._import_via_temp_file(name, full_content, components, file_path.suffix)
             else:
                 # For standard modules or class modules without headers, just update content
                 logger.debug(f"Updating existing component: {name}")
@@ -1124,18 +1125,25 @@ class OfficeVBAHandler(ABC):
             # Component doesn't exist, create new
             if module_type == VBAModuleType.FORM or (module_type == VBAModuleType.CLASS and header):
                 logger.debug(f"Creating new {module_type.name.lower()} with headers via import: {name}")
-                self._import_via_temp_file(name, full_content, components)
+                self._import_via_temp_file(name, full_content, components, file_path.suffix)
             else:
                 logger.debug(f"Creating new component: {name}")
                 self._create_new_component(name, code, module_type, components)
 
-    def _import_via_temp_file(self, name: str, full_content: str, components: Any) -> None:
+    def _import_via_temp_file(self, name: str, full_content: str, components: Any, file_extension: str = ".cls") -> None:
         """Import UserForm or Class module with headers using VBA's Import method.
 
         This method handles both UserForms and Class modules that have header attributes
         that need to be preserved during import.
+        
+        Args:
+            name: Component name
+            full_content: Complete file content including headers
+            components: VBA components collection
+            file_extension: Original file extension (.frm, .cls, or .bas) - crucial for VBA to detect type!
         """
-        temp_file = self.vba_dir / f"{name}.tmp"
+        # Use original extension so VBA's Import detects the correct component type
+        temp_file = self.vba_dir / f"{name}_temp{file_extension}"
         try:
             # Write complete content to temp file
             with open(temp_file, "w", encoding=self.encoding) as f:
@@ -1143,6 +1151,7 @@ class OfficeVBAHandler(ABC):
 
             # Import the complete module using VBA's built-in import
             # This preserves all header attributes including VB_PredeclaredId
+            # NOTE: The file extension is critical - VBA uses it to determine component type!
             components.Import(str(temp_file))
 
             logger.info(f"Imported module with embedded headers via temporary file: {name}")
@@ -1459,12 +1468,13 @@ class OfficeVBAHandler(ABC):
                         last_check_time = current_time
                         logger.debug("Connection check passed")
 
-                    # Filter changes to only include VBA files
+                    # Filter changes to only include VBA files (exclude temp files)
                     vba_changes = []
                     for change_type, file_path in changes:
                         path = Path(file_path)
-                        # Only include files with VBA extensions
-                        if path.suffix.lower() in vba_extensions:
+                        # Only include files with VBA extensions, but exclude temp files
+                        # Temp files have pattern: *_temp.{bas,cls,frm}
+                        if path.suffix.lower() in vba_extensions and not path.stem.endswith("_temp"):
                             vba_changes.append((change_type, file_path))
 
                     if vba_changes:
