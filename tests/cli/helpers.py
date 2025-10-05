@@ -31,7 +31,12 @@ def get_or_create_app(app_type):
         print(f"Creating {app_type} instance for test session...")
 
         # Application configurations
-        app_configs = {"excel": "Excel.Application", "word": "Word.Application", "access": "Access.Application"}
+        app_configs = {
+            "excel": "Excel.Application",
+            "word": "Word.Application",
+            "powerpoint": "PowerPoint.Application",
+            "access": "Access.Application",
+        }
 
         if app_type not in app_configs:
             raise ValueError(f"Unsupported application type: {app_type}")
@@ -99,6 +104,18 @@ def _configure_app(app, app_type):
                 ("ShowAnimation", False),
             ]
         )
+    elif app_type == "access":
+        # Access-specific configuration
+        # Note: DoCmd.SetWarnings only works after a database is open,
+        # so it's called in ReferenceDocuments.__enter__ instead
+        
+        # Try to set AutomationSecurity to disable macro warnings
+        try:
+            # msoAutomationSecurityLow = 1
+            app.AutomationSecurity = 1
+            print(f"Set Access AutomationSecurity to Low for testing")
+        except Exception as e:
+            print(f"Warning: Could not set Access AutomationSecurity: {e}")
 
     # Set properties with retry logic
     for prop_name, prop_value in properties:
@@ -143,9 +160,15 @@ def _close_all_documents(app, app_type):
         elif app_type == "word":
             while app.Documents.Count > 0:
                 app.Documents(1).Close(SaveChanges=False)
+        elif app_type == "powerpoint":
+            while app.Presentations.Count > 0:
+                app.Presentations(1).Close()
         elif app_type == "access":
             # Access handles this differently
-            pass
+            try:
+                app.CloseCurrentDatabase()
+            except Exception:
+                pass
     except Exception as e:
         print(f"Warning: Could not close all documents for {app_type}: {e}")
 
@@ -176,6 +199,14 @@ class ReferenceDocuments:
                     "doc_method": lambda app: app.Workbooks.Add(),
                     "save_format": 52,  # xlOpenXMLWorkbookMacroEnabled
                 },
+                "powerpoint": {
+                    "doc_method": lambda app: app.Presentations.Add(WithWindow=True),
+                    "save_format": 25,  # ppSaveAsOpenXMLPresentationMacroEnabled
+                },
+                "access": {
+                    "doc_method": lambda app, path: app.NewCurrentDatabase(str(path)),
+                    "save_format": None,  # Access doesn't use SaveAs format parameter
+                },
             }
 
             if self.app_type not in app_configs:
@@ -186,15 +217,35 @@ class ReferenceDocuments:
             # Use the session-wide application instance
             self.app = get_or_create_app(self.app_type)
 
-            # Create new document
-            self.doc = config["doc_method"](self.app)
-
-            # Create new document
-            print(f"Creating new {self.app_type} document...")
-            self.doc = config["doc_method"](self.app)
+            # Access handles document creation differently (must provide path upfront)
+            if self.app_type == "access":
+                print(f"Creating new {self.app_type} document...")
+                # Close any existing database first
+                try:
+                    self.app.CloseCurrentDatabase()
+                except Exception:
+                    pass  # Ignore if no database is open
+                config["doc_method"](self.app, self.path)
+                # Access doesn't return a document object, we work with CurrentDb
+                self.doc = None
+                
+                # Now that database is open, disable warnings
+                try:
+                    self.app.DoCmd.SetWarnings(False)
+                    print(f"Disabled Access warnings for open database")
+                except Exception as e:
+                    print(f"Warning: Could not disable Access database warnings: {e}")
+            else:
+                # Create new document
+                print(f"Creating new {self.app_type} document...")
+                self.doc = config["doc_method"](self.app)
 
             try:
-                vba_project = self.doc.VBProject
+                # Get VBA project (Access uses different property)
+                if self.app_type == "access":
+                    vba_project = self.app.VBE.ActiveVBProject
+                else:
+                    vba_project = self.doc.VBProject
 
                 # Add standard module with simple test code
                 module = vba_project.VBComponents.Add(1)  # 1 = standard module
@@ -227,7 +278,13 @@ class ReferenceDocuments:
                     "VBA project object model' is enabled in Trust Center Settings."
                 ) from ve
 
-            self.doc.SaveAs(str(self.path), config["save_format"])
+            # Save document (Access already created with path)
+            if self.app_type == "access":
+                # Access database already saved during NewCurrentDatabase
+                pass
+            else:
+                self.doc.SaveAs(str(self.path), config["save_format"])
+            
             print(f"Created and saved {self.app_type} document: {self.path}")
             return self.path
 
@@ -243,6 +300,12 @@ class ReferenceDocuments:
             except Exception:
                 pass
             self.doc = None
+        elif self.app_type == "access" and hasattr(self, "app") and self.app:
+            # Access doesn't have a doc object, close the database directly
+            try:
+                self.app.CloseCurrentDatabase()
+            except Exception:
+                pass
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         """Close the document but keep the application open."""
@@ -250,13 +313,20 @@ class ReferenceDocuments:
 
 
 @pytest.fixture
-def temp_office_doc(tmp_path, vba_app):
+def temp_office_doc(tmp_path, vba_app, request):
     """Fixture providing a temporary Office document for testing."""
     extension = OFFICE_MACRO_EXTENSIONS[vba_app]
-    doc_path = tmp_path / f"test_doc{extension}"
+    
+    # Use test node name to create unique filename for each test
+    test_name = request.node.name.replace("[", "_").replace("]", "").replace("::", "_")
+    doc_path = tmp_path / f"test_doc_{test_name}{extension}"
 
+    # Create document, then close it before yielding
     with ReferenceDocuments(doc_path, vba_app) as path:
-        yield path
+        pass  # Document is created and saved, will be closed on __exit__
+    
+    # Now yield the path to the closed document
+    yield doc_path
 
 
 class CLITester:

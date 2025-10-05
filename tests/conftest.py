@@ -9,7 +9,14 @@ def pytest_addoption(parser):
         "--apps",
         action="store",
         default="all",
-        help="Comma-separated list of apps to test (excel,word,access) or 'all' for all available apps",
+        help="Comma-separated list of apps to test (excel,word,access,powerpoint) or 'all' for all available apps",
+    )
+    parser.addoption(
+        "--include-access-interactive",
+        action="store_true",
+        default=False,
+        help="Include Access tests that require user interaction (clicking OK on Save As dialogs). "
+             "Without this flag, Access tests are skipped by default.",
     )
 
 
@@ -19,9 +26,11 @@ def pytest_configure(config):
         "excel: mark test as Excel-specific",
         "word: mark test as Word-specific",
         "access: mark test as Access-specific",
+        "powerpoint: mark test as PowerPoint-specific",
         "office: mark test as general Office test",
         "com: marks tests that require COM initialization",
         "integration: mark test as integration test",
+        "skip_access: skip Access variants of parameterized tests (requires user interaction)",
     ]
     for marker in markers:
         config.addinivalue_line("markers", marker)
@@ -36,10 +45,10 @@ def pytest_generate_tests(metafunc):
         # Get selected apps from command line
         apps_option = metafunc.config.getoption("--apps")
         if apps_option.lower() == "all":
-            selected_apps = ["excel", "word", "access"]
+            selected_apps = ["excel", "word", "access", "powerpoint"]
         else:
             selected_apps = [app.strip().lower() for app in apps_option.split(",")]
-            valid_apps = ["excel", "word", "access"]
+            valid_apps = ["excel", "word", "access", "powerpoint"]
             invalid_apps = [app for app in selected_apps if app not in valid_apps]
             if invalid_apps:
                 raise ValueError(f"Invalid apps: {invalid_apps}. Valid options: {valid_apps}")
@@ -49,15 +58,27 @@ def pytest_generate_tests(metafunc):
 
 
 def pytest_collection_modifyitems(config, items):
-    """Skip tests based on selected apps."""
+    """Skip tests based on selected apps and other markers."""
     apps_option = config.getoption("--apps")
+    include_access_interactive = config.getoption("--include-access-interactive")
+    
     if apps_option.lower() == "all":
-        return  # Don't skip anything
-
-    selected_apps = [app.strip().lower() for app in apps_option.split(",")]
+        selected_apps = ["excel", "word", "access", "powerpoint"]
+    else:
+        selected_apps = [app.strip().lower() for app in apps_option.split(",")]
 
     # Skip tests that don't match selected apps
     for item in items:
+        # Skip Access tests if they have the skip_access marker and flag is not set
+        if item.get_closest_marker("skip_access") and not include_access_interactive:
+            # Check if this is an Access test variant (via parametrization)
+            if hasattr(item, 'callspec') and 'vba_app' in item.callspec.params:
+                if item.callspec.params['vba_app'] == 'access':
+                    item.add_marker(pytest.mark.skip(
+                        reason="Access requires user interaction (use --include-access-interactive to enable)"
+                    ))
+                    continue
+        
         # Check if test has app-specific markers
         test_apps = []
         if item.get_closest_marker("excel"):
@@ -66,6 +87,8 @@ def pytest_collection_modifyitems(config, items):
             test_apps.append("word")
         if item.get_closest_marker("access"):
             test_apps.append("access")
+        if item.get_closest_marker("powerpoint"):
+            test_apps.append("powerpoint")
 
         # If test has app-specific markers and none match selected apps, skip it
         if test_apps and not any(app in selected_apps for app in test_apps):
@@ -85,11 +108,11 @@ def selected_apps(request):
     """Get the list of apps selected for testing."""
     apps_option = request.config.getoption("--apps")
     if apps_option.lower() == "all":
-        return ["excel", "word", "access"]
+        return ["excel", "word", "access", "powerpoint"]
     else:
         # Parse comma-separated list and validate
         apps = [app.strip().lower() for app in apps_option.split(",")]
-        valid_apps = ["excel", "word", "access"]
+        valid_apps = ["excel", "word", "access", "powerpoint"]
         invalid_apps = [app for app in apps if app not in valid_apps]
         if invalid_apps:
             raise ValueError(f"Invalid apps: {invalid_apps}. Valid options: {valid_apps}")
@@ -117,6 +140,13 @@ def access_only(request):
     return selected == ["access"]
 
 
+@pytest.fixture
+def powerpoint_only(request):
+    """Check if running in PowerPoint-only mode."""
+    selected = request.getfixturevalue("selected_apps")
+    return selected == ["powerpoint"]
+
+
 @pytest.fixture(scope="session", autouse=True)
 def cleanup_office_apps():
     """Clean up Office applications after all tests."""
@@ -124,7 +154,7 @@ def cleanup_office_apps():
 
     import warnings
 
-    for app_name in ["Word.Application", "Excel.Application"]:
+    for app_name in ["Word.Application", "Excel.Application", "PowerPoint.Application", "Access.Application"]:
         try:
             app = win32com.client.GetObject(Class=app_name)
             app.Quit()
