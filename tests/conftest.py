@@ -12,7 +12,8 @@ def pytest_addoption(parser):
         "--apps",
         action="store",
         default="all",
-        help="Comma-separated list of apps to test (excel,word,access,powerpoint) or 'all' for all available apps",
+        help="Comma-separated list of apps to test (excel,word,access,powerpoint) or 'all' for all available apps. "
+             "Note: Access is excluded from 'all' by default due to interactive requirements.",
     )
     parser.addoption(
         "--include-access-interactive",
@@ -47,14 +48,27 @@ def pytest_generate_tests(metafunc):
 
         # Get selected apps from command line
         apps_option = metafunc.config.getoption("--apps")
+        include_access_interactive = metafunc.config.getoption("--include-access-interactive")
+        
         if apps_option.lower() == "all":
-            selected_apps = ["excel", "word", "access", "powerpoint"]
+            # By default, exclude Access unless explicitly enabled via flag
+            if include_access_interactive:
+                selected_apps = ["excel", "word", "access", "powerpoint"]
+            else:
+                selected_apps = ["excel", "word", "powerpoint"]
         else:
             selected_apps = [app.strip().lower() for app in apps_option.split(",")]
             valid_apps = ["excel", "word", "access", "powerpoint"]
             invalid_apps = [app for app in selected_apps if app not in valid_apps]
             if invalid_apps:
                 raise ValueError(f"Invalid apps: {invalid_apps}. Valid options: {valid_apps}")
+            
+            # If Access is explicitly selected, require the interactive flag
+            if "access" in selected_apps and not include_access_interactive:
+                raise ValueError(
+                    "Access tests require user interaction. "
+                    "Please add --include-access-interactive flag to enable Access tests."
+                )
 
         apps = get_installed_apps(selected_apps=selected_apps)
         metafunc.parametrize("vba_app", apps, ids=lambda x: f"{x}-vba")
