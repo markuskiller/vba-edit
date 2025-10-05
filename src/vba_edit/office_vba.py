@@ -364,6 +364,7 @@ class VBAComponentHandler:
             Tuple of (header, code)
 
         Note:
+            Headers include VERSION, BEGIN/END blocks, and module-level Attribute VB_ lines.
             Only module-level attributes (VB_Name, VB_GlobalNameSpace, VB_Creatable,
             VB_PredeclaredId, VB_Exposed) are considered part of the header.
             Procedure-level attributes are considered part of the code.
@@ -372,20 +373,35 @@ class VBAComponentHandler:
             return "", ""
 
         lines = content.splitlines()
-        last_attr_idx = -1
+        last_header_idx = -1
+        in_begin_block = False
 
         for i, line in enumerate(lines):
             stripped = line.strip()
-            if stripped.startswith("Attribute VB_"):
-                last_attr_idx = i
-            elif last_attr_idx >= 0 and not stripped.startswith("Attribute VB_"):
+            
+            # Check for header components
+            if stripped.startswith("VERSION"):
+                last_header_idx = i
+            elif stripped == "BEGIN":
+                in_begin_block = True
+                last_header_idx = i
+            elif stripped == "END" and in_begin_block:
+                in_begin_block = False
+                last_header_idx = i
+            elif in_begin_block:
+                # Lines inside BEGIN/END block (like MultiUse)
+                last_header_idx = i
+            elif stripped.startswith("Attribute VB_"):
+                last_header_idx = i
+            elif last_header_idx >= 0 and not stripped.startswith("Attribute VB_"):
+                # First non-header line after we've seen headers
                 break
 
-        if last_attr_idx == -1:
+        if last_header_idx == -1:
             return "", content
 
-        header = "\n".join(lines[: last_attr_idx + 1])
-        code = "\n".join(lines[last_attr_idx + 1 :])
+        header = "\n".join(lines[: last_header_idx + 1])
+        code = "\n".join(lines[last_header_idx + 1 :])
 
         return header.strip(), code.strip()
 
@@ -1115,7 +1131,7 @@ class OfficeVBAHandler(ABC):
             if module_type == VBAModuleType.FORM or (module_type == VBAModuleType.CLASS and header):
                 logger.debug(f"Using full import for {module_type.name.lower()} with headers: {name}")
                 components.Remove(component)
-                self._import_via_temp_file(name, full_content, components, file_path.suffix)
+                self._import_via_temp_file(name, full_content, components, file_path.suffix, original_file=file_path)
             else:
                 # For standard modules or class modules without headers, just update content
                 logger.debug(f"Updating existing component: {name}")
@@ -1125,12 +1141,12 @@ class OfficeVBAHandler(ABC):
             # Component doesn't exist, create new
             if module_type == VBAModuleType.FORM or (module_type == VBAModuleType.CLASS and header):
                 logger.debug(f"Creating new {module_type.name.lower()} with headers via import: {name}")
-                self._import_via_temp_file(name, full_content, components, file_path.suffix)
+                self._import_via_temp_file(name, full_content, components, file_path.suffix, original_file=file_path)
             else:
                 logger.debug(f"Creating new component: {name}")
                 self._create_new_component(name, code, module_type, components)
 
-    def _import_via_temp_file(self, name: str, full_content: str, components: Any, file_extension: str = ".cls") -> None:
+    def _import_via_temp_file(self, name: str, full_content: str, components: Any, file_extension: str = ".cls", original_file: Path = None) -> None:
         """Import UserForm or Class module with headers using VBA's Import method.
 
         This method handles both UserForms and Class modules that have header attributes
@@ -1141,8 +1157,23 @@ class OfficeVBAHandler(ABC):
             full_content: Complete file content including headers
             components: VBA components collection
             file_extension: Original file extension (.frm, .cls, or .bas) - crucial for VBA to detect type!
+            original_file: Optional path to original file (to avoid temp file issues with UserForms)
         """
-        # Use original extension so VBA's Import detects the correct component type
+        # For UserForms with binary files (.frx), use the original file directly
+        # The temp file approach causes issues because:
+        # 1. Binary .frx files aren't copied
+        # 2. VBA Import uses VB_Name attribute, not filename
+        # 3. Temp files can cause naming conflicts
+        if original_file and file_extension == ".frm":
+            try:
+                logger.debug(f"Importing UserForm directly from original file: {original_file}")
+                components.Import(str(original_file))
+                logger.info(f"Imported UserForm with embedded headers: {name}")
+                return
+            except Exception as e:
+                logger.warning(f"Direct import failed for {name}, falling back to temp file: {e}")
+        
+        # Use temp file for class modules or as fallback
         temp_file = self.vba_dir / f"{name}_temp{file_extension}"
         try:
             # Write complete content to temp file
