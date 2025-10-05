@@ -1427,7 +1427,7 @@ class OfficeVBAHandler(ABC):
         try:
             logger.info(f"Watching for changes in {self.vba_dir}...")
             last_check_time = time.time()
-            check_interval = 30  # Check connection every 30 seconds
+            check_interval = 5  # Check connection every 5 seconds
 
             # Setup file patterns for watchfiles
             if self.use_rubberduck_folders:
@@ -1442,9 +1442,16 @@ class OfficeVBAHandler(ABC):
             # Define VBA file extensions we want to watch
             vba_extensions = {".bas", ".cls", ".frm"}
 
-            for changes in watch(watch_path, recursive=recursive):
+            # Use yield_on_timeout=True so watch yields even without file changes
+            # This allows us to check document state periodically
+            for changes in watch(
+                watch_path,
+                recursive=recursive,
+                rust_timeout=check_interval * 1000,  # Convert seconds to milliseconds
+                yield_on_timeout=True,
+            ):
                 try:
-                    # Check connection periodically
+                    # Check connection periodically (now triggered by timeout or changes)
                     current_time = time.time()
                     if current_time - last_check_time >= check_interval:
                         if not self.is_document_open():
