@@ -162,11 +162,10 @@ class TestSafetyFeaturesIntegration:
             "--save-headers"
         ])
         
-        # Check for .header files
+        # Check for .header files (may or may not exist depending on components)
+        # The test just verifies the option doesn't cause errors
         if vba_dir.exists():
-            header_files = list(vba_dir.glob("*.header"))
-            # May or may not have header files depending on components
-            # Just verify the option doesn't cause errors
+            _ = list(vba_dir.glob("*.header"))  # Check doesn't crash
 
     @pytest.mark.integration
     @pytest.mark.com
