@@ -3,6 +3,9 @@
 import pytest
 import win32com.client
 
+# Track which Office apps were actually used by tests (for safe cleanup)
+_office_apps_used = set()
+
 
 def pytest_addoption(parser):
     parser.addoption(
@@ -153,10 +156,74 @@ def cleanup_office_apps():
     yield
 
     import warnings
+    import subprocess
+    import time
 
     for app_name in ["Word.Application", "Excel.Application", "PowerPoint.Application", "Access.Application"]:
+        # Only force-kill if the app was actually used by tests
+        # This prevents data loss if tests were aborted by safety checks
+        if app_name not in _office_apps_used:
+            continue
+            
         try:
             app = win32com.client.GetObject(Class=app_name)
-            app.Quit()
+            # Suppress all alerts
+            app.DisplayAlerts = False
+            
+            # Mark all open documents/workbooks as saved to prevent prompts
+            try:
+                if hasattr(app, 'Workbooks'):  # Excel
+                    count = app.Workbooks.Count
+                    for i in range(count, 0, -1):
+                        try:
+                            app.Workbooks(i).Saved = True
+                        except:
+                            pass
+                elif hasattr(app, 'Documents'):  # Word
+                    count = app.Documents.Count
+                    for i in range(count, 0, -1):
+                        try:
+                            app.Documents(i).Saved = True
+                        except:
+                            pass
+            except:
+                pass
+            
+            # Try to quit gracefully with a timeout
+            try:
+                app.Quit()
+                time.sleep(0.3)  # Give it a moment to close
+            except:
+                pass
+                
         except Exception:
             pass  # Already closed - this is fine
+    
+    # Force kill any remaining Office processes (in case Quit() hung)
+    # Only kill processes for apps that were actually used by tests
+    time.sleep(0.2)
+    app_to_process = {
+        "Excel.Application": "EXCEL",
+        "Word.Application": "WINWORD",
+        "PowerPoint.Application": "POWERPNT",
+        "Access.Application": "MSACCESS"
+    }
+    
+    for app_name, process_name in app_to_process.items():
+        # Only force-kill if the app was used by tests
+        if app_name not in _office_apps_used:
+            continue
+            
+        try:
+            # Use /T to kill child processes too
+            result = subprocess.run(
+                ["taskkill", "/F", "/IM", f"{process_name}.EXE", "/T"], 
+                capture_output=True, 
+                timeout=1,
+                text=True
+            )
+            # Only print if process was actually killed (not "not found")
+            if result.returncode == 0:
+                print(f"Force-killed {process_name}")
+        except:
+            pass

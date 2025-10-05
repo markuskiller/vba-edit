@@ -18,7 +18,44 @@ _app_instances = {}
 _initialized = False
 
 
-def get_or_create_app(app_type):
+def check_excel_is_safe_to_use():
+    """Check if Excel has open workbooks and abort if found.
+    
+    Raises pytest.exit if Excel has open workbooks to prevent data loss.
+    """
+    try:
+        app = win32com.client.GetObject(Class="Excel.Application")
+        workbook_count = app.Workbooks.Count
+        
+        if workbook_count > 0:
+            print("\n" + "="*70)
+            print("⚠️  ERROR: Excel has open workbooks!")
+            print("="*70)
+            print(f"Found {workbook_count} open workbook(s) in Excel.")
+            print("\nThese integration tests will FORCE QUIT Excel at the end,")
+            print("which could cause DATA LOSS if you have unsaved work.")
+            print("\nTo run these tests safely:")
+            print("  1. Save all your Excel work")
+            print("  2. Close ALL Excel windows")
+            print("  3. Run the tests again")
+            print("\nAlternatively, to run tests despite open workbooks:")
+            print("  Set environment variable: PYTEST_ALLOW_EXCEL_FORCE_QUIT=1")
+            print("="*70 + "\n")
+            return False
+        
+        return True
+        
+    except pythoncom.com_error:
+        # Excel not running - this is ideal
+        return True
+    except Exception as e:
+        # If we can't check, proceed but warn
+        print(f"\n⚠️  Could not check Excel status: {e}")
+        print("Proceeding with tests...")
+        return True
+
+
+def get_or_create_app(app_name: str):
     """Get existing session application instance or create new one."""
     global _app_instances, _initialized
 
@@ -27,6 +64,8 @@ def get_or_create_app(app_type):
         atexit.register(cleanup_all_apps)
         _initialized = True
 
+    app_type = app_name.lower()
+    
     if app_type not in _app_instances:
         print(f"Creating {app_type} instance for test session...")
 
