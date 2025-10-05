@@ -152,7 +152,9 @@ def get_document_paths(
 
     # Resolve VBA directory
     if vba_dir:
-        vba_path = resolve_path(vba_dir, doc_path_resolved.parent)
+        # Resolve vba_dir relative to cwd, not doc_path parent
+        # This prevents path doubling when vba_dir contains relative paths
+        vba_path = resolve_path(vba_dir)
     else:
         vba_path = doc_path_resolved.parent
 
