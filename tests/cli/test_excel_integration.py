@@ -18,6 +18,7 @@ import pytest
 import win32com.client
 
 from vba_edit.exceptions import VBAError
+from vba_edit.office_vba import VBADocumentNames
 from .helpers import CLITester, get_or_create_app
 
 
@@ -1039,17 +1040,17 @@ End Sub
         vb_project = wb.VBProject
         # Get the ThisWorkbook document module
         # In Excel, document modules have Type = 100 (vbext_ct_Document)
-        # Note: In German Excel, ThisWorkbook is called "DieseArbeitsmappe"
+        # Note: Name varies by Excel language (ThisWorkbook, DieseArbeitsmappe, CeClasseur, etc.)
         doc_module = None
         for component in vb_project.VBComponents:
             if component.Type == 100:  # vbext_ct_Document
-                # Look for ThisWorkbook or DieseArbeitsmappe (German)
-                if "ThisWorkbook" in component.Name or "DieseArbeitsmappe" in component.Name:
+                # Use VBADocumentNames to detect workbook module in any language
+                if VBADocumentNames.is_document_module(component.Name) and component.Name in VBADocumentNames.EXCEL_WORKBOOK_NAMES:
                     doc_module = component
                     print(f"Found workbook document module: {component.Name}")
                     break
         
-        assert doc_module is not None, f"Could not find ThisWorkbook/DieseArbeitsmappe module. VBComponents: {[c.Name for c in vb_project.VBComponents]}"
+        assert doc_module is not None, f"Could not find ThisWorkbook/DieseArbeitsmappe/etc. module. VBComponents: {[c.Name for c in vb_project.VBComponents]}"
         
         # Add test code to ThisWorkbook
         code_module = doc_module.CodeModule
