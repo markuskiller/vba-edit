@@ -29,11 +29,10 @@ class TestExcelDataFidelity:
     def excel_app(self):
         """Get Excel application instance.
         
-        Safety check: Aborts if Excel has open workbooks (data loss prevention).
+        Safety check: Skips tests if Excel has open workbooks (data loss prevention).
         Override with environment variable: PYTEST_ALLOW_EXCEL_FORCE_QUIT=1
         """
         import os
-        import tests.conftest
         from .helpers import check_excel_is_safe_to_use
         
         # Check environment variable override
@@ -41,17 +40,14 @@ class TestExcelDataFidelity:
         
         if not allow_force_quit:
             # Check if it's safe to proceed
-            if not check_excel_is_safe_to_use():
-                pytest.exit(
-                    "Tests aborted - Excel has open workbooks. "
-                    "Close Excel and try again, or set PYTEST_ALLOW_EXCEL_FORCE_QUIT=1",
-                    returncode=1
+            is_safe, message = check_excel_is_safe_to_use()
+            if not is_safe:
+                pytest.skip(
+                    "Excel integration tests skipped - Excel has open workbooks. "
+                    "Close Excel and try again, or set PYTEST_ALLOW_EXCEL_FORCE_QUIT=1"
                 )
         
         app = get_or_create_app("excel")
-        
-        # Mark Excel as used by tests - cleanup can proceed
-        tests.conftest._office_apps_used.add('Excel.Application')
         
         return app
 
@@ -1201,7 +1197,7 @@ End Sub
         try:
             vb_project.VBComponents("TestForm")
             assert False, "UserForm should have been removed"
-        except:
+        except Exception:
             pass  # Expected - component doesn't exist
         
         # Import with modified header
@@ -1325,7 +1321,7 @@ End Sub
         try:
             vb_project.VBComponents("TestForm")
             assert False, "UserForm should have been removed"
-        except:
+        except Exception:
             pass  # Expected - component doesn't exist
         
         # Import with modified embedded headers

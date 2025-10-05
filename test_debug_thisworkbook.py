@@ -13,4 +13,4 @@ print(f"Is document module: {VBADocumentNames.is_document_module(test_file.stem)
 
 module_type = handler.get_module_type(test_file, in_file_headers=True, encoding='cp1252')
 print(f"Detected module type: {module_type}")
-print(f"Expected: VBAModuleType.DOCUMENT")
+print("Expected: VBAModuleType.DOCUMENT")

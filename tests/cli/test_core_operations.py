@@ -258,10 +258,8 @@ class TestCoreUserFormHandling:
     def test_userform_with_inline_headers_roundtrip(self, vba_app, tmp_path):
         """Test UserForm export and import with --in-file-headers preserves headers."""
         if vba_app not in ["excel", "word"]:
-            pytest.skip(f"UserForm roundtrip test focused on Excel and Word")
-        
-        cli = CLITester(f"{vba_app}-vba")
-        
+            pytest.skip("UserForm roundtrip test focused on Excel and Word")
+
         # This test verifies the complete roundtrip:
         # 1. Export UserForm with headers
         # 2. Verify headers are in the file

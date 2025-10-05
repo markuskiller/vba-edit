@@ -1,6 +1,7 @@
 """Test helpers for CLI interface testing."""
 
 import atexit
+import os
 import subprocess
 import time
 from pathlib import Path
@@ -18,41 +19,98 @@ _app_instances = {}
 _initialized = False
 
 
-def check_excel_is_safe_to_use():
-    """Check if Excel has open workbooks and abort if found.
+def check_office_apps_are_safe_to_use():
+    """Check if Office applications (Excel, Word, PowerPoint) are running.
     
-    Raises pytest.exit if Excel has open workbooks to prevent data loss.
+    Even apps running with 0 open documents are considered unsafe because:
+    1. Tests will create documents in these apps
+    2. Those documents might not get cleaned up properly
+    3. Force-killing the app at test end loses any test-created documents
+    
+    Returns:
+        tuple: (is_safe: bool, message: str) - whether it's safe to proceed and a message
     """
+    # Check if override is set
+    if os.environ.get('PYTEST_ALLOW_OFFICE_FORCE_QUIT') == '1':
+        return True, "Safety check overridden by PYTEST_ALLOW_OFFICE_FORCE_QUIT=1"
+    
+    running_apps = []
+    app_documents = {}
+    
+    # Check Excel
     try:
         app = win32com.client.GetObject(Class="Excel.Application")
-        workbook_count = app.Workbooks.Count
-        
-        if workbook_count > 0:
-            print("\n" + "="*70)
-            print("⚠️  ERROR: Excel has open workbooks!")
-            print("="*70)
-            print(f"Found {workbook_count} open workbook(s) in Excel.")
-            print("\nThese integration tests will FORCE QUIT Excel at the end,")
-            print("which could cause DATA LOSS if you have unsaved work.")
-            print("\nTo run these tests safely:")
-            print("  1. Save all your Excel work")
-            print("  2. Close ALL Excel windows")
-            print("  3. Run the tests again")
-            print("\nAlternatively, to run tests despite open workbooks:")
-            print("  Set environment variable: PYTEST_ALLOW_EXCEL_FORCE_QUIT=1")
-            print("="*70 + "\n")
-            return False
-        
-        return True
-        
+        count = app.Workbooks.Count
+        running_apps.append("Excel")
+        app_documents["Excel"] = count
     except pythoncom.com_error:
-        # Excel not running - this is ideal
-        return True
-    except Exception as e:
-        # If we can't check, proceed but warn
-        print(f"\n⚠️  Could not check Excel status: {e}")
-        print("Proceeding with tests...")
-        return True
+        pass  # Not running - safe
+    except Exception:
+        pass  # Can't check - proceed
+    
+    # Check Word
+    try:
+        app = win32com.client.GetObject(Class="Word.Application")
+        count = app.Documents.Count
+        running_apps.append("Word")
+        app_documents["Word"] = count
+    except pythoncom.com_error:
+        pass  # Not running - safe
+    except Exception:
+        pass  # Can't check - proceed
+    
+    # Check PowerPoint
+    try:
+        app = win32com.client.GetObject(Class="PowerPoint.Application")
+        count = app.Presentations.Count
+        running_apps.append("PowerPoint")
+        app_documents["PowerPoint"] = count
+    except pythoncom.com_error:
+        pass  # Not running - safe
+    except Exception:
+        pass  # Can't check - proceed
+    
+    # If any Office apps are running, it's unsafe (even with 0 documents)
+    if running_apps:
+        message = (
+            f"\n{'='*70}\n"
+            f"⚠️  WARNING: Office applications are running!\n"
+            f"{'='*70}\n"
+        )
+        for app_name in running_apps:
+            doc_count = app_documents.get(app_name, 0)
+            if doc_count > 0:
+                message += f"  • {app_name} is running with {doc_count} open document(s)\n"
+            else:
+                message += f"  • {app_name} is running (no documents currently open)\n"
+        message += (
+            f"\n⚠️  Even apps with 0 documents are unsafe because:\n"
+            f"   - Tests will create documents in these running apps\n"
+            f"   - Those test documents might not get cleaned up\n"
+            f"   - Force-quit at test end will lose any test-created work\n\n"
+            f"These integration tests will FORCE QUIT Office apps at the end,\n"
+            f"which could cause DATA LOSS if you have unsaved work.\n\n"
+            f"To run these tests safely:\n"
+            f"  1. Save all your Office documents\n"
+            f"  2. Close ALL Office windows completely (Excel, Word, PowerPoint)\n"
+            f"  3. Make sure no Office apps are in the taskbar\n"
+            f"  4. Run the tests again\n\n"
+            f"To override this check:\n"
+            f"  Set environment variable: PYTEST_ALLOW_OFFICE_FORCE_QUIT=1\n"
+            f"{'='*70}\n"
+        )
+        return False, message
+    
+    return True, "All Office applications are closed (safe to run tests)"
+
+
+def check_excel_is_safe_to_use():
+    """Legacy function for Excel-specific checks. Calls the comprehensive check.
+    
+    Returns:
+        tuple: (is_safe: bool, message: str) - whether it's safe to proceed and a message
+    """
+    return check_office_apps_are_safe_to_use()
 
 
 def get_or_create_app(app_name: str):
@@ -66,39 +124,44 @@ def get_or_create_app(app_name: str):
 
     app_type = app_name.lower()
     
-    if app_type not in _app_instances:
-        print(f"Creating {app_type} instance for test session...")
+    # Check if we have a cached instance
+    if app_type in _app_instances:
+        print(f"Reusing existing {app_type} instance for test session...")
+        return _app_instances[app_type]
+    
+    # Create new instance
+    print(f"Creating {app_type} instance for test session...")
 
-        # Application configurations
-        app_configs = {
-            "excel": "Excel.Application",
-            "word": "Word.Application",
-            "powerpoint": "PowerPoint.Application",
-            "access": "Access.Application",
-        }
+    # Application configurations
+    app_configs = {
+        "excel": "Excel.Application",
+        "word": "Word.Application",
+        "powerpoint": "PowerPoint.Application",
+        "access": "Access.Application",
+    }
 
-        if app_type not in app_configs:
-            raise ValueError(f"Unsupported application type: {app_type}")
+    if app_type not in app_configs:
+        raise ValueError(f"Unsupported application type: {app_type}")
 
-        try:
-            # Initialize COM
-            pythoncom.CoInitialize()
+    try:
+        # Initialize COM
+        pythoncom.CoInitialize()
 
-            # Create application instance
-            app = win32com.client.Dispatch(app_configs[app_type])
+        # Create application instance
+        app = win32com.client.Dispatch(app_configs[app_type])
 
-            # Wait for application to be ready
-            _wait_for_app_ready(app, app_type)
+        # Wait for application to be ready
+        _wait_for_app_ready(app, app_type)
 
-            # Configure application
-            _configure_app(app, app_type)
+        # Configure application
+        _configure_app(app, app_type)
 
-            _app_instances[app_type] = app
-            print(f"{app_type.title()} instance ready for testing")
+        _app_instances[app_type] = app
+        print(f"{app_type.title()} instance ready for testing")
 
-        except Exception as e:
-            print(f"Failed to create {app_type} instance: {e}")
-            raise
+    except Exception as e:
+        print(f"Failed to create {app_type} instance: {e}")
+        raise
 
     return _app_instances[app_type]
 
@@ -152,7 +215,7 @@ def _configure_app(app, app_type):
         try:
             # msoAutomationSecurityLow = 1
             app.AutomationSecurity = 1
-            print(f"Set Access AutomationSecurity to Low for testing")
+            print("Set Access AutomationSecurity to Low for testing")
         except Exception as e:
             print(f"Warning: Could not set Access AutomationSecurity: {e}")
 
@@ -271,7 +334,7 @@ class ReferenceDocuments:
                 # Now that database is open, disable warnings
                 try:
                     self.app.DoCmd.SetWarnings(False)
-                    print(f"Disabled Access warnings for open database")
+                    print("Disabled Access warnings for open database")
                 except Exception as e:
                     print(f"Warning: Could not disable Access database warnings: {e}")
             else:
@@ -361,7 +424,7 @@ def temp_office_doc(tmp_path, vba_app, request):
     doc_path = tmp_path / f"test_doc_{test_name}{extension}"
 
     # Create document, then close it before yielding
-    with ReferenceDocuments(doc_path, vba_app) as path:
+    with ReferenceDocuments(doc_path, vba_app) as _:
         pass  # Document is created and saved, will be closed on __exit__
     
     # Now yield the path to the closed document
