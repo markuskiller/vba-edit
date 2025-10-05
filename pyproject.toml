@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "vba_edit"
-version = "0.4.0-rc1"
+version = "0.4.0-rc2"
 description = "Enable seamless MS Office VBA code editing in preferred editor or IDE (facilitating the use of coding assistants and version control workflows)"
 authors = [{ name = "Markus Killer", email = "m.killer@langui.ch" }]
 readme = "README.md"
@@ -38,6 +38,7 @@ dev = [
     "ruff",
     "pytest",
     "pytest-cov>=4.0.0",
+    "pytest-timeout>=2.0.0",
     "twine",
     "wheel",
     "pyinstaller",
@@ -122,6 +123,8 @@ ignore_missing_imports = true
 minversion = "7.0"
 addopts = "-ra -q --strict-markers --strict-config"
 testpaths = ["tests"]
+timeout = 5
+timeout_method = "thread"
 filterwarnings = [
     "error",
     "ignore::UserWarning",
@@ -133,6 +136,7 @@ markers = [
     "slow: marks tests as slow (deselect with '-m \"not slow\"')",
     "integration: marks tests as integration tests",
     "unit: marks tests as unit tests",
+    "timeout: override default timeout for specific tests",
 ]
 
 # Coverage Configuration
