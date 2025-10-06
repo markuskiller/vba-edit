@@ -23,8 +23,7 @@ excel-vba edit    # or word-vba edit
 
 ## How It Works
 
-```text
-
+<pre>
                          ←── vba-edit ──→
 
 Excel / Word                 COMMANDS            Your favourite
@@ -48,7 +47,7 @@ PowerPoint / Access              ↓                   Editor
    VBA-Editor live                            │                  │
    on save [CTRL+S]                           │                  │
                                               └──────────────────┘
-```
+</pre>
 
 ## Why vba-edit?
 
