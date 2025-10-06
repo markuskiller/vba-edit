@@ -5,40 +5,65 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.4.0-rc4] - 2025-10-06
 
 ### Added
+- new option `--in-file-headers`: embedding VBA headers in code files ([@onderhold](https://github.com/onderhold))
+- new option `--rubberduck-folders`: support for RubberduckVBA-style `@Folder` annotations and folder organization ([Issue #9](https://github.com/markuskiller/vba-edit/issues/9)) ([@onderhold](https://github.com/onderhold))
+- new option `--conf`: support for config files  ([@onderhold](https://github.com/onderhold))
+- new option `--force-overwrite`: skip safety prompts for automated exports (CI/CD friendly)
+- Automatic warnings before overwriting existing VBA files
+- Detection and warning when header storage mode changes between exports
+- Automatic cleanup of orphaned `.header` files when switching modes
+- Enhanced UserForm validation - prevents export without proper header handling (`--in-file-headers` or `--save-headers`)
+- Better support for VBA class modules with custom attributes ([@onderhold](https://github.com/onderhold))
+- Enhanced `VB_PredeclaredId` handling for class modules ([@onderhold](https://github.com/onderhold))
+- Support for macro-enabled MS PowerPoint documents
+- `check all` subcommand for cli entry points, which processes all suported MS Office apps in a single call (replaces calling `python -m vba_edit.utils`)
+- Option to show program's version number and exit added to all cli interfaces (`--version`)
+- Metadata tracking: exports now save `header_mode` to detect configuration changes between runs
+- **Build**: Added version file generation support to `create_binaries.py` for Windows executables
 
-- 
-<!-- ### Changed -->
-<!-- -  -->
+### Changed
+- Improved version control compatibility with embedded headers ([@onderhold](https://github.com/onderhold))
+- Streamlined project setup by extending pyproject.toml and .gitignore, while reducing requirements.txt to the bare minimum that VS Code needs. Thus setup.cfg became superfluous. ([@onderhold](https://github.com/onderhold))
+- Some refactoring: handling common cli options now in separate module cli_common.py ([@onderhold](https://github.com/onderhold))
+- Refactored warning handling logic into centralized helper function (`handle_export_with_warnings()` in `cli_common.py`)
+- Core logic (`office_vba.py`) now raises `VBAExportWarning` exceptions instead of handling user interaction
+- CLI layer handles all user prompts via shared helper, eliminating code duplication across entry points
+- **[Issue #14](https://github.com/markuskiller/vba-edit/issues/14)**: The watchgod library is no longer actively developed and has been superseded by watchfiles. Consider The dependency has been replaced with watchfiles ([@onderhold](https://github.com/onderhold))
 
 ### Fixed
+- **[Issue #16](https://github.com/markuskiller/vba-edit/issues/16)**: Hidden member attributes (VB_VarHelpID, VB_VarDescription, VB_UserMemId) no longer appear in VBA editor after import. These attributes are legal in exported VBA files but cause syntax errors when written directly into modules. Solution: filter all member-level Attribute lines from code sections before calling AddFromString(). (Reported by [@takutta](https://github.com/takutta), [@loehnertj](https://github.com/loehnertj))
+- **[Issue #11](https://github.com/markuskiller/vba-edit/issues/11)**: Verified `--in-file-headers` feature works correctly for LSP tool compatibility (VBA Pro extension support)
+- **UserForm parsing**: Fixed case-sensitive BEGIN block matching - now handles both "BEGIN" (class modules) and "Begin {GUID} FormName" (UserForms) correctly
+- fix check for form safety on `export` (if edit command is run without `--save-headers` option, forms cannot be processed correctly -> check for forms and abort if `--save-headers` is not enabled)
+- fix header file handling (`--save-headers`) in already populated `--vba-directory` (only 1 header file was created rather than one per *.cls, *.bas or *.frm file) - calling it on empty `--vba-directory` worked as expected
+- `--in-file-headers` validation now correctly allows UserForm exports (was incorrectly rejected even when flag was set)
+- Boolean logic error in `_check_form_safety()` that caused false rejections
 
-- 
+### Data loss prevention
+- Export operations now require explicit user confirmation when:
+  - Overwriting existing VBA files (prevents accidental data loss)
+  - Changing header storage modes (prevents configuration drift and orphaned files)
+- Confirmation prompts can be bypassed with `--force-overwrite` flag for automation or for backward compatibility scenarios with `vba-edit<0.4.0` or `xlwings vba edit`
 
-<!-- -  -->
-<!-- ### Removed -->
-<!-- -  -->
-<!-- ### Security -->
-<!-- -  -->
-
-## [0.3.0]
+## [0.3.0] - 2025-01-19
 
 ### Added
 
 - new command ``check``: e.g. ``word-vba check`` detects if 'Trust Access to Word VBA project object model' is enabled (available for all entry points)
 - ACCESS: basic support for MS Access databases (standard modules ``*.bas`` and class modules ``*.cls`` are supported)
-- ``--save-headers`` command-line option, supporting a comprehensive handling of headers (Issue #11)
+- ``--save-headers`` command-line option, supporting a comprehensive handling of headers ([Issue #11](https://github.com/markuskiller/vba-edit/issues/11))
 - new files created in ``--vba-directory`` are now automatically synced back to MS Office VBA editor in ``*-vba edit`` mode (previously, only file deletions were monitored and synced)
 - better tests for utils.py and office_vba.py
 
 ### Fixed
 
-- Bug Fix for Issue #10: Different VBA types are now properly recognised and minimal header sections generated before importing code back into the MS Office VBA editor ensures correct placement of 'Document modules' and 'Class modules' which are all exported as ``.cls`` files. (thanks to @takutta for testing and reporting)
+- Bug Fix for [Issue #10](https://github.com/markuskiller/vba-edit/issues/10): Different VBA types are now properly recognised and minimal header sections generated before importing code back into the MS Office VBA editor ensures correct placement of 'Document modules' and 'Class modules' which are all exported as ``.cls`` files. (thanks to [@takutta](https://github.com/takutta) for testing and reporting)
 - In previous versions ``.frm`` were exported and code could be edited, however, when imported back to MS Office VBA editor, forms were not processed correctly due to a lack of header handling
 
-## [0.2.1]
+## [0.2.1] - 2024-12-09
 
 ### Fixed
 
@@ -47,7 +72,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - WORD & EXCEL: when files are deleted from ``--vba-directory`` in ``edit`` mode those files are now also deleted in VBA editor of the respective office application (which aligns with ``xlwings vba edit`` implementation)
 - improved credit to original ``xlwings`` project by adding an inline comment closer to OfficeVBAHandler, which contains the core VBA interaction logic that was inspired by ``xlwings``
 
-## [0.2.0]
+## [0.2.0] - 2024-12-08
 
 ### Added
 

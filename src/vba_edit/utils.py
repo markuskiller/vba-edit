@@ -5,7 +5,7 @@ import os
 import sys
 from functools import wraps
 from pathlib import Path
-from typing import Dict, Callable, Optional, Tuple
+from typing import Callable, Dict, Optional, Tuple
 
 import chardet
 import pywintypes
@@ -26,6 +26,38 @@ from vba_edit.path_utils import resolve_path
 
 # Configure module logger
 logger = logging.getLogger(__name__)
+
+
+def confirm_action(message: str, default: bool = False) -> bool:
+    """Prompt user for yes/no confirmation.
+
+    Args:
+        message: The confirmation message to display
+        default: Default answer if user just presses Enter (True=yes, False=no)
+
+    Returns:
+        bool: True if user confirms, False otherwise
+    """
+    suffix = " [Y/n]: " if default else " [y/N]: "
+    prompt = message + suffix
+
+    while True:
+        try:
+            response = input(prompt).strip().lower()
+
+            if not response:  # User pressed Enter
+                return default
+
+            if response in ("y", "yes"):
+                return True
+            elif response in ("n", "no"):
+                return False
+            else:
+                print("Please enter 'y' or 'n'")
+
+        except (EOFError, KeyboardInterrupt):
+            print()  # New line after ^C
+            return False
 
 
 def setup_logging(verbose: bool = False, logfile: Optional[str] = None) -> None:
@@ -372,6 +404,24 @@ def get_active_office_document(app_type: str) -> str:
                 raise ApplicationError("No Access database is currently open")
             return getattr(active_doc, active_doc_property)
 
+        elif app_type == "powerpoint":
+            if not app.Windows.Count:
+                raise ApplicationError("No PowerPoint presentation is currently open")
+
+            # Get underlying presentation even if in slideshow mode
+            if app.SlideShowWindows.Count > 0:
+                active_doc = app.SlideShowWindows(1).View.Presentation
+            else:
+                active_window = app.ActiveWindow
+                if not active_window:
+                    raise ApplicationError("No active PowerPoint window found")
+                active_doc = active_window.Presentation
+
+            if not active_doc:
+                raise ApplicationError("Could not get active PowerPoint presentation")
+
+            return active_doc.FullName
+
         # Handle Word, Excel, and PowerPoint
         collection = getattr(app, collection_name)
         if not collection.Count:
@@ -680,7 +730,7 @@ def check_office_app(app: OfficeApp) -> None:
                 )
 
         else:
-            logger.info("--> VBA project model access is enabled (no furhter action needed)")
+            logger.info("--> VBA project model access is enabled (no further action needed)")
     except Exception as e:
         logger.warning(f"Failed to check {app.app_name}: {e}")
     finally:
@@ -690,7 +740,7 @@ def check_office_app(app: OfficeApp) -> None:
 def check_vba_trust_access(app_name: Optional[str] = None) -> None:
     if not app_name:
         app_name = "Office applications"
-    logger.info(f"Checking VBA Trust Access errors for MS {app_name} ...")
+    logger.info(f"Checking VBA Trust Access errors for MS {app_name.title()} ...")
     logger.debug(
         f"If Trust Access is disabled, this command can be used to extract the MS {app_name.title()} error messages for debugging purposes."
     )

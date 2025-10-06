@@ -1,18 +1,17 @@
 [build-system]
-requires = ["setuptools", "wheel"]
+requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "vba_edit"                     
-version = "0.3.0"                     
+name = "vba_edit"
+version = "0.4.0-rc4"
 description = "Enable seamless MS Office VBA code editing in preferred editor or IDE (facilitating the use of coding assistants and version control workflows)"
-authors = [
-    {name = "Markus Killer", email = "m.killer@langui.ch"}
-]
-readme = "README.rst"                  
-requires-python = ">=3.9"             # Minimum Python version
-license = {file = "LICENSE"}          
-keywords = ["VBA", "Word", "PyPI"]
+authors = [{ name = "Markus Killer", email = "m.killer@langui.ch" }]
+readme = "README.md"
+requires-python = ">=3.9" # Minimum Python version
+license = "BSD-3-Clause"
+license-files = ["LICENSE", "LICENSES/*.txt", "AUTHORS.md"]
+keywords = ["vba", "excel", "word", "office", "automation", "macro", "PyPI"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
@@ -23,36 +22,40 @@ classifiers = [
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
     "Programming Language :: Python :: Implementation :: CPython",
-    "License :: OSI Approved :: BSD License",
     "Operating System :: Microsoft :: Windows",
     "Topic :: Office/Business :: Office Suites",
 ]
-dependencies = ["chardet", "pywin32 >= 224;platform_system=='Windows'" ,"watchgod"]               # Required dependencies
+dependencies = [
+    "chardet",
+    "pywin32 >= 224;platform_system=='Windows'",
+    "watchfiles",                                # replaced watchgod
+    "tomli>=2.0.0; python_version < '3.11'",
+]
 
 [project.optional-dependencies]
 dev = [
     "black",
-    "bumpver",
     "ruff",
     "pytest",
-    "pytest-cov",
+    "pytest-cov>=4.0.0",
+    "pytest-timeout>=2.0.0",
     "twine",
     "wheel",
     "pyinstaller",
 ]
-all = [
-    "xlwings",
-    
-]
+all = ["xlwings>=0.28.0"]
 
-[package]
-include = ["vba_edit", "src", "vba_edit.*"]
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-dir]
+"" = "src"
 
 [project.scripts]
-word-vba =  "vba_edit.word_vba:main"
+word-vba = "vba_edit.word_vba:main"
 excel-vba = "vba_edit.excel_vba:main"
 access-vba = "vba_edit.access_vba:main"
-#powerpoint-vba = "vba_edit.powerpoint_vba:main"
+powerpoint-vba = "vba_edit.powerpoint_vba:main"
 
 
 [project.urls]
@@ -63,36 +66,109 @@ Changelog = "https://github.com/markuskiller/vba-edit/blob/main/CHANGELOG.md"
 
 [tool.black]
 line-length = 120
-target-version = ['py312']  # Target Python version
+target-version = ['py313'] # Target Python version
 
 [tool.ruff]
 line-length = 120
-target-version = 'py312'
+target-version = 'py313'
 fix = true
 show-fixes = true
 respect-gitignore = true
 src = ["src", "vba_edit", "tests"]
+
+[tool.ruff.lint]
+ignore = [] # Remove F401
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/conftest.py" = ["F401", "E402"]
+"tests/**/helpers.py" = ["F401"]
+"tests/**/test_*.py" = [
+    "F401",
+    "F811",
+] # Allow fixture imports in all test files
 
 [tool.isort]
 profile = "black"
 line_length = 120
 src_paths = ["src", "vba_edit", "tests"]
 
-[tool.bumpver]
-current_version = "0.1.0"
-version_pattern = "MAJOR.MINOR.PATCH"
-commit_message  = "bump version {old_version} -> {new_version}"
-commit          = true
-tag             = false
-push            = false
 
-[tool.bumpver.file_patterns]
-    "pyproject.toml" = [
-        'current_version = "{version}"',
-        'version = "{version}"',
-    ]
-    "src/vba_edit/__init__.py" = ["{version}"]
-    "setup.cfg" = ['version = {version}']
-    
+# MyPy Type Checker Configuration
+[tool.mypy]
+python_version = "3.8"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+check_untyped_defs = true
+disallow_untyped_decorators = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_no_return = true
+warn_unreachable = true
+strict_equality = true
 
+[[tool.mypy.overrides]]
+module = [
+    "win32com.*",
+    "pythoncom.*",
+    "pywintypes.*",
+    "watchfiles.*", # replaced watchgod
+]
+ignore_missing_imports = true
 
+# Pytest Configuration
+[tool.pytest.ini_options]
+minversion = "7.0"
+addopts = "-ra -q --strict-markers --strict-config"
+testpaths = ["tests"]
+timeout = 5
+timeout_method = "thread"
+filterwarnings = [
+    "error",
+    "ignore::UserWarning",
+    "ignore::DeprecationWarning",
+    "ignore:.*Could not close.*:Warning", # does not suppress the warning (kept for reference)
+    "ignore:.*Could not quit.*:Warning",  # does not suppress the warning (kept for reference)
+]
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "integration: marks tests as integration tests",
+    "unit: marks tests as unit tests",
+    "timeout: override default timeout for specific tests",
+]
+
+# Coverage Configuration
+[tool.coverage.run]
+source = ["src"]
+omit = ["*/tests/*", "*/test_*", "*/conftest.py"]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "if self.debug:",
+    "if settings.DEBUG",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if 0:",
+    "if __name__ == .__main__.:",
+    "class .*\\(Protocol\\):",
+    "@(abc\\.)?abstractmethod",
+]
+
+# Flake8 Configuration (in pyproject.toml format for compatibility)
+[tool.flake8]
+max-line-length = 120
+extend-ignore = ["E203", "W503"]
+exclude = [
+    ".git",
+    "__pycache__",
+    "build",
+    "dist",
+    ".eggs",
+    "*.egg-info",
+    ".venv",
+    ".env",
+]

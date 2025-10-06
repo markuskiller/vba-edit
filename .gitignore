@@ -1,3 +1,6 @@
+# personal workarea / scratch
+_workbench/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
@@ -8,6 +11,18 @@ __pycache__/
 
 # macOS metadata
 .DS_Store
+
+# temporarily ignore docs
+docs/*
+
+# Windows metadata
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Temporary files
+*.tmp
+*.temp
 
 # VBA export files
 *.bas
@@ -36,6 +51,7 @@ share/python-wheels/
 .installed.cfg
 *.egg
 MANIFEST
+uv.lock
 
 # PyInstaller
 #  Usually these files are written by a python script from a template
@@ -61,6 +77,12 @@ coverage.xml
 .hypothesis/
 .pytest_cache/
 cover/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
 
 # Translations
 *.mo
@@ -132,11 +154,11 @@ celerybeat.pid
 
 # Environments
 .env
-.venv
 env/
-venv/
 ENV/
 env.bak/
+venv/
+.venv/
 venv.bak/
 
 # Spyder project settings

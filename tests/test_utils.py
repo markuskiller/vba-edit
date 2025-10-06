@@ -9,7 +9,7 @@ from pywintypes import com_error as COM_ERROR
 
 from vba_edit.exceptions import DocumentNotFoundError, EncodingError
 from vba_edit.path_utils import get_document_paths
-from vba_edit.utils import detect_vba_encoding, is_office_app_installed, VBAFileChangeHandler
+from vba_edit.utils import VBAFileChangeHandler, detect_vba_encoding, is_office_app_installed
 
 
 def test_get_document_paths(tmp_path):
@@ -95,3 +95,109 @@ def test_detect_vba_encoding_edge_cases():
         test_file.write_bytes(b"\x00\x01\x02\x03")
         encoding, confidence = detect_vba_encoding(str(test_file))
         assert encoding is not None
+
+
+class TestConfirmAction:
+    """Tests for confirm_action utility function."""
+
+    def test_confirm_action_yes_responses(self):
+        """Test that various 'yes' responses are accepted."""
+        from vba_edit.utils import confirm_action
+
+        # Test different yes variations
+        yes_inputs = ["y", "Y", "yes", "YES", "Yes"]
+
+        for yes_input in yes_inputs:
+            with patch("builtins.input", return_value=yes_input):
+                result = confirm_action("Test question?", default=False)
+                assert result is True
+
+    def test_confirm_action_no_responses(self):
+        """Test that various 'no' responses are rejected."""
+        from vba_edit.utils import confirm_action
+
+        # Test different no variations
+        no_inputs = ["n", "N", "no", "NO", "No"]
+
+        for no_input in no_inputs:
+            with patch("builtins.input", return_value=no_input):
+                result = confirm_action("Test question?", default=True)
+                assert result is False
+
+    def test_confirm_action_default_true(self):
+        """Test that default=True is returned on empty input."""
+        from vba_edit.utils import confirm_action
+
+        with patch("builtins.input", return_value=""):
+            result = confirm_action("Test question?", default=True)
+            assert result is True
+
+    def test_confirm_action_default_false(self):
+        """Test that default=False is returned on empty input."""
+        from vba_edit.utils import confirm_action
+
+        with patch("builtins.input", return_value=""):
+            result = confirm_action("Test question?", default=False)
+            assert result is False
+
+    def test_confirm_action_invalid_input_retries(self):
+        """Test that invalid input causes retry until valid input."""
+        from vba_edit.utils import confirm_action
+
+        # First two inputs invalid, third is valid
+        with patch("builtins.input", side_effect=["invalid", "maybe", "y"]):
+            result = confirm_action("Test question?", default=False)
+            assert result is True
+
+    def test_confirm_action_whitespace_handling(self):
+        """Test that whitespace is handled correctly."""
+        from vba_edit.utils import confirm_action
+
+        # Test with whitespace
+        with patch("builtins.input", return_value="  yes  "):
+            result = confirm_action("Test question?", default=False)
+            assert result is True
+
+        with patch("builtins.input", return_value=" n "):
+            result = confirm_action("Test question?", default=True)
+            assert result is False
+
+    def test_confirm_action_prompt_format_default_yes(self):
+        """Test that prompt shows correct default hint for default=True."""
+        from vba_edit.utils import confirm_action
+
+        with patch("builtins.input", return_value="y") as mock_input:
+            confirm_action("Continue?", default=True)
+
+            # Check that prompt includes [Y/n] format
+            prompt = mock_input.call_args[0][0]
+            assert "[Y/n]" in prompt or "[y/N]" in prompt
+
+    def test_confirm_action_prompt_format_default_no(self):
+        """Test that prompt shows correct default hint for default=False."""
+        from vba_edit.utils import confirm_action
+
+        with patch("builtins.input", return_value="n") as mock_input:
+            confirm_action("Continue?", default=False)
+
+            # Check that prompt includes default hint
+            prompt = mock_input.call_args[0][0]
+            assert "[Y/n]" in prompt or "[y/N]" in prompt
+
+    def test_confirm_action_keyboard_interrupt(self):
+        """Test that KeyboardInterrupt is handled gracefully."""
+        from vba_edit.utils import confirm_action
+
+        with patch("builtins.input", side_effect=KeyboardInterrupt):
+            # Should return False on interrupt (regardless of default)
+            result = confirm_action("Test question?", default=True)
+            assert result is False
+
+    def test_confirm_action_eof_error(self):
+        """Test that EOFError is handled gracefully."""
+        from vba_edit.utils import confirm_action
+
+        with patch("builtins.input", side_effect=EOFError):
+            # Should return False on EOF (regardless of default)
+            result = confirm_action("Test question?", default=True)
+            assert result is False

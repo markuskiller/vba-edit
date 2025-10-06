@@ -72,6 +72,26 @@ class VBAExportError(VBAError):
     pass
 
 
+class VBAExportWarning(Exception):
+    """Warning raised when export requires user confirmation.
+
+    This exception signals that the export operation needs user interaction.
+    The CLI layer catches this and handles the user prompts.
+
+    Note: This does NOT inherit from VBAError to avoid being caught by
+    generic VBAError handlers in the CLI layer.
+
+    Attributes:
+        warning_type: Type of warning ("existing_files" or "header_mode_changed")
+        context: Dictionary with context-specific information for displaying to user
+    """
+
+    def __init__(self, warning_type: str, context: dict):
+        self.warning_type = warning_type
+        self.context = context
+        super().__init__(f"Export requires confirmation: {warning_type}")
+
+
 class DocumentClosedError(VBAError):
     """Exception raised when attempting to access a closed Office document.
 
@@ -89,6 +109,29 @@ class DocumentClosedError(VBAError):
             f"'*-vba import' or by saving the file again in the next edit session.\n"
             f"As of version 0.2.1, the '*-vba edit' command will no longer overwrite files\n"
             f"already present in the VBA directory."
+        )
+
+
+class DocumentIsReadOnlyError(VBAError):
+    """Exception raised when attempting to modify a read-only Office document.
+
+    This exception includes a custom error message that provides guidance
+    on how to handle changes in read-only mode.
+
+    Args:
+        doc_type (str): Type of document (e.g., "workbook", "document")
+    """
+
+    def __init__(self, doc_type: str = "document"):
+        super().__init__(
+            f"\nThe Office {doc_type} is in read-only mode. Changes cannot be saved.\n"
+            f"IMPORTANT: To save changes, ensure the {doc_type} is not read-only and try again.\n"
+            f"\nThis usually happens when:"
+            f"\n- Multiple instances of the same presentation are open"
+            f"\n- The presentation is opened from a network location"
+            f"\n- The file is marked as read-only"
+            f"\n- Close all instances and then consider"
+            f"\n  using --file flag to specify the presentation explicitly"
         )
 
 

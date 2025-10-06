@@ -1,3 +1,3 @@
-chardet
-pywin32 >= 224;platform_system=='Windows'
-watchgod
+# This file is for VS Code environment creation only
+# All dependencies are managed in pyproject.toml
+-e .

@@ -5,10 +5,20 @@ from pathlib import Path
 
 from vba_edit import __name__ as package_name
 from vba_edit import __version__ as package_version
+from vba_edit.cli_common import (
+    add_common_arguments,
+    add_encoding_arguments,
+    add_export_arguments,
+    add_header_arguments,
+    add_metadata_arguments,
+    handle_export_with_warnings,
+    process_config_file,
+    validate_header_options,
+)
 from vba_edit.exceptions import (
     ApplicationError,
-    DocumentNotFoundError,
     DocumentClosedError,
+    DocumentNotFoundError,
     PathError,
     RPCError,
     VBAAccessError,
@@ -17,7 +27,6 @@ from vba_edit.exceptions import (
 from vba_edit.office_vba import WordVBAHandler
 from vba_edit.path_utils import get_document_paths
 from vba_edit.utils import get_active_office_document, get_windows_ansi_codepage, setup_logging
-
 
 # Configure module logger
 logger = logging.getLogger(__name__)
@@ -41,12 +50,6 @@ A command-line tool suite for managing VBA content in MS Office documents.
 WORD-VBA allows you to edit, import, and export VBA content from Word documents.
 If no file is specified, the tool will attempt to use the currently active Word document.
 
-Commands:
-    edit    Edit VBA content in MS Word document
-    import  Import VBA content into MS Word document
-    export  Export VBA content from MS Word document
-    check   Check if 'Trust Access to the MS Word VBA project object model' is enabled
-
 Examples:
     word-vba edit   <--- uses active Word document and current directory for exported 
                          VBA files (*.bas/*.cls/*.frm) & syncs changes back to the 
@@ -54,14 +57,15 @@ Examples:
 
     word-vba import -f "C:/path/to/document.docx" --vba-directory "path/to/vba/files"
     word-vba export --file "C:/path/to/document.docx" --encoding cp850 --save-metadata
+    word-vba export --conf "path/to/conf/file" --in-file-headers --force-overwrite
     word-vba edit --vba-directory "path/to/vba/files" --logfile "path/to/logfile" --verbose
-    word-vba edit --save-headers
+    word-vba edit --save-headers --rubberduck-folders --open-folder
 
 IMPORTANT: 
-           [!] It's early days. Use with care and backup your imortant macro-enabled
+           [!] It's early days. Use with care and backup your important macro-enabled
                MS Office documents before using them with this tool!
 
-               First tests have been very promissing. Feedback appreciated via
+               First tests have been very promising. Feedback appreciated via
                github issues. 
 
            [!] This tool requires "Trust access to the VBA project object model" 
@@ -70,107 +74,42 @@ IMPORTANT:
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
 
-    subparsers = parser.add_subparsers(dest="command", required=True)
+    # Add --version argument to the main parser
+    parser.add_argument(
+        "--version", "-V", action="version", version=f"{package_name_formatted} v{package_version} ({entry_point_name})"
+    )
 
-    # Create parsers for each command with common arguments
-    common_args = {
-        "file": (["--file", "-f"], {"help": "Path to Word document (optional, defaults to active workbook)"}),
-        "vba_directory": (
-            ["--vba-directory"],
-            {"help": "Directory to export VBA files to (optional, defaults to current directory)"},
-        ),
-        "verbose": (["--verbose", "-v"], {"action": "store_true", "help": "Enable verbose logging output"}),
-        "logfile": (
-            ["--logfile", "-l"],
-            {
-                "nargs": "?",
-                "const": "vba_edit.log",
-                "help": "Enable logging to file. Optional path can be specified (default: vba_edit.log)",
-            },
-        ),
-    }
+    subparsers = parser.add_subparsers(dest="command", required=True)
 
     # Edit command
     edit_parser = subparsers.add_parser("edit", help="Edit VBA content in Word document")
-    encoding_group = edit_parser.add_mutually_exclusive_group()
-    encoding_group.add_argument(
-        "--encoding",
-        "-e",
-        help=f"Encoding to be used when reading VBA files from Word document (default: {default_encoding})",
-        default=default_encoding,
-    )
-    encoding_group.add_argument(
-        "--detect-encoding",
-        "-d",
-        action="store_true",
-        help="Auto-detect input encoding for VBA files exported from Word document",
-    )
-    edit_parser.add_argument(
-        "--save-headers",
-        action="store_true",
-        help="Save VBA component headers to separate .header files (default: False)",
-    )
+    add_common_arguments(edit_parser)
+    add_encoding_arguments(edit_parser, default_encoding)
+    add_header_arguments(edit_parser)
 
     # Import command
     import_parser = subparsers.add_parser("import", help="Import VBA content into Word document")
-    import_parser.add_argument(
-        "--encoding",
-        "-e",
-        help=f"Encoding to be used when writing VBA files back into Word document (default: {default_encoding})",
-        default=default_encoding,
-    )
+    add_common_arguments(import_parser)
+    add_encoding_arguments(import_parser, default_encoding)
+    add_header_arguments(import_parser)
 
     # Export command
     export_parser = subparsers.add_parser("export", help="Export VBA content from Word document")
-    export_parser.add_argument(
-        "--save-metadata",
-        "-m",
-        action="store_true",
-        help="Save metadata file with character encoding information (default: False)",
-    )
-    encoding_group = export_parser.add_mutually_exclusive_group()
-    encoding_group.add_argument(
-        "--encoding",
-        "-e",
-        help=f"Encoding to be used when reading VBA files from Word document (default: {default_encoding})",
-        default=default_encoding,
-    )
-    encoding_group.add_argument(
-        "--detect-encoding",
-        "-d",
-        action="store_true",
-        help="Auto-detect input encoding for VBA files exported from Word document",
-    )
-    export_parser.add_argument(
-        "--save-headers",
-        action="store_true",
-        help="Save VBA component headers to separate .header files (default: False)",
-    )
+    add_common_arguments(export_parser)
+    add_encoding_arguments(export_parser, default_encoding)
+    add_header_arguments(export_parser)
+    add_metadata_arguments(export_parser)
+    add_export_arguments(export_parser)
 
     # Check command
     check_parser = subparsers.add_parser(
         "check",
         help="Check if 'Trust Access to the MS Word VBA project object model' is enabled",
     )
-    check_parser.add_argument(
-        "--verbose",
-        "-v",
-        action="store_true",
-        help="Enable verbose logging output",
+    check_subparser = check_parser.add_subparsers(dest="subcommand", required=False)
+    check_subparser.add_parser(
+        "all", help="Check Trust Access to VBA project model of all supported Office applications"
     )
-    check_parser.add_argument(
-        "--logfile",
-        "-l",
-        nargs="?",
-        const="vba_edit.log",
-        help="Enable logging to file. Optional path can be specified (default: vba_edit.log)",
-    )
-
-    # Add common arguments to all subparsers (except check command)
-    subparser_list = [edit_parser, import_parser, export_parser]
-    for subparser in subparser_list:
-        for arg_name, (arg_flags, arg_kwargs) in common_args.items():
-            subparser.add_argument(*arg_flags, **arg_kwargs)
 
     return parser
 
@@ -215,6 +154,9 @@ def handle_word_vba_command(args: argparse.Namespace) -> None:
         encoding = None if getattr(args, "detect_encoding", False) else args.encoding
         logger.debug(f"Using encoding: {encoding or 'auto-detect'}")
 
+        # Validate header options
+        validate_header_options(args)
+
         # Create handler instance
         try:
             handler = WordVBAHandler(
@@ -223,6 +165,9 @@ def handle_word_vba_command(args: argparse.Namespace) -> None:
                 encoding=encoding,
                 verbose=getattr(args, "verbose", False),
                 save_headers=getattr(args, "save_headers", False),
+                use_rubberduck_folders=args.rubberduck_folders,
+                open_folder=args.open_folder,
+                in_file_headers=getattr(args, "in_file_headers", True),
             )
         except VBAError as e:
             logger.error(f"Failed to initialize Word VBA handler: {str(e)}")
@@ -235,7 +180,7 @@ def handle_word_vba_command(args: argparse.Namespace) -> None:
                 # Display warning about module deletion
                 print("NOTE: Deleting a VBA module file will also delete it in the VBA editor!")
                 # For edit command, first export without overwriting
-                handler.export_vba(overwrite=False)
+                handle_export_with_warnings(handler, overwrite=False, interactive=True)
                 try:
                     handler.watch_changes()
                 except (DocumentClosedError, RPCError) as e:
@@ -246,7 +191,13 @@ def handle_word_vba_command(args: argparse.Namespace) -> None:
                 handler.import_vba()
             elif args.command == "export":
                 # For export command, always overwrite
-                handler.export_vba(save_metadata=getattr(args, "save_metadata", False), overwrite=True)
+                handle_export_with_warnings(
+                    handler,
+                    save_metadata=getattr(args, "save_metadata", False),
+                    overwrite=True,
+                    interactive=True,
+                    force_overwrite=getattr(args, "force_overwrite", False),
+                )
         except (DocumentClosedError, RPCError) as e:
             logger.error(str(e))
             sys.exit(1)
@@ -281,20 +232,30 @@ def main() -> None:
         parser = create_cli_parser()
         args = parser.parse_args()
 
+        # Process configuration file BEFORE setting up logging
+        args = process_config_file(args)
+
         # Set up logging first
         setup_logging(verbose=getattr(args, "verbose", False), logfile=getattr(args, "logfile", None))
 
-        # Run 'check' command (Check if Access VBA project model is accessible )
-        if args.command == "check":
-            try:
-                from vba_edit.utils import check_vba_trust_access
+        # Create target directories and validate inputs early
+        validate_paths(args)
 
-                check_vba_trust_access("word")
+        # Run 'check' command (Check if VBA project model is accessible )
+        if args.command == "check":
+            from vba_edit.utils import check_vba_trust_access
+
+            try:
+                if args.subcommand == "all":
+                    check_vba_trust_access()  # Check all supported Office applications
+                else:
+                    check_vba_trust_access("word")  # Check MS Word only
             except Exception as e:
-                logger.error(f"Failed to check Trust Access to MS Access VBA project object model: {str(e)}")
+                logger.error(f"Failed to check Trust Access to VBA project object model: {str(e)}")
             sys.exit(0)
         else:
             handle_word_vba_command(args)
+
     except Exception as e:
         print(f"Critical error: {str(e)}", file=sys.stderr)
         sys.exit(1)
