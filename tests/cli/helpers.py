@@ -21,22 +21,22 @@ _initialized = False
 
 def check_office_apps_are_safe_to_use():
     """Check if Office applications (Excel, Word, PowerPoint) are running.
-    
+
     Even apps running with 0 open documents are considered unsafe because:
     1. Tests will create documents in these apps
     2. Those documents might not get cleaned up properly
     3. Force-killing the app at test end loses any test-created documents
-    
+
     Returns:
         tuple: (is_safe: bool, message: str) - whether it's safe to proceed and a message
     """
     # Check if override is set
-    if os.environ.get('PYTEST_ALLOW_OFFICE_FORCE_QUIT') == '1':
+    if os.environ.get("PYTEST_ALLOW_OFFICE_FORCE_QUIT") == "1":
         return True, "Safety check overridden by PYTEST_ALLOW_OFFICE_FORCE_QUIT=1"
-    
+
     running_apps = []
     app_documents = {}
-    
+
     # Check Excel
     try:
         app = win32com.client.GetObject(Class="Excel.Application")
@@ -47,7 +47,7 @@ def check_office_apps_are_safe_to_use():
         pass  # Not running - safe
     except Exception:
         pass  # Can't check - proceed
-    
+
     # Check Word
     try:
         app = win32com.client.GetObject(Class="Word.Application")
@@ -58,7 +58,7 @@ def check_office_apps_are_safe_to_use():
         pass  # Not running - safe
     except Exception:
         pass  # Can't check - proceed
-    
+
     # Check PowerPoint
     try:
         app = win32com.client.GetObject(Class="PowerPoint.Application")
@@ -69,14 +69,10 @@ def check_office_apps_are_safe_to_use():
         pass  # Not running - safe
     except Exception:
         pass  # Can't check - proceed
-    
+
     # If any Office apps are running, it's unsafe (even with 0 documents)
     if running_apps:
-        message = (
-            f"\n{'='*70}\n"
-            f"⚠️  WARNING: Office applications are running!\n"
-            f"{'='*70}\n"
-        )
+        message = f"\n{'=' * 70}\n⚠️  WARNING: Office applications are running!\n{'=' * 70}\n"
         for app_name in running_apps:
             doc_count = app_documents.get(app_name, 0)
             if doc_count > 0:
@@ -97,16 +93,16 @@ def check_office_apps_are_safe_to_use():
             f"  4. Run the tests again\n\n"
             f"To override this check:\n"
             f"  Set environment variable: PYTEST_ALLOW_OFFICE_FORCE_QUIT=1\n"
-            f"{'='*70}\n"
+            f"{'=' * 70}\n"
         )
         return False, message
-    
+
     return True, "All Office applications are closed (safe to run tests)"
 
 
 def check_excel_is_safe_to_use():
     """Legacy function for Excel-specific checks. Calls the comprehensive check.
-    
+
     Returns:
         tuple: (is_safe: bool, message: str) - whether it's safe to proceed and a message
     """
@@ -123,12 +119,12 @@ def get_or_create_app(app_name: str):
         _initialized = True
 
     app_type = app_name.lower()
-    
+
     # Check if we have a cached instance
     if app_type in _app_instances:
         print(f"Reusing existing {app_type} instance for test session...")
         return _app_instances[app_type]
-    
+
     # Create new instance
     print(f"Creating {app_type} instance for test session...")
 
@@ -210,7 +206,7 @@ def _configure_app(app, app_type):
         # Access-specific configuration
         # Note: DoCmd.SetWarnings only works after a database is open,
         # so it's called in ReferenceDocuments.__enter__ instead
-        
+
         # Try to set AutomationSecurity to disable macro warnings
         try:
             # msoAutomationSecurityLow = 1
@@ -330,7 +326,7 @@ class ReferenceDocuments:
                 config["doc_method"](self.app, self.path)
                 # Access doesn't return a document object, we work with CurrentDb
                 self.doc = None
-                
+
                 # Now that database is open, disable warnings
                 try:
                     self.app.DoCmd.SetWarnings(False)
@@ -386,7 +382,7 @@ class ReferenceDocuments:
                 pass
             else:
                 self.doc.SaveAs(str(self.path), config["save_format"])
-            
+
             print(f"Created and saved {self.app_type} document: {self.path}")
             return self.path
 
@@ -418,7 +414,7 @@ class ReferenceDocuments:
 def temp_office_doc(tmp_path, vba_app, request):
     """Fixture providing a temporary Office document for testing."""
     extension = OFFICE_MACRO_EXTENSIONS[vba_app]
-    
+
     # Use test node name to create unique filename for each test
     test_name = request.node.name.replace("[", "_").replace("]", "").replace("::", "_")
     doc_path = tmp_path / f"test_doc_{test_name}{extension}"
@@ -426,7 +422,7 @@ def temp_office_doc(tmp_path, vba_app, request):
     # Create document, then close it before yielding
     with ReferenceDocuments(doc_path, vba_app) as _:
         pass  # Document is created and saved, will be closed on __exit__
-    
+
     # Now yield the path to the closed document
     yield doc_path
 

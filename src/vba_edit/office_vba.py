@@ -378,7 +378,7 @@ class VBAComponentHandler:
 
         for i, line in enumerate(lines):
             stripped = line.strip()
-            
+
             # Check for header components
             if stripped.startswith("VERSION"):
                 last_header_idx = i
@@ -1146,12 +1146,14 @@ class OfficeVBAHandler(ABC):
                 logger.debug(f"Creating new component: {name}")
                 self._create_new_component(name, code, module_type, components)
 
-    def _import_via_temp_file(self, name: str, full_content: str, components: Any, file_extension: str = ".cls", original_file: Path = None) -> None:
+    def _import_via_temp_file(
+        self, name: str, full_content: str, components: Any, file_extension: str = ".cls", original_file: Path = None
+    ) -> None:
         """Import UserForm or Class module with headers using VBA's Import method.
 
         This method handles both UserForms and Class modules that have header attributes
         that need to be preserved during import.
-        
+
         Args:
             name: Component name
             full_content: Complete file content including headers
@@ -1172,7 +1174,7 @@ class OfficeVBAHandler(ABC):
                 return
             except Exception as e:
                 logger.warning(f"Direct import failed for {name}, falling back to temp file: {e}")
-        
+
         # Use temp file for class modules or as fallback
         temp_file = self.vba_dir / f"{name}_temp{file_extension}"
         try:

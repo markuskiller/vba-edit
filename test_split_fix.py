@@ -1,4 +1,5 @@
 """Quick test to verify split_vba_content() fix is active"""
+
 from vba_edit.excel_vba import ExcelVBAHandler
 
 test_content = """VERSION 1.0 CLASS

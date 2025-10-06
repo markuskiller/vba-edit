@@ -117,7 +117,7 @@ class TestSafetyFeaturesIntegration:
     def test_force_overwrite_flag_present(self, vba_app, temp_office_doc, tmp_path):
         """Test that --force-overwrite flag is available in CLI."""
         cli = CLITester(f"{vba_app}-vba")
-        
+
         # Check help text includes --force-overwrite
         result = cli.run(["export", "--help"])
         assert "--force-overwrite" in result.stdout
@@ -130,19 +130,14 @@ class TestSafetyFeaturesIntegration:
         """Test --force-overwrite bypasses prompts for existing files."""
         cli = CLITester(f"{vba_app}-vba")
         vba_dir = tmp_path / "vba_files"
-        
+
         # First export to create files
         cli.assert_success(["export", "-f", str(temp_office_doc), "--vba-directory", str(vba_dir)])
         assert vba_dir.exists()
-        
+
         # Second export with --force-overwrite should succeed without prompts
-        result = cli.run([
-            "export",
-            "-f", str(temp_office_doc),
-            "--vba-directory", str(vba_dir),
-            "--force-overwrite"
-        ])
-        
+        result = cli.run(["export", "-f", str(temp_office_doc), "--vba-directory", str(vba_dir), "--force-overwrite"])
+
         # Should succeed without user interaction
         assert result.returncode == 0 or "No VBA components found" in (result.stdout + result.stderr)
 
@@ -153,15 +148,10 @@ class TestSafetyFeaturesIntegration:
         """Test export with separate header files."""
         cli = CLITester(f"{vba_app}-vba")
         vba_dir = tmp_path / "vba_files"
-        
+
         # Export with separate headers
-        cli.assert_success([
-            "export",
-            "-f", str(temp_office_doc),
-            "--vba-directory", str(vba_dir),
-            "--save-headers"
-        ])
-        
+        cli.assert_success(["export", "-f", str(temp_office_doc), "--vba-directory", str(vba_dir), "--save-headers"])
+
         # Check for .header files (may or may not exist depending on components)
         # The test just verifies the option doesn't cause errors
         if vba_dir.exists():
@@ -174,15 +164,10 @@ class TestSafetyFeaturesIntegration:
         """Test export with inline headers."""
         cli = CLITester(f"{vba_app}-vba")
         vba_dir = tmp_path / "vba_files"
-        
+
         # Export with inline headers
-        cli.assert_success([
-            "export",
-            "-f", str(temp_office_doc),
-            "--vba-directory", str(vba_dir),
-            "--in-file-headers"
-        ])
-        
+        cli.assert_success(["export", "-f", str(temp_office_doc), "--vba-directory", str(vba_dir), "--in-file-headers"])
+
         assert vba_dir.exists()
 
     @pytest.mark.integration
@@ -192,20 +177,25 @@ class TestSafetyFeaturesIntegration:
         """Test that metadata file includes header_mode."""
         cli = CLITester(f"{vba_app}-vba")
         vba_dir = tmp_path / "vba_files"
-        
+
         # Export with metadata and inline headers
-        cli.assert_success([
-            "export",
-            "-f", str(temp_office_doc),
-            "--vba-directory", str(vba_dir),
-            "--save-metadata",
-            "--in-file-headers"
-        ])
-        
+        cli.assert_success(
+            [
+                "export",
+                "-f",
+                str(temp_office_doc),
+                "--vba-directory",
+                str(vba_dir),
+                "--save-metadata",
+                "--in-file-headers",
+            ]
+        )
+
         # Check metadata file
         metadata_file = vba_dir / "vba_metadata.json"
         if metadata_file.exists():
             import json
+
             metadata = json.loads(metadata_file.read_text())
             assert "header_mode" in metadata
             assert metadata["header_mode"] == "inline"
@@ -217,33 +207,42 @@ class TestSafetyFeaturesIntegration:
         """Test changing header mode with --force-overwrite."""
         cli = CLITester(f"{vba_app}-vba")
         vba_dir = tmp_path / "vba_files"
-        
+
         # First export with inline headers and metadata
-        cli.assert_success([
-            "export",
-            "-f", str(temp_office_doc),
-            "--vba-directory", str(vba_dir),
-            "--save-metadata",
-            "--in-file-headers"
-        ])
-        
+        cli.assert_success(
+            [
+                "export",
+                "-f",
+                str(temp_office_doc),
+                "--vba-directory",
+                str(vba_dir),
+                "--save-metadata",
+                "--in-file-headers",
+            ]
+        )
+
         # Second export with separate headers (mode change) and force-overwrite
-        result = cli.run([
-            "export",
-            "-f", str(temp_office_doc),
-            "--vba-directory", str(vba_dir),
-            "--save-metadata",
-            "--save-headers",
-            "--force-overwrite"
-        ])
-        
+        result = cli.run(
+            [
+                "export",
+                "-f",
+                str(temp_office_doc),
+                "--vba-directory",
+                str(vba_dir),
+                "--save-metadata",
+                "--save-headers",
+                "--force-overwrite",
+            ]
+        )
+
         # Should succeed without prompts
         assert result.returncode == 0 or "No VBA components found" in (result.stdout + result.stderr)
-        
+
         # Check metadata updated
         metadata_file = vba_dir / "vba_metadata.json"
         if metadata_file.exists():
             import json
+
             metadata = json.loads(metadata_file.read_text())
             assert metadata["header_mode"] == "separate"
 
@@ -254,37 +253,44 @@ class TestSafetyFeaturesIntegration:
         """Test that -f is not used for --force-overwrite (reserved for --file)."""
         cli = CLITester(f"{vba_app}-vba")
         vba_dir = tmp_path / "vba_files"
-        
+
         # -f should be for --file, not --force-overwrite
-        result = cli.run([
-            "export",
-            "-f", str(temp_office_doc),  # This is --file
-            "--vba-directory", str(vba_dir)
-        ])
-        
+        result = cli.run(
+            [
+                "export",
+                "-f",
+                str(temp_office_doc),  # This is --file
+                "--vba-directory",
+                str(vba_dir),
+            ]
+        )
+
         # Should work (if document exists)
         # -f is correctly interpreted as --file
         assert result.returncode == 0 or "not found" in result.stderr.lower()
 
-    @pytest.mark.integration  
+    @pytest.mark.integration
     @pytest.mark.com
     @pytest.mark.office
     def test_conflicting_header_options_error(self, vba_app, temp_office_doc, tmp_path):
         """Test that --save-headers and --in-file-headers are mutually exclusive."""
         cli = CLITester(f"{vba_app}-vba")
         vba_dir = tmp_path / "vba_files"
-        
+
         # Both header options should cause error
-        result = cli.run([
-            "export",
-            "-f", str(temp_office_doc),
-            "--vba-directory", str(vba_dir),
-            "--save-headers",
-            "--in-file-headers"
-        ])
-        
+        result = cli.run(
+            [
+                "export",
+                "-f",
+                str(temp_office_doc),
+                "--vba-directory",
+                str(vba_dir),
+                "--save-headers",
+                "--in-file-headers",
+            ]
+        )
+
         # Should fail with error message
         assert result.returncode != 0
         full_output = result.stdout + result.stderr
         assert "mutually exclusive" in full_output.lower() or "conflicting" in full_output.lower()
-

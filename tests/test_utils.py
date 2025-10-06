@@ -106,7 +106,7 @@ class TestConfirmAction:
 
         # Test different yes variations
         yes_inputs = ["y", "Y", "yes", "YES", "Yes"]
-        
+
         for yes_input in yes_inputs:
             with patch("builtins.input", return_value=yes_input):
                 result = confirm_action("Test question?", default=False)
@@ -118,7 +118,7 @@ class TestConfirmAction:
 
         # Test different no variations
         no_inputs = ["n", "N", "no", "NO", "No"]
-        
+
         for no_input in no_inputs:
             with patch("builtins.input", return_value=no_input):
                 result = confirm_action("Test question?", default=True)
@@ -168,7 +168,7 @@ class TestConfirmAction:
 
         with patch("builtins.input", return_value="y") as mock_input:
             confirm_action("Continue?", default=True)
-            
+
             # Check that prompt includes [Y/n] format
             prompt = mock_input.call_args[0][0]
             assert "[Y/n]" in prompt or "[y/N]" in prompt
@@ -179,7 +179,7 @@ class TestConfirmAction:
 
         with patch("builtins.input", return_value="n") as mock_input:
             confirm_action("Continue?", default=False)
-            
+
             # Check that prompt includes default hint
             prompt = mock_input.call_args[0][0]
             assert "[Y/n]" in prompt or "[y/N]" in prompt

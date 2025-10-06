@@ -20,14 +20,14 @@ def pytest_addoption(parser):
         action="store",
         default="all",
         help="Comma-separated list of apps to test (excel,word,access,powerpoint) or 'all' for all available apps. "
-             "Note: Access is excluded from 'all' by default due to interactive requirements.",
+        "Note: Access is excluded from 'all' by default due to interactive requirements.",
     )
     parser.addoption(
         "--include-access-interactive",
         action="store_true",
         default=False,
         help="Include Access tests that require user interaction (clicking OK on Save As dialogs). "
-             "Without this flag, Access tests are skipped by default.",
+        "Without this flag, Access tests are skipped by default.",
     )
 
 
@@ -49,50 +49,52 @@ def pytest_configure(config):
 
 def pytest_sessionstart(session):
     """Check Office application safety before starting integration tests.
-    
+
     This runs once at the very beginning of the test session, before any tests are collected.
     Only runs if integration tests are being executed (not in CI pipeline).
     """
     # Check if we're running integration tests by looking at command line args
     config = session.config
-    
+
     # Skip safety check if:
     # 1. No test files specified (running all tests, likely in CI)
     # 2. Only running unit tests (no cli/ or integration markers)
     # 3. Running specific non-integration test files
-    
+
     # Get the test paths being run
     test_args = config.args if config.args else []
-    
+
     # Skip if no args (default test discovery) - likely CI
     if not test_args:
         return
-    
+
     # Check if any integration test paths are in the arguments
     has_integration_tests = any(
-        'cli' in str(arg).lower() or 
-        'integration' in str(arg).lower() or
-        'test_excel_integration' in str(arg) or
-        'test_word' in str(arg) or
-        'test_powerpoint' in str(arg)
+        "cli" in str(arg).lower()
+        or "integration" in str(arg).lower()
+        or "test_excel_integration" in str(arg)
+        or "test_word" in str(arg)
+        or "test_powerpoint" in str(arg)
         for arg in test_args
     )
-    
+
     if not has_integration_tests:
         return
-    
+
     # Import the safety check function
     try:
         from tests.cli.helpers import check_office_apps_are_safe_to_use
-        
+
         is_safe, message = check_office_apps_are_safe_to_use()
-        
+
         if not is_safe:
             # Print warning and abort
             print(message)
-            pytest.exit("Integration tests aborted - Office applications have open documents. "
-                       "Close all Office windows or set PYTEST_ALLOW_OFFICE_FORCE_QUIT=1 to override.",
-                       returncode=1)
+            pytest.exit(
+                "Integration tests aborted - Office applications have open documents. "
+                "Close all Office windows or set PYTEST_ALLOW_OFFICE_FORCE_QUIT=1 to override.",
+                returncode=1,
+            )
     except ImportError:
         # If helpers not available, skip the check
         pass
@@ -107,7 +109,7 @@ def pytest_generate_tests(metafunc):
         # Get selected apps from command line
         apps_option = metafunc.config.getoption("--apps")
         include_access_interactive = metafunc.config.getoption("--include-access-interactive")
-        
+
         if apps_option.lower() == "all":
             # By default, exclude Access unless explicitly enabled via flag
             if include_access_interactive:
@@ -120,7 +122,7 @@ def pytest_generate_tests(metafunc):
             invalid_apps = [app for app in selected_apps if app not in valid_apps]
             if invalid_apps:
                 raise ValueError(f"Invalid apps: {invalid_apps}. Valid options: {valid_apps}")
-            
+
             # If Access is explicitly selected, require the interactive flag
             if "access" in selected_apps and not include_access_interactive:
                 raise ValueError(
@@ -136,7 +138,7 @@ def pytest_collection_modifyitems(config, items):
     """Skip tests based on selected apps and other markers."""
     apps_option = config.getoption("--apps")
     include_access_interactive = config.getoption("--include-access-interactive")
-    
+
     if apps_option.lower() == "all":
         selected_apps = ["excel", "word", "access", "powerpoint"]
     else:
@@ -147,13 +149,15 @@ def pytest_collection_modifyitems(config, items):
         # Skip Access tests if they have the skip_access marker and flag is not set
         if item.get_closest_marker("skip_access") and not include_access_interactive:
             # Check if this is an Access test variant (via parametrization)
-            if hasattr(item, 'callspec') and 'vba_app' in item.callspec.params:
-                if item.callspec.params['vba_app'] == 'access':
-                    item.add_marker(pytest.mark.skip(
-                        reason="Access requires user interaction (use --include-access-interactive to enable)"
-                    ))
+            if hasattr(item, "callspec") and "vba_app" in item.callspec.params:
+                if item.callspec.params["vba_app"] == "access":
+                    item.add_marker(
+                        pytest.mark.skip(
+                            reason="Access requires user interaction (use --include-access-interactive to enable)"
+                        )
+                    )
                     continue
-        
+
         # Check if test has app-specific markers
         test_apps = []
         if item.get_closest_marker("excel"):
@@ -230,15 +234,16 @@ def cleanup_office_apps_per_module():
 
     import subprocess
 
-    print("\n" + "="*80)
+    print("\n" + "=" * 80)
     print("Cleaning up Office applications at end of test module...")
-    print("="*80)
+    print("=" * 80)
 
     # Clear the app instance cache FIRST, before touching any COM objects
     # This prevents trying to use dead COM references later
     try:
         from tests.cli import helpers
-        if hasattr(helpers, '_app_instances'):
+
+        if hasattr(helpers, "_app_instances"):
             helpers._app_instances.clear()
             print("  ✓ Cleared app instance cache")
     except Exception as e:
@@ -250,30 +255,25 @@ def cleanup_office_apps_per_module():
         "excel": "EXCEL.EXE",
         "word": "WINWORD.EXE",
         "powerpoint": "POWERPNT.EXE",
-        "access": "MSACCESS.EXE"
+        "access": "MSACCESS.EXE",
     }
-    
+
     killed_any = False
     for app, process in office_processes.items():
         try:
-            result = subprocess.run(
-                ["taskkill", "/F", "/IM", process, "/T"],
-                capture_output=True,
-                text=True,
-                timeout=5
-            )
+            result = subprocess.run(["taskkill", "/F", "/IM", process, "/T"], capture_output=True, text=True, timeout=5)
             if result.returncode == 0 and "SUCCESS" in result.stdout:
                 print(f"  ✓ Force-killed {process}")
                 killed_any = True
         except Exception:
             pass  # Process not running or couldn't kill
-    
+
     if not killed_any:
         print("  ✓ No Office processes running")
-    
-    print("="*80)
+
+    print("=" * 80)
     print("✓ Office application cleanup complete for module")
-    print("="*80)
+    print("=" * 80)
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -285,25 +285,25 @@ def cleanup_office_apps():
     import subprocess
     import time
 
-    print("\n" + "="*80)
+    print("\n" + "=" * 80)
     print("Cleaning up Office applications at end of test session...")
-    print("="*80)
+    print("=" * 80)
 
     for app_name in ["Word.Application", "Excel.Application", "PowerPoint.Application", "Access.Application"]:
         try:
             app = win32com.client.GetObject(Class=app_name)
-            app_display_name = app_name.split('.')[0]
+            app_display_name = app_name.split(".")[0]
             print(f"Found running {app_display_name} instance, attempting graceful close...")
-            
+
             # Suppress all alerts
             try:
                 app.DisplayAlerts = False
             except Exception:
                 pass
-            
+
             # Mark all open documents/workbooks as saved to prevent prompts
             try:
-                if hasattr(app, 'Workbooks'):  # Excel
+                if hasattr(app, "Workbooks"):  # Excel
                     count = app.Workbooks.Count
                     print(f"  - {count} Excel workbook(s) open, marking as saved...")
                     for i in range(count, 0, -1):
@@ -311,7 +311,7 @@ def cleanup_office_apps():
                             app.Workbooks(i).Saved = True
                         except Exception:
                             pass
-                elif hasattr(app, 'Documents'):  # Word
+                elif hasattr(app, "Documents"):  # Word
                     count = app.Documents.Count
                     print(f"  - {count} Word document(s) open, marking as saved...")
                     for i in range(count, 0, -1):
@@ -319,7 +319,7 @@ def cleanup_office_apps():
                             app.Documents(i).Saved = True
                         except Exception:
                             pass
-                elif hasattr(app, 'Presentations'):  # PowerPoint
+                elif hasattr(app, "Presentations"):  # PowerPoint
                     count = app.Presentations.Count
                     print(f"  - {count} PowerPoint presentation(s) open, marking as saved...")
                     for i in range(count, 0, -1):
@@ -329,7 +329,7 @@ def cleanup_office_apps():
                             pass
             except Exception:
                 pass
-            
+
             # Try to quit gracefully with a timeout
             try:
                 app.Quit()
@@ -337,31 +337,27 @@ def cleanup_office_apps():
                 print(f"  ✓ {app_display_name} closed gracefully")
             except Exception:
                 print(f"  ⚠ {app_display_name}.Quit() failed, will force-close...")
-                
+
         except Exception:
             # App not running - this is fine
             pass
-    
+
     # Force kill any remaining Office processes (in case Quit() hung)
     time.sleep(0.2)
     app_to_process = {
         "Excel.Application": "EXCEL",
         "Word.Application": "WINWORD",
         "PowerPoint.Application": "POWERPNT",
-        "Access.Application": "MSACCESS"
+        "Access.Application": "MSACCESS",
     }
-    
+
     print("\nForce-closing any remaining Office processes...")
     killed_count = 0
     for app_name, process_name in app_to_process.items():
-            
         try:
             # Use /T to kill child processes too
             result = subprocess.run(
-                ["taskkill", "/F", "/IM", f"{process_name}.EXE", "/T"], 
-                capture_output=True, 
-                timeout=1,
-                text=True
+                ["taskkill", "/F", "/IM", f"{process_name}.EXE", "/T"], capture_output=True, timeout=1, text=True
             )
             # Only print if process was actually killed (not "not found")
             if result.returncode == 0:
@@ -369,10 +365,10 @@ def cleanup_office_apps():
                 killed_count += 1
         except Exception:
             pass
-    
+
     if killed_count == 0:
         print("  ✓ No Office processes needed force-closing")
-    
-    print("="*80)
+
+    print("=" * 80)
     print("✓ Office application cleanup complete")
-    print("="*80)
+    print("=" * 80)
