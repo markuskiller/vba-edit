@@ -5,17 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.4.0-rc2] - unreleased
+## [0.4.0-rc3] - 2025-10-06
 
 ### Added
 - new option `--in-file-headers`: embedding VBA headers in code files ([@onderhold](https://github.com/onderhold))
 - new option `--rubberduck-folders`: support for RubberduckVBA-style `@Folder` annotations and folder organization ([Issue #9](https://github.com/markuskiller/vba-edit/issues/9)) ([@onderhold](https://github.com/onderhold))
 - new option `--conf`: support for config files  ([@onderhold](https://github.com/onderhold))
 - new option `--force-overwrite`: skip safety prompts for automated exports (CI/CD friendly)
-- **Safety Features**: Automatic warnings before overwriting existing VBA files
-- **Safety Features**: Detection and warning when header storage mode changes between exports
-- **Safety Features**: Automatic cleanup of orphaned `.header` files when switching modes
-- **Safety Features**: Enhanced UserForm validation - prevents export without proper header handling (`--in-file-headers` or `--save-headers`)
+- Automatic warnings before overwriting existing VBA files
+- Detection and warning when header storage mode changes between exports
+- Automatic cleanup of orphaned `.header` files when switching modes
+- Enhanced UserForm validation - prevents export without proper header handling (`--in-file-headers` or `--save-headers`)
 - Better support for VBA class modules with custom attributes ([@onderhold](https://github.com/onderhold))
 - Enhanced `VB_PredeclaredId` handling for class modules ([@onderhold](https://github.com/onderhold))
 - Support for macro-enabled MS PowerPoint documents
@@ -25,12 +25,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Build**: Added version file generation support to `create_binaries.py` for Windows executables
 
 ### Changed
-- **Architecture**: Improved version control compatibility with embedded headers ([@onderhold](https://github.com/onderhold))
-- **Architecture**: Streamlined project setup by extending pyproject.toml and .gitignore, while reducing requirements.txt to the bare minimum that VS Code needs. Thus setup.cfg became superfluous. ([@onderhold](https://github.com/onderhold))
-- **Architecture**: Some refactoring: handling common cli options now in separate module cli_common.py ([@onderhold](https://github.com/onderhold))
-- **Architecture**: Refactored warning handling logic into centralized helper function (`handle_export_with_warnings()` in `cli_common.py`)
-- **Architecture**: Core logic (`office_vba.py`) now raises `VBAExportWarning` exceptions instead of handling user interaction
-- **Architecture**: CLI layer handles all user prompts via shared helper, eliminating code duplication across entry points
+- Improved version control compatibility with embedded headers ([@onderhold](https://github.com/onderhold))
+- Streamlined project setup by extending pyproject.toml and .gitignore, while reducing requirements.txt to the bare minimum that VS Code needs. Thus setup.cfg became superfluous. ([@onderhold](https://github.com/onderhold))
+- Some refactoring: handling common cli options now in separate module cli_common.py ([@onderhold](https://github.com/onderhold))
+- Refactored warning handling logic into centralized helper function (`handle_export_with_warnings()` in `cli_common.py`)
+- Core logic (`office_vba.py`) now raises `VBAExportWarning` exceptions instead of handling user interaction
+- CLI layer handles all user prompts via shared helper, eliminating code duplication across entry points
 - **[Issue #14](https://github.com/markuskiller/vba-edit/issues/14)**: The watchgod library is no longer actively developed and has been superseded by watchfiles. Consider The dependency has been replaced with watchfiles ([@onderhold](https://github.com/onderhold))
 
 ### Fixed
