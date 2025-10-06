@@ -133,7 +133,7 @@ vba-edit now protects your work with smart safety checks:
 excel-vba export --vba-directory ./src --force-overwrite
 ```
 
-> ⚠️ **Note**: `--force-overwrite` suppresses all safety prompts. Use with caution!
+> ⚠️ **CAUTION**: `--force-overwrite` suppresses all safety prompts. Use with caution!
 
 
 ## Features
@@ -143,13 +143,7 @@ excel-vba export --vba-directory ./src --force-overwrite
 - Full Git/version control support
 - All Office apps: Excel, Word, Access & **NEW v0.4.0+** PowerPoint
 
-**�️ Safety** (NEW v0.4.0+)
-- Automatic detection of existing files before overwrite
-- Header mode change warnings with cleanup
-- UserForm header validation
-- Optional `--force-overwrite` for automation
-
-**�📁 Organization** 
+**📁 Organization** 
 - **NEW v0.4.0+** RubberduckVBA folder structure support
 - **NEW v0.4.0+** Smart file organization with `@Folder` annotations
 - **NEW v0.4.0+** TOML config files for team standards
@@ -295,8 +289,7 @@ Command-line arguments always override config file settings:
 excel-vba export --conf vba-config.toml --vba-directory build/vba
 ```
 
-> [!CAUTION]
-> **1.** Always **backup your Office files** before using `vba-edit` **2.** Use **version control (git)** to track your VBA code **3.** Run `export` after changing **form layouts** or module properties
+> ⚠️ **CAUTION**: **1.** Always **backup your Office files** before using `vba-edit` **2.** Use **version control (git)** to track your VBA code **3.** Run `export` after changing **form layouts** or module properties
 
 
 ### Known Limitations
