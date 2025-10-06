@@ -517,5 +517,223 @@ Attribute mField.VB_VarHelpID = -1
         assert "GetValue.VB_Description" in code or "GetValue.VB_Description" in header
 
 
+class TestIssue9_RubberduckFolders:
+    """Tests for Issue #9 - RubberduckVBA @Folder annotation support.
+
+    Feature: --rubberduck-folders option to organize modules by @Folder annotations.
+
+    RubberduckVBA uses '@Folder("Path.To.Folder")' annotations in VBA code comments
+    to organize modules into a logical folder structure.
+
+    Requested by: Community
+    Implemented by: @onderhold
+    """
+
+    def test_parse_folder_annotation_basic(self, handler):
+        """Test parsing basic @Folder annotation."""
+        handler.component_handler.use_rubberduck_folders = True
+
+        vba_content = """Attribute VB_Name = "MyModule"
+'@Folder("MyFolder")
+
+Public Sub DoSomething()
+    MsgBox "Test"
+End Sub
+"""
+
+        folder_path, code = handler.component_handler.get_rubberduck_folder(vba_content.split("\n", 1)[1])
+
+        # Folder path should be converted from dot notation to filesystem path
+        import os
+
+        assert folder_path == os.path.join("MyFolder"), f"Expected 'MyFolder', got '{folder_path}'"
+
+    def test_parse_folder_annotation_nested(self, handler):
+        """Test parsing nested @Folder annotation with dot notation."""
+        handler.component_handler.use_rubberduck_folders = True
+
+        vba_content = """Attribute VB_Name = "DataAccess"
+'@Folder("Business.Data.Access")
+
+Public Function GetData() As Variant
+    ' Implementation
+End Function
+"""
+
+        folder_path, code = handler.component_handler.get_rubberduck_folder(vba_content.split("\n", 1)[1])
+
+        import os
+
+        expected = os.path.join("Business", "Data", "Access")
+        assert folder_path == expected, f"Expected '{expected}', got '{folder_path}'"
+
+    def test_parse_folder_annotation_with_parentheses(self, handler):
+        """Test parsing @Folder with parentheses format: @Folder("Path")."""
+        handler.component_handler.use_rubberduck_folders = True
+
+        vba_content = """'@Folder("Utilities.Helpers")
+
+Public Sub HelperFunction()
+End Sub
+"""
+
+        folder_path, code = handler.component_handler.get_rubberduck_folder(vba_content)
+
+        import os
+
+        expected = os.path.join("Utilities", "Helpers")
+        assert folder_path == expected
+
+    def test_parse_folder_annotation_case_insensitive(self, handler):
+        """Test that @Folder annotation is case-insensitive."""
+        handler.component_handler.use_rubberduck_folders = True
+
+        test_cases = ["'@Folder(\"Test\")", "'@folder(\"Test\")", "'@FOLDER(\"Test\")"]
+
+        for annotation in test_cases:
+            vba_content = f"""{annotation}
+
+Public Sub Test()
+End Sub
+"""
+            folder_path, code = handler.component_handler.get_rubberduck_folder(vba_content)
+            assert folder_path == "Test", f"Failed for annotation: {annotation}"
+
+    def test_no_folder_annotation(self, handler):
+        """Test module without @Folder annotation."""
+        handler.component_handler.use_rubberduck_folders = True
+
+        vba_content = """Attribute VB_Name = "NoFolder"
+
+Public Sub Test()
+    MsgBox "No folder"
+End Sub
+"""
+
+        folder_path, code = handler.component_handler.get_rubberduck_folder(vba_content)
+
+        assert folder_path == "", "Should return empty string when no @Folder annotation"
+
+    def test_folder_annotation_disabled(self, handler):
+        """Test that folder parsing is disabled when use_rubberduck_folders is False."""
+        handler.component_handler.use_rubberduck_folders = False
+
+        vba_content = """'@Folder("ShouldBeIgnored")
+
+Public Sub Test()
+End Sub
+"""
+
+        folder_path, code = handler.component_handler.get_rubberduck_folder(vba_content)
+
+        assert folder_path == "", "Should ignore @Folder when feature is disabled"
+
+    def test_add_folder_annotation_to_code(self, handler):
+        """Test adding @Folder annotation to code without one."""
+        handler.component_handler.use_rubberduck_folders = True
+
+        vba_content = """Attribute VB_Name = "MyModule"
+
+Public Sub Test()
+    MsgBox "Test"
+End Sub
+"""
+
+        import os
+
+        folder_path = os.path.join("Business", "Logic")
+        updated_code = handler.component_handler.add_rubberduck_folder(vba_content, folder_path)
+
+        # Should contain the annotation in Rubberduck format
+        assert '@Folder("Business.Logic")' in updated_code
+
+    def test_update_existing_folder_annotation(self, handler):
+        """Test updating existing @Folder annotation."""
+        handler.component_handler.use_rubberduck_folders = True
+
+        vba_content = """Attribute VB_Name = "MyModule"
+'@Folder("OldFolder")
+
+Public Sub Test()
+    MsgBox "Test"
+End Sub
+"""
+
+        import os
+
+        new_folder_path = os.path.join("NewFolder")
+        updated_code = handler.component_handler.add_rubberduck_folder(vba_content, new_folder_path)
+
+        # Should have new annotation
+        assert '@Folder("NewFolder")' in updated_code
+        # Should not have old annotation
+        assert '@Folder("OldFolder")' not in updated_code
+
+    def test_folder_annotation_stops_at_code(self, handler):
+        """Test that folder parsing stops at first code line."""
+        handler.component_handler.use_rubberduck_folders = True
+
+        vba_content = """' Some comment
+' Another comment
+
+Public Sub Test()
+    ' This @Folder("NotHere") should be ignored
+    MsgBox "Test"
+End Sub
+"""
+
+        folder_path, code = handler.component_handler.get_rubberduck_folder(vba_content)
+
+        assert folder_path == "", "Should not find @Folder in code section"
+
+    def test_extract_folder_from_file_path(self, handler):
+        """Test extracting folder structure from file path."""
+        from pathlib import Path
+
+        handler.component_handler.use_rubberduck_folders = True
+
+        vba_base_dir = Path("C:/Project/VBA")
+        file_path = Path("C:/Project/VBA/Business/Data/MyModule.bas")
+
+        folder = handler.component_handler.get_folder_from_file_path(file_path, vba_base_dir)
+
+        import os
+
+        expected = os.path.join("Business", "Data")
+        assert folder == expected, f"Expected '{expected}', got '{folder}'"
+
+    def test_folder_roundtrip(self, handler):
+        """Test complete roundtrip: extract folder, add annotation, extract again."""
+        handler.component_handler.use_rubberduck_folders = True
+
+        original_code = """Attribute VB_Name = "MyModule"
+'@Folder("Business.Logic")
+
+Public Sub Process()
+    ' Implementation
+End Sub
+"""
+
+        # Extract folder
+        folder_path, code = handler.component_handler.get_rubberduck_folder(original_code.split("\n", 1)[1])
+
+        # Create new code without folder annotation
+        code_without_folder = """Attribute VB_Name = "MyModule"
+
+Public Sub Process()
+    ' Implementation
+End Sub
+"""
+
+        # Add folder back
+        updated_code = handler.component_handler.add_rubberduck_folder(code_without_folder, folder_path)
+
+        # Extract again
+        folder_path_2, _ = handler.component_handler.get_rubberduck_folder(updated_code.split("\n", 1)[1])
+
+        # Should match original
+        assert folder_path == folder_path_2, "Roundtrip should preserve folder path"
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v", "--tb=short"])
