@@ -452,7 +452,13 @@ def add_excel_specific_arguments(parser: argparse.ArgumentParser) -> None:
         parser: The argument parser to add arguments to
     """
     parser.add_argument(
-        "--xlwings", "-x", action="store_true", help="Use wrapper for xlwings vba edit|import|export commands"
+        "--xlwings",
+        "-x",
+        action="store_true",
+        help="""Use xlwings backend with vba-edit enhancements. Adds custom --vba-directory 
+        support (automatically changes directory and creates it if needed). Useful for 
+        comparing implementations, validation testing, or as fallback option. 
+        Note: Advanced features (headers, Rubberduck folders, config files) require native mode.""",
     )
 
 

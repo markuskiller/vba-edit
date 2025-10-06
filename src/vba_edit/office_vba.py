@@ -36,6 +36,44 @@ from vba_edit.utils import (
     is_vba_access_error,
 )
 
+
+def _filter_attributes(code: str) -> str:
+    """Filter out member-level Attribute lines from the given code.
+
+    Attribute directives are exported for WithEvents fields and other hidden members,
+    but are illegal when put in Module code verbatim (via AddFromString).
+
+    These are "hidden member attributes" that:
+    - Are legal in exported VBA files (.cls, .bas, .frm)
+    - Are illegal when written directly into a VBA module
+    - Cause syntax errors if they appear in the VBE after import
+
+    Examples of hidden member attributes that need filtering:
+    - Attribute MyCtrl.VB_VarHelpID = -1 (WithEvents controls)
+    - Attribute mField.VB_VarDescription = "..." (member descriptions)
+    - Attribute Prop.VB_UserMemId = 0 (default member - OK at procedure level)
+
+    Note: This filters ALL standalone Attribute lines from code sections.
+    Module-level attributes (VB_Name, VB_GlobalNameSpace, etc.) should already
+    be in the header section, not the code section.
+
+    Reference: https://vbaplanet.com/attributes.php
+    Issue: https://github.com/markuskiller/vba-edit/issues/16
+
+    Args:
+        code: VBA code that may contain illegal Attribute lines
+
+    Returns:
+        Code with all Attribute lines filtered out
+    """
+    if not code:
+        return code
+
+    lines = code.split("\n")
+    filtered_lines = [line for line in lines if not line.strip().lower().startswith("attribute ")]
+    return "\n".join(filtered_lines)
+
+
 """
 The VBA import/export/edit functionality is based on the excellent work done by the xlwings project
 (https://github.com/xlwings/xlwings) which is distributed under the BSD 3-Clause License:
@@ -382,14 +420,15 @@ class VBAComponentHandler:
             # Check for header components
             if stripped.startswith("VERSION"):
                 last_header_idx = i
-            elif stripped == "BEGIN":
+            elif stripped.upper() == "BEGIN" or stripped.upper().startswith("BEGIN "):
+                # Matches both "BEGIN" (class modules) and "Begin {GUID} UserFormName" (UserForms)
                 in_begin_block = True
                 last_header_idx = i
-            elif stripped == "END" and in_begin_block:
+            elif stripped.upper() == "END" and in_begin_block:
                 in_begin_block = False
                 last_header_idx = i
             elif in_begin_block:
-                # Lines inside BEGIN/END block (like MultiUse)
+                # Lines inside BEGIN/END block (like MultiUse or form properties)
                 last_header_idx = i
             elif stripped.startswith("Attribute VB_"):
                 last_header_idx = i
@@ -521,8 +560,9 @@ class VBAComponentHandler:
             if component.CodeModule.CountOfLines > 0:
                 component.CodeModule.DeleteLines(1, component.CodeModule.CountOfLines)
 
+            # Filter out hidden member attributes (Issue #16)
             if content.strip():
-                component.CodeModule.AddFromString(content)
+                component.CodeModule.AddFromString(_filter_attributes(content))
 
             logger.debug(f"Updated content for: {component.Name}")
         except Exception as e:
@@ -1206,8 +1246,9 @@ class OfficeVBAHandler(ABC):
         component.Name = name
 
         # Add only the code portion - headers are auto-generated
+        # Filter out hidden member attributes (Issue #16)
         if code.strip():
-            component.CodeModule.AddFromString(code)
+            component.CodeModule.AddFromString(_filter_attributes(code))
 
     def _import_with_separate_headers(self, file_path: Path, components: Any, module_type: VBAModuleType) -> None:
         """Import VBA component using separate header files (existing logic)."""
@@ -1300,8 +1341,9 @@ class OfficeVBAHandler(ABC):
             self._apply_header_attributes(component, header)
 
             # Add only the code portion
+            # Filter out hidden member attributes (Issue #16)
             if code.strip():
-                component.CodeModule.AddFromString(code)
+                component.CodeModule.AddFromString(_filter_attributes(code))
         else:
             self._update_module_content(component, content)
 
@@ -1351,8 +1393,9 @@ class OfficeVBAHandler(ABC):
             if component.CodeModule.CountOfLines > 0:
                 component.CodeModule.DeleteLines(1, component.CodeModule.CountOfLines)
 
+            # Filter out hidden member attributes (Issue #16)
             if content.strip():
-                component.CodeModule.AddFromString(content)
+                component.CodeModule.AddFromString(_filter_attributes(content))
 
             logger.debug(f"Updated content for: {component.Name}")
         except Exception as e:
@@ -1802,9 +1845,9 @@ class WordVBAHandler(OfficeVBAHandler):
             if doc_component.CodeModule.CountOfLines > 0:
                 doc_component.CodeModule.DeleteLines(1, doc_component.CodeModule.CountOfLines)
 
-            # Add new code
+            # Add new code (filter hidden member attributes - Issue #16)
             if code.strip():
-                doc_component.CodeModule.AddFromString(code)
+                doc_component.CodeModule.AddFromString(_filter_attributes(code))
 
             logger.info(f"Updated document module: {name}")
 
@@ -1853,9 +1896,9 @@ class ExcelVBAHandler(OfficeVBAHandler):
             if doc_component.CodeModule.CountOfLines > 0:
                 doc_component.CodeModule.DeleteLines(1, doc_component.CodeModule.CountOfLines)
 
-            # Add new code
+            # Add new code (filter hidden member attributes - Issue #16)
             if code.strip():
-                doc_component.CodeModule.AddFromString(code)
+                doc_component.CodeModule.AddFromString(_filter_attributes(code))
 
             logger.info(f"Updated document module: {name}")
 
@@ -2018,9 +2061,9 @@ class AccessVBAHandler(OfficeVBAHandler):
             if component.CodeModule.CountOfLines > 0:
                 component.CodeModule.DeleteLines(1, component.CodeModule.CountOfLines)
 
-            # Add new code if not empty
+            # Add new code if not empty (filter hidden member attributes - Issue #16)
             if code.strip():
-                component.CodeModule.AddFromString(code)
+                component.CodeModule.AddFromString(_filter_attributes(code))
 
             logger.info(f"Updated module content: {name}")
 
@@ -2152,9 +2195,9 @@ class PowerPointVBAHandler(OfficeVBAHandler):
             if component.CodeModule.CountOfLines > 0:
                 component.CodeModule.DeleteLines(1, component.CodeModule.CountOfLines)
 
-            # Add new code
+            # Add new code (filter hidden member attributes - Issue #16)
             if code.strip():
-                component.CodeModule.AddFromString(code)
+                component.CodeModule.AddFromString(_filter_attributes(code))
 
             logger.info(f"Updated module: {name}")
 
