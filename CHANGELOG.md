@@ -22,6 +22,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `check all` subcommand for cli entry points, which processes all suported MS Office apps in a single call (replaces calling `python -m vba_edit.utils`)
 - Option to show program's version number and exit added to all cli interfaces (`--version`)
 - Metadata tracking: exports now save `header_mode` to detect configuration changes between runs
+- **Testing**: Added 14 integration tests for GitHub issues #16 and #11 (`tests/test_github_issues.py`)
+- **Testing**: Added 12 xlwings compatibility verification tests (`tests/test_xlwings_issue_verification.py`)
+- **Build**: Added version file generation support to `create_binaries.py` for Windows executables
 
 ### Changed
 - Improved version control compatibility with embedded headers (@onderhold)
@@ -32,6 +35,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Architecture**: CLI layer handles all user prompts via shared helper, eliminating code duplication across entry points
 
 ### Fixed
+- **Issue #16**: Hidden member attributes (VB_VarHelpID, VB_VarDescription, VB_UserMemId) no longer appear in VBA editor after import. These attributes are legal in exported VBA files but cause syntax errors when written directly into modules. Solution: filter all member-level Attribute lines from code sections before calling AddFromString(). (Reported by @takutta, @loehnertj)
+- **Issue #11**: Verified `--in-file-headers` feature works correctly for LSP tool compatibility (VBA Pro extension support)
+- **UserForm parsing**: Fixed case-sensitive BEGIN block matching - now handles both "BEGIN" (class modules) and "Begin {GUID} FormName" (UserForms) correctly
 - fix check for form safety on `export` (if edit command is run without `--save-headers` option, forms cannot be processed correctly -> check for forms and abort if `--save-headers` is not enabled)
 - fix header file handling (`--save-headers`) in already populated `--vba-directory` (only 1 header file was created rather than one per *.cls, *.bas or *.frm file) - calling it on empty `--vba-directory` worked as expected
 - **Fixed**: `--in-file-headers` validation now correctly allows UserForm exports (was incorrectly rejected even when flag was set)
