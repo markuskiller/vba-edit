@@ -53,12 +53,6 @@ A command-line tool suite for managing VBA content in MS Office documents.
 EXCEL-VBA allows you to edit, import, and export VBA content from Excel workbooks.
 If no file is specified, the tool will attempt to use the currently active Excel workbook.
 
-Commands:
-    edit    Edit VBA content in Excel workbook
-    import  Import VBA content into Excel workbook
-    export  Export VBA content from Excel workbook
-    check   Check if 'Trust access to the VBA project object model' is enabled in MS Excel
-
 Examples:
     excel-vba edit   <--- uses active Excel workbook and current directory for exported 
                          VBA files (*.bas/*.cls/*.frm) & syncs changes back to the 
@@ -66,8 +60,10 @@ Examples:
 
     excel-vba import -f "C:/path/to/workbook.xlsm" --vba-directory "path/to/vba/files"
     excel-vba export --file "C:/path/to/workbook.xlsm" --encoding cp850 --save-metadata
+    excel-vba export --conf "path/to/conf/file" --in-file-headers --force-overwrite
     excel-vba edit --vba-directory "path/to/vba/files" --logfile "path/to/logfile" --verbose
-    excel-vba edit --save-headers
+    excel-vba edit --save-headers --rubberduck-folders --open-folder
+
 
 IMPORTANT: 
            [!] It's early days. Use with care and backup your important macro-enabled

@@ -50,12 +50,6 @@ A command-line tool suite for managing VBA content in MS Office documents.
 WORD-VBA allows you to edit, import, and export VBA content from Word documents.
 If no file is specified, the tool will attempt to use the currently active Word document.
 
-Commands:
-    edit    Edit VBA content in MS Word document
-    import  Import VBA content into MS Word document
-    export  Export VBA content from MS Word document
-    check   Check if 'Trust Access to the MS Word VBA project object model' is enabled
-
 Examples:
     word-vba edit   <--- uses active Word document and current directory for exported 
                          VBA files (*.bas/*.cls/*.frm) & syncs changes back to the 
@@ -63,8 +57,9 @@ Examples:
 
     word-vba import -f "C:/path/to/document.docx" --vba-directory "path/to/vba/files"
     word-vba export --file "C:/path/to/document.docx" --encoding cp850 --save-metadata
+    word-vba export --conf "path/to/conf/file" --in-file-headers --force-overwrite
     word-vba edit --vba-directory "path/to/vba/files" --logfile "path/to/logfile" --verbose
-    word-vba edit --save-headers
+    word-vba edit --save-headers --rubberduck-folders --open-folder
 
 IMPORTANT: 
            [!] It's early days. Use with care and backup your important macro-enabled

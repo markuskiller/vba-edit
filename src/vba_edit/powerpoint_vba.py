@@ -50,12 +50,6 @@ A command-line tool suite for managing VBA content in MS Office documents.
 POWERPOINT-VBA allows you to edit, import, and export VBA content from PowerPoint documents.
 If no file is specified, the tool will attempt to use the currently active PowerPoint document.
 
-Commands:
-    edit    Edit VBA content in MS PowerPoint document
-    import  Import VBA content into MS PowerPoint document
-    export  Export VBA content from MS PowerPoint document
-    check   Check if 'Trust Access to the MS PowerPoint VBA project object model' is enabled
-
 Examples:
     powerpoint-vba edit    <--- uses active PowerPoint document and current directory for exported 
                            VBA files (*.bas/*.cls/*.frm) & syncs changes back to the 
@@ -63,8 +57,9 @@ Examples:
 
     powerpoint-vba import -f "C:/path/to/document.docx" --vba-directory "path/to/vba/files"
     powerpoint-vba export --file "C:/path/to/document.docx" --encoding cp850 --save-metadata
+    powerpoint-vba export --conf "path/to/conf/file" --in-file-headers --force-overwrite
     powerpoint-vba edit --vba-directory "path/to/vba/files" --logfile "path/to/logfile" --verbose
-    powerpoint-vba edit --save-headers
+    powerpoint-vba edit --save-headers --rubberduck-folders --open-folder
 
 IMPORTANT: 
            [!] It's early days. Use with care and backup your imortant macro-enabled

@@ -52,12 +52,6 @@ If no file is specified, the tool will attempt to use the currently active Acces
 If multiple databases are open, you must specify the target database using --file.
 Only standard modules (*.bas) and class modules (*.cls) are supported.
 
-Commands:
-    edit    Edit VBA content in MS Access database
-    import  Import VBA content into MS Access database
-    export  Export VBA content from MS Access database
-    check   Check if MS Access VBA project object model is accessible 
-
 Examples:
     access-vba edit   <--- uses active Access database and current directory for exported 
                            VBA files (*.bas/*.cls) & syncs changes back to the 
@@ -65,6 +59,9 @@ Examples:
 
     access-vba import -f "C:/path/to/database.accdb" --vba-directory "path/to/vba/files"
     access-vba export --file "C:/path/to/database.accdb" --encoding cp850 --save-metadata
+    access-vba export --conf "path/to/conf/file" --in-file-headers --force-overwrite
+    access-vba edit --vba-directory "path/to/vba/files" --logfile "path/to/logfile" --verbose
+    access-vba edit --save-headers --rubberduck-folders --open-folder
 
 IMPORTANT: 
            [!] It's early days. Use with care and backup your important macro-enabled
@@ -72,8 +69,11 @@ IMPORTANT:
 
            [!] This tool requires "Trust access to the VBA project object model"
            
-           [!] The database will remain open after operations complete - closing
+           [!] The database might remain open after operations complete - closing
                should be done manually through Access.
+
+           [!] MS Access may ask for user interaction when importing modules into
+               the VBA editor. Confirm module name to finish the import.
 """,
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
