@@ -120,6 +120,9 @@ def build_executable(app_name: str, config: dict, src_dir: str, additional_args:
     # Create version file for Windows properties
     version_file = create_version_file(exe_name, description)
 
+    # Get path to pyproject.toml for version info
+    pyproject_path = Path(__file__).parent / "pyproject.toml"
+
     # Base PyInstaller arguments
     args = [
         script_path,
@@ -129,6 +132,8 @@ def build_executable(app_name: str, config: dict, src_dir: str, additional_args:
         "--paths",
         src_dir,
         f"--version-file={version_file}",
+        # Include pyproject.toml in the bundle for version detection
+        f"--add-data={pyproject_path};.",
     ]
 
     # Add any additional arguments
