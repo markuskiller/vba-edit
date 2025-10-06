@@ -77,15 +77,19 @@ Enable VBA access in Office:
 ```bash
 excel-vba edit                    # Start with active workbook
 ```
-### Team Project with Git
 
+### Quick Export with Folder View
+```bash
+excel-vba export --open-folder    # Export and open in File Explorer
+```
+
+### Team Project with Git
 ```bash
 excel-vba export --vba-directory ./src/vba
 git add . && git commit -m "Updated reports module"
 ``` 
 
 ### Support for RubberduckVBA Style (big thank you to @onderhold!)
-
 ```bash
 excel-vba edit --rubberduck-folders --in-file-headers
 ``` 
@@ -96,11 +100,13 @@ excel-vba edit --rubberduck-folders --in-file-headers
 |---------|-------------|
 | `excel-vba edit` | Start live editing |
 | `excel-vba export` | One-time export |
+| `excel-vba export --open-folder` | Export and open folder in explorer |
 | `excel-vba export --force-overwrite` | Export without confirmation prompts |
 | `excel-vba check` | Verify status of *Trust access* to the VBA project object model |
 | `--vba-directory ./src` | Custom folder |
 | `--rubberduck-folders` | Organize by @Folder |
 | `--in-file-headers` | Embed headers in code files |
+| `--conf myconfig.toml` | Use config file |
 | `--force-overwrite` | Skip safety prompts (automation) |
 
 ## Troubleshooting
@@ -175,7 +181,7 @@ excel-vba export --vba-directory ./src --force-overwrite
 
 ```text
 --file, -f                   Path to Office document
---conf, -c                   Supply config file
+--conf, --config, -c         Supply config file (TOML format)
 --vba-directory              Directory for VBA files
 --rubberduck-folders         Use RubberduckVBA folder annotations
 --save-headers               Save module headers separately
@@ -184,6 +190,9 @@ excel-vba export --vba-directory ./src --force-overwrite
 --detect-encoding, -d        Auto-detect encoding
 --verbose, -v                Enable detailed logging
 --logfile, -l                Enable file logging
+--open-folder                Open export directory in file explorer after export
+--save-metadata, -m          Save metadata file with encoding information
+--force-overwrite            Skip all confirmation prompts (for automation)
 --version, -V                Show program's version number and exit
 ```
 
@@ -204,6 +213,87 @@ Attribute VB_Exposed = False
 Public Sub DoSomething()
     ' Your code here
 End Sub
+```
+
+## Configuration Files
+
+**NEW v0.4.0+** Use TOML configuration files to standardize team workflows and avoid repetitive command-line arguments.
+
+### Basic Configuration
+
+Create a `vba-config.toml` file in your project:
+
+```toml
+[general]
+file = "MyWorkbook.xlsm"
+vba_directory = "src/vba"
+verbose = true
+rubberduck_folders = true
+in_file_headers = true
+```
+
+Then use it:
+```bash
+excel-vba export --conf vba-config.toml
+```
+
+### Available Configuration Keys
+
+**[general] section:**
+- `file` - Path to Office document
+- `vba_directory` - Directory for VBA files
+- `encoding` - Character encoding (e.g., "utf-8", "cp1252")
+- `verbose` - Enable verbose logging (true/false)
+- `logfile` - Path to log file
+- `rubberduck_folders` - Use RubberduckVBA @Folder annotations (true/false)
+- `save_headers` - Save headers to separate .header files (true/false)
+- `in_file_headers` - Embed headers in code files (true/false)
+- `open_folder` - Open export directory after export (true/false)
+
+**Other sections (reserved for future use):**
+- `[office]` - Office-wide settings
+- `[excel]` - Excel-specific settings
+- `[word]` - Word-specific settings
+- `[access]` - Access-specific settings
+- `[powerpoint]` - PowerPoint-specific settings
+
+### Configuration Placeholders
+
+Configuration values support dynamic placeholders for flexible path management:
+
+**Available placeholders:**
+- `{config.path}` - Directory containing the config file
+- `{general.file.name}` - Document filename without extension
+- `{general.file.fullname}` - Document filename with extension
+- `{general.file.path}` - Directory containing the document
+- `{vbaproject}` - VBA project name (resolved at runtime)
+
+**Example with placeholders:**
+
+```toml
+[general]
+file = "C:/Projects/MyApp/MyWorkbook.xlsm"
+vba_directory = "{general.file.path}/{general.file.name}-vba"
+# This resolves to: C:/Projects/MyApp/MyWorkbook-vba
+```
+
+**Relative paths example:**
+
+```toml
+[general]
+file = "../documents/report.xlsm"
+vba_directory = "{config.path}/vba-modules"
+# vba_directory is relative to config file location
+```
+
+### Command-Line Override
+
+Command-line arguments always override config file settings:
+
+```bash
+# Config says vba_directory = "src/vba"
+# This overrides it to "build/vba"
+excel-vba export --conf vba-config.toml --vba-directory build/vba
 ```
 
 > [!CAUTION]
