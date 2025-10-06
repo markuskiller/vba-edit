@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - new option `--in-file-headers`: embedding VBA headers in code files ([@onderhold](https://github.com/onderhold))
-- new option `--rubbderduck-folders`: support for rubberduckVBA-style folders ([@onderhold](https://github.com/onderhold))
+- new option `--rubberduck-folders`: support for RubberduckVBA-style `@Folder` annotations and folder organization ([Issue #9](https://github.com/markuskiller/vba-edit/issues/9)) ([@onderhold](https://github.com/onderhold))
 - new option `--conf`: support for config files  ([@onderhold](https://github.com/onderhold))
 - new option `--force-overwrite`: skip safety prompts for automated exports (CI/CD friendly)
 - **Safety Features**: Automatic warnings before overwriting existing VBA files
