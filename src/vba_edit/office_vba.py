@@ -38,7 +38,7 @@ from vba_edit.utils import (
 
 
 def _filter_attributes(code: str) -> str:
-    """Filter out member-level Attribute lines from the given code.
+    """Filter out hidden member-level Attribute lines from the given code.
 
     Attribute directives are exported for WithEvents fields and other hidden members,
     but are illegal when put in Module code verbatim (via AddFromString).
@@ -48,29 +48,41 @@ def _filter_attributes(code: str) -> str:
     - Are illegal when written directly into a VBA module
     - Cause syntax errors if they appear in the VBE after import
 
-    Examples of hidden member attributes that need filtering:
+    Examples of hidden member attributes that need filtering (note the dot before VB_*):
     - Attribute MyCtrl.VB_VarHelpID = -1 (WithEvents controls)
     - Attribute mField.VB_VarDescription = "..." (member descriptions)
-    - Attribute Prop.VB_UserMemId = 0 (default member - OK at procedure level)
+    - Attribute Prop.VB_UserMemId = 0 (default member at field level)
 
-    Note: This filters ALL standalone Attribute lines from code sections.
-    Module-level attributes (VB_Name, VB_GlobalNameSpace, etc.) should already
-    be in the header section, not the code section.
+    Module-level attributes (without dots) are preserved:
+    - Attribute VB_Name = "MyModule" (module name)
+    - Attribute VB_Exposed = True (class exposure)
+    - Attribute VB_GlobalNameSpace = False (module global namespace)
+
+    The key difference: hidden member attributes contain a dot (.) before the VB_* name,
+    while module-level attributes do not.
 
     Reference: https://vbaplanet.com/attributes.php
     Issue: https://github.com/markuskiller/vba-edit/issues/16
 
     Args:
-        code: VBA code that may contain illegal Attribute lines
+        code: VBA code that may contain illegal hidden member Attribute lines
 
     Returns:
-        Code with all Attribute lines filtered out
+        Code with hidden member Attribute lines filtered out, module-level attributes preserved
     """
     if not code:
         return code
 
     lines = code.split("\n")
-    filtered_lines = [line for line in lines if not line.strip().lower().startswith("attribute ")]
+    filtered_lines = []
+    for line in lines:
+        stripped = line.strip().lower()
+        # Filter lines that start with "attribute " and contain a dot before "="
+        # This identifies hidden member attributes like "Attribute MyCtrl.VB_VarHelpID = -1"
+        # while preserving module-level attributes like "Attribute VB_Exposed = False"
+        if stripped.startswith("attribute ") and "." in stripped.split("=")[0]:
+            continue  # Skip this line (it's a hidden member attribute)
+        filtered_lines.append(line)
     return "\n".join(filtered_lines)
 
 
