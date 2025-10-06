@@ -1191,7 +1191,7 @@ End Sub
 
         # Use the existing TestClass from the fixture
         test_class = vb_project.VBComponents("TestClass")
-        
+
         # Add some actual VBA code to the class
         test_code = """Option Explicit
 
@@ -1207,16 +1207,16 @@ Private Sub mButton_Click()
 End Sub
 """
         test_class.CodeModule.AddFromString(test_code)
-        
+
         print(f"Added test code to TestClass ({len(test_code)} chars)")
-        
+
         # Get the code module
         code_module = test_class.CodeModule
 
         # Manually export just TestClass using VBA's Export method
         temp_export = vba_dir_isolated / "TestClass.cls"
         test_class.Export(str(temp_export))
-        
+
         assert temp_export.exists(), "Export failed"
 
         # Read the exported file
@@ -1233,7 +1233,12 @@ End Sub
         code_start_idx = -1
         for i, line in enumerate(lines):
             stripped = line.strip()
-            if stripped.startswith("Private") or stripped.startswith("Public") or stripped.startswith("Sub ") or stripped.startswith("Function "):
+            if (
+                stripped.startswith("Private")
+                or stripped.startswith("Public")
+                or stripped.startswith("Sub ")
+                or stripped.startswith("Function ")
+            ):
                 code_start_idx = i + 1  # Insert after this line
                 break
 
@@ -1244,14 +1249,14 @@ End Sub
         # These will be in the code section after split_vba_content()
         hidden_attrs = [
             "Attribute TestClass.VB_VarHelpID = -1",
-            "Attribute TestClass.VB_VarDescription = \"Test description\"",
+            'Attribute TestClass.VB_VarDescription = "Test description"',
         ]
 
         for attr in hidden_attrs:
             lines.insert(code_start_idx, attr)
             code_start_idx += 1
 
-        modified_content = "\n".join(lines)        # Write back
+        modified_content = "\n".join(lines)  # Write back
         with open(temp_export, "w", encoding="cp1252") as f:
             f.write(modified_content)
 
@@ -1263,19 +1268,21 @@ End Sub
 
         # Now import just this ONE file using vba-edit
         cli = CLITester("excel-vba")
-        cli.assert_success(["import", "-f", str(wb_path), "--vba-directory", str(vba_dir_isolated), "--in-file-headers"])
+        cli.assert_success(
+            ["import", "-f", str(wb_path), "--vba-directory", str(vba_dir_isolated), "--in-file-headers"]
+        )
 
         # Verify the code is back
         test_class = vb_project.VBComponents("TestClass")  # Re-get the component
         code_module = test_class.CodeModule
         line_count = code_module.CountOfLines
         imported_code = code_module.Lines(1, line_count) if line_count > 0 else ""
-        
+
         print(f"Imported code: {len(imported_code)} chars")
 
         # Check that code exists (not empty)
         assert len(imported_code.strip()) > 0, "Code was lost during import with hidden member attributes"
-        
+
         print("✅ SUCCESS: Issue #16 fixed - hidden member attributes filtered during import!")
 
     @pytest.mark.integration
@@ -1314,16 +1321,16 @@ Public Sub ShowMessage()
 End Sub
 """
         test_module.CodeModule.AddFromString(test_code)
-        
+
         print(f"Added test code to TestModule ({len(test_code)} chars)")
-        
+
         # Get the code module
         code_module = test_module.CodeModule
 
         # Manually export just TestModule using VBA's Export method
         temp_export = vba_dir_isolated / "TestModule.bas"
         test_module.Export(str(temp_export))
-        
+
         assert temp_export.exists(), "Export failed"
 
         # Read the exported file
@@ -1344,11 +1351,13 @@ End Sub
         for i, line in enumerate(lines):
             stripped = line.strip()
             # Look for typical code elements (after header section)
-            if (stripped.startswith("Option") or 
-                stripped.startswith("Public ") or 
-                stripped.startswith("Private ") or 
-                stripped.startswith("Sub ") or 
-                stripped.startswith("Function ")):
+            if (
+                stripped.startswith("Option")
+                or stripped.startswith("Public ")
+                or stripped.startswith("Private ")
+                or stripped.startswith("Sub ")
+                or stripped.startswith("Function ")
+            ):
                 code_start_idx = i + 1  # Insert after this line
                 break
 
@@ -1358,15 +1367,15 @@ End Sub
         # Insert test attributes - module-level goes in header, hidden member goes in code
         # For this test, we'll inject hidden member attribute in the code section
         test_attrs = [
-            "Attribute TestModule.VB_VarHelpID = -1",   # Hidden member - should be filtered
-            "Attribute mControl.VB_VarDescription = \"Test control\"",  # Hidden member - should be filtered
+            "Attribute TestModule.VB_VarHelpID = -1",  # Hidden member - should be filtered
+            'Attribute mControl.VB_VarDescription = "Test control"',  # Hidden member - should be filtered
         ]
 
         for attr in test_attrs:
             lines.insert(code_start_idx, attr)
             code_start_idx += 1
 
-        modified_content = "\n".join(lines)        # Write back
+        modified_content = "\n".join(lines)  # Write back
         with open(temp_export, "w", encoding="cp1252") as f:
             f.write(modified_content)
 
@@ -1379,14 +1388,16 @@ End Sub
         # Import - Issue #16 fix should filter hidden member attributes but preserve module-level
         print("Importing module with mixed attribute types...")
         cli = CLITester("excel-vba")
-        cli.assert_success(["import", "-f", str(wb_path), "--vba-directory", str(vba_dir_isolated), "--in-file-headers"])
+        cli.assert_success(
+            ["import", "-f", str(wb_path), "--vba-directory", str(vba_dir_isolated), "--in-file-headers"]
+        )
 
         # Verify the code is intact
         test_module = vb_project.VBComponents("TestModule")  # Re-get the component
         code_module = test_module.CodeModule
         line_count = code_module.CountOfLines
         full_code = code_module.Lines(1, line_count) if line_count > 0 else ""
-        
+
         print(f"Imported code: {len(full_code)} chars")
 
         # Check that code exists

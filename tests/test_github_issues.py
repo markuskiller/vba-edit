@@ -588,7 +588,7 @@ End Sub
         """Test that @Folder annotation is case-insensitive."""
         handler.component_handler.use_rubberduck_folders = True
 
-        test_cases = ["'@Folder(\"Test\")", "'@folder(\"Test\")", "'@FOLDER(\"Test\")"]
+        test_cases = ['\'@Folder("Test")', '\'@folder("Test")', '\'@FOLDER("Test")']
 
         for annotation in test_cases:
             vba_content = f"""{annotation}
