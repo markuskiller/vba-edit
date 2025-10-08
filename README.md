@@ -252,21 +252,27 @@ excel-vba export --conf vba-config.toml
 
 ### Configuration Placeholders
 
-Configuration values support dynamic placeholders for flexible path management:
+Configuration values support dynamic placeholders for flexible path management.
 
-**Available placeholders:**
+**Available placeholders (v0.4.1+):**
 - `{config.path}` - Directory containing the config file
-- `{general.file.name}` - Document filename without extension
-- `{general.file.fullname}` - Document filename with extension
-- `{general.file.path}` - Directory containing the document
-- `{vbaproject}` - VBA project name (resolved at runtime)
+- `{file.name}` - Document filename without extension
+- `{file.fullname}` - Document filename with extension
+- `{file.path}` - Directory containing the document
+- `{file.vbaproject}` - VBA project name (resolved at runtime)
+
+**Legacy placeholders (deprecated in v0.4.1, removed in v0.5.0):**
+- `{general.file.name}` → use `{file.name}`
+- `{general.file.fullname}` → use `{file.fullname}`
+- `{general.file.path}` → use `{file.path}`
+- `{vbaproject}` → use `{file.vbaproject}`
 
 **Example with placeholders:**
 
 ```toml
 [general]
 file = "C:/Projects/MyApp/MyWorkbook.xlsm"
-vba_directory = "{general.file.path}/{general.file.name}-vba"
+vba_directory = "{file.path}/{file.name}-vba"
 # This resolves to: C:/Projects/MyApp/MyWorkbook-vba
 ```
 

@@ -82,12 +82,20 @@ def handle_export_with_warnings(
             handler.export_vba(save_metadata=save_metadata, overwrite=True, interactive=False)
 
 
-# Placeholder constants
+# Placeholder constants for configuration file substitution
+# New simplified format (v0.4.1+)
 PLACEHOLDER_CONFIG_PATH = "{config.path}"
-PLACEHOLDER_FILE_NAME = "{general.file.name}"
-PLACEHOLDER_FILE_FULLNAME = "{general.file.fullname}"
-PLACEHOLDER_FILE_PATH = "{general.file.path}"
-PLACEHOLDER_VBA_PROJECT = "{vbaproject}"
+PLACEHOLDER_FILE_NAME = "{file.name}"
+PLACEHOLDER_FILE_FULLNAME = "{file.fullname}"
+PLACEHOLDER_FILE_PATH = "{file.path}"
+PLACEHOLDER_FILE_VBAPROJECT = "{file.vbaproject}"
+# Legacy placeholders for backward compatibility (deprecated in v0.4.1, will be removed in v0.5.0)
+PLACEHOLDER_FILE_NAME_LEGACY = "{general.file.name}"
+PLACEHOLDER_FILE_FULLNAME_LEGACY = "{general.file.fullname}"
+PLACEHOLDER_FILE_PATH_LEGACY = "{general.file.path}"
+PLACEHOLDER_VBA_PROJECT_LEGACY = "{vbaproject}"
+# Aliases for test compatibility (deprecated, use new names above)
+PLACEHOLDER_VBA_PROJECT = PLACEHOLDER_VBA_PROJECT_LEGACY  # For backward compatibility in tests
 
 # TOML configuration section constants
 CONFIG_SECTION_GENERAL = "general"
@@ -137,6 +145,9 @@ def resolve_placeholders_in_value(value: str, placeholders: Dict[str, str]) -> s
 def get_placeholder_values(config_file_path: Optional[str] = None, file_path: Optional[str] = None) -> Dict[str, str]:
     """Get placeholder values based on config file and file paths.
 
+    Supports both new simplified placeholders ({file.name}) and legacy ones ({general.file.name})
+    for backward compatibility.
+
     Args:
         config_file_path: Path to the TOML config file (optional)
         file_path: Path to the Office document (optional)
@@ -145,11 +156,17 @@ def get_placeholder_values(config_file_path: Optional[str] = None, file_path: Op
         Dictionary mapping placeholder names to their values
     """
     placeholders = {
+        # New format (v0.4.1+)
         PLACEHOLDER_CONFIG_PATH: "",
         PLACEHOLDER_FILE_NAME: "",
         PLACEHOLDER_FILE_FULLNAME: "",
         PLACEHOLDER_FILE_PATH: "",
-        # {vbaproject} will be resolved later when we have access to the Office file
+        PLACEHOLDER_FILE_VBAPROJECT: "",  # Resolved later
+        # Legacy format (deprecated)
+        PLACEHOLDER_FILE_NAME_LEGACY: "",
+        PLACEHOLDER_FILE_FULLNAME_LEGACY: "",
+        PLACEHOLDER_FILE_PATH_LEGACY: "",
+        PLACEHOLDER_VBA_PROJECT_LEGACY: "",  # Resolved later
     }
 
     # Get config file directory for relative path resolution
@@ -168,9 +185,18 @@ def get_placeholder_values(config_file_path: Optional[str] = None, file_path: Op
                 config_dir = Path(config_file_path).parent
                 resolved_file_path = config_dir / file_path
 
-            placeholders[PLACEHOLDER_FILE_NAME] = resolved_file_path.stem  # filename without extension
-            placeholders[PLACEHOLDER_FILE_FULLNAME] = resolved_file_path.name  # filename with extension
-            placeholders[PLACEHOLDER_FILE_PATH] = str(resolved_file_path.parent)
+            file_name = resolved_file_path.stem  # filename without extension
+            file_fullname = resolved_file_path.name  # filename with extension
+            file_path_str = str(resolved_file_path.parent)
+            
+            # New format
+            placeholders[PLACEHOLDER_FILE_NAME] = file_name
+            placeholders[PLACEHOLDER_FILE_FULLNAME] = file_fullname
+            placeholders[PLACEHOLDER_FILE_PATH] = file_path_str
+            # Legacy format (same values)
+            placeholders[PLACEHOLDER_FILE_NAME_LEGACY] = file_name
+            placeholders[PLACEHOLDER_FILE_FULLNAME_LEGACY] = file_fullname
+            placeholders[PLACEHOLDER_FILE_PATH_LEGACY] = file_path_str
 
     return placeholders
 
@@ -206,21 +232,28 @@ def resolve_all_placeholders(args: argparse.Namespace, config_file_path: Optiona
 
 
 def resolve_vbaproject_placeholder_in_args(args: argparse.Namespace, vba_project_name: str) -> argparse.Namespace:
-    """Resolve the {vbaproject} placeholder in arguments after VBA project name is known.
+    """Resolve the {file.vbaproject} and legacy {vbaproject} placeholders after VBA project name is known.
+
+    Supports both new simplified placeholder ({file.vbaproject}) and legacy one ({vbaproject})
+    for backward compatibility.
 
     Args:
         args: Command-line arguments
         vba_project_name: Name of the VBA project
 
     Returns:
-        Arguments with {vbaproject} placeholder resolved
+        Arguments with vbaproject placeholders resolved
     """
     args_dict = vars(args).copy()
 
-    # Resolve {vbaproject} placeholder in all string arguments
+    # Resolve both new and legacy placeholders in all string arguments
     for key, value in args_dict.items():
         if isinstance(value, str):
-            args_dict[key] = value.replace(PLACEHOLDER_VBA_PROJECT, vba_project_name)
+            # New format
+            value = value.replace(PLACEHOLDER_FILE_VBAPROJECT, vba_project_name)
+            # Legacy format
+            value = value.replace(PLACEHOLDER_VBA_PROJECT_LEGACY, vba_project_name)
+            args_dict[key] = value
 
     return argparse.Namespace(**args_dict)
 
@@ -246,20 +279,26 @@ def resolve_config_placeholders_recursive(value, placeholders: Dict[str, str]):
 
 
 def resolve_vbaproject_placeholder(config: Dict[str, Any], vba_project_name: str) -> Dict[str, Any]:
-    """Resolve the {vbaproject} placeholder after VBA project name is known.
+    """Resolve the {file.vbaproject} and legacy {vbaproject} placeholders after VBA project name is known.
+
+    Supports both new simplified placeholder ({file.vbaproject}) and legacy one ({vbaproject})
+    for backward compatibility.
 
     Args:
         config: Configuration dictionary
         vba_project_name: Name of the VBA project
 
     Returns:
-        Configuration with {vbaproject} placeholder resolved
+        Configuration with vbaproject placeholders resolved
     """
     import copy
 
     resolved_config = copy.deepcopy(config)
 
-    placeholders = {PLACEHOLDER_VBA_PROJECT: vba_project_name}
+    placeholders = {
+        PLACEHOLDER_FILE_VBAPROJECT: vba_project_name,  # New format
+        PLACEHOLDER_VBA_PROJECT_LEGACY: vba_project_name,  # Legacy format
+    }
 
     return resolve_config_placeholders_recursive(resolved_config, placeholders)
 

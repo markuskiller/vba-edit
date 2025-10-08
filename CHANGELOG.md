@@ -10,6 +10,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - `add_folder_organization_arguments()` function in `cli_common.py` for command-specific folder options
+- **Simplified Placeholders**: New streamlined placeholder format for configuration files
+  - `{file.name}` - replaces `{general.file.name}` 
+  - `{file.fullname}` - replaces `{general.file.fullname}`
+  - `{file.path}` - replaces `{general.file.path}`
+  - `{file.vbaproject}` - replaces `{vbaproject}`
+  - Legacy placeholders still supported for backward compatibility (will be removed in v0.5.0)
 
 ### Changed
 
@@ -18,6 +24,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Removed `add_common_arguments()` from main parser level to prevent global option leakage
 - **Option Availability**: `--open-folder` now available on all manipulation commands (edit, import, export) for improved workflow continuity
 - Updated all handler initializations to use `getattr()` with defaults for optional folder organization arguments
+- **Placeholder System**: Simplified configuration placeholder naming for better clarity and consistency
+
+### Deprecated
+
+- Legacy placeholder format `{general.file.*}` and `{vbaproject}` (use new `{file.*}` format instead)
 
 ### Fixed
 
