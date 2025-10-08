@@ -293,4 +293,8 @@ class TestSafetyFeaturesIntegration:
         # Should fail with error message
         assert result.returncode != 0
         full_output = result.stdout + result.stderr
-        assert "mutually exclusive" in full_output.lower() or "conflicting" in full_output.lower() or "not allowed with" in full_output.lower()
+        assert (
+            "mutually exclusive" in full_output.lower()
+            or "conflicting" in full_output.lower()
+            or "not allowed with" in full_output.lower()
+        )

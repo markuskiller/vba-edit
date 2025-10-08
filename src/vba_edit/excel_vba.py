@@ -8,13 +8,6 @@ from pathlib import Path
 from vba_edit import __name__ as package_name
 from vba_edit import __version__ as package_version
 from vba_edit.cli_common import (
-    add_common_arguments,
-    add_encoding_arguments,
-    add_excel_specific_arguments,
-    add_export_arguments,
-    add_folder_organization_arguments,
-    add_header_arguments,
-    add_metadata_arguments,
     handle_export_with_warnings,
     process_config_file,
     validate_header_options,
@@ -29,12 +22,7 @@ from vba_edit.exceptions import (
     VBAError,
 )
 from vba_edit.help_formatter import (
-    EDIT_EXAMPLES,
-    EXPORT_EXAMPLES,
-    IMPORT_EXAMPLES,
-    CHECK_EXAMPLES,
     EnhancedHelpFormatter,
-    add_examples_epilog,
 )
 from vba_edit.office_vba import ExcelVBAHandler
 from vba_edit.path_utils import get_document_paths
@@ -100,7 +88,7 @@ Simple usage:
   
 Full control usage:
   excel-vba edit -f file.xlsm --vba-directory src"""
-    
+
     edit_usage = """excel-vba edit
     [--file FILE | -f FILE]
     [--vba-directory DIR]
@@ -114,7 +102,7 @@ Full control usage:
     [--verbose | -v]
     [--logfile | -l]
     [--help | -h]"""
-    
+
     edit_parser = subparsers.add_parser(
         "edit",
         usage=edit_usage,
@@ -123,11 +111,12 @@ Full control usage:
         formatter_class=EnhancedHelpFormatter,
         add_help=False,  # Suppress default help to add it manually in Common Options
     )
-    
+
     # File Options group
-    file_group = edit_parser.add_argument_group('File Options')
+    file_group = edit_parser.add_argument_group("File Options")
     file_group.add_argument(
-        "--file", "-f",
+        "--file",
+        "-f",
         dest="file",
         help="Path to Office document (default: active document)",
     )
@@ -142,34 +131,37 @@ Full control usage:
         action="store_true",
         help="Open export directory in file explorer after export",
     )
-    
+
     # Configuration group
-    config_group = edit_parser.add_argument_group('Configuration')
+    config_group = edit_parser.add_argument_group("Configuration")
     config_group.add_argument(
-        "--conf", "--config",
+        "--conf",
+        "--config",
         metavar="FILE",
         help="Path to configuration file (TOML format)",
     )
-    
+
     # Encoding Options group (mutually exclusive)
-    encoding_group = edit_parser.add_argument_group('Encoding Options (mutually exclusive)')
+    encoding_group = edit_parser.add_argument_group("Encoding Options (mutually exclusive)")
     encoding_mutex = encoding_group.add_mutually_exclusive_group()
     encoding_mutex.add_argument(
-        "--encoding", "-e",
+        "--encoding",
+        "-e",
         dest="encoding",
         metavar="ENCODING",
         default=default_encoding,
         help=f"Encoding for writing VBA files (default: {default_encoding})",
     )
     encoding_mutex.add_argument(
-        "--detect-encoding", "-d",
+        "--detect-encoding",
+        "-d",
         dest="detect_encoding",
         action="store_true",
         help="Auto-detect file encoding for VBA files",
     )
-    
+
     # Header Options group (mutually exclusive)
-    header_group = edit_parser.add_argument_group('Header Options (mutually exclusive)')
+    header_group = edit_parser.add_argument_group("Header Options (mutually exclusive)")
     header_mutex = header_group.add_mutually_exclusive_group()
     header_mutex.add_argument(
         "--save-headers",
@@ -183,11 +175,12 @@ Full control usage:
         action="store_true",
         help="Include VBA headers directly in code files",
     )
-    
+
     # Edit Options group
-    edit_options_group = edit_parser.add_argument_group('Edit Options')
+    edit_options_group = edit_parser.add_argument_group("Edit Options")
     edit_options_group.add_argument(
-        "--save-metadata", "-m",
+        "--save-metadata",
+        "-m",
         dest="save_metadata",
         action="store_true",
         help="Save metadata to file",
@@ -198,33 +191,37 @@ Full control usage:
         action="store_true",
         help="Organize folders per RubberduckVBA @Folder annotations",
     )
-    
+
     # Excel-Specific Options group
-    excel_group = edit_parser.add_argument_group('Excel-Specific Options')
+    excel_group = edit_parser.add_argument_group("Excel-Specific Options")
     excel_group.add_argument(
-        "--xlwings", "-x",
+        "--xlwings",
+        "-x",
         dest="xlwings",
         action="store_true",
         help="Use wrapper for xlwings vba commands",
     )
-    
+
     # Common Options group
-    common_group = edit_parser.add_argument_group('Common Options')
+    common_group = edit_parser.add_argument_group("Common Options")
     common_group.add_argument(
-        "--verbose", "-v",
+        "--verbose",
+        "-v",
         dest="verbose",
         action="store_true",
         help="Enable verbose logging output",
     )
     common_group.add_argument(
-        "--logfile", "-l",
+        "--logfile",
+        "-l",
         dest="logfile",
         nargs="?",
         const="vba_edit.log",
         help="Enable logging to file (default: vba_edit.log)",
     )
     common_group.add_argument(
-        "--help", "-h",
+        "--help",
+        "-h",
         action="help",
         help="Show this help message and exit",
     )
@@ -237,7 +234,7 @@ Simple usage:
 
 Full control usage:
   excel-vba import -f file.xlsm --vba-directory src"""
-    
+
     import_usage = """excel-vba import
     [--file FILE | -f FILE]
     [--vba-directory DIR]
@@ -249,7 +246,7 @@ Full control usage:
     [--verbose | -v]
     [--logfile | -l]
     [--help | -h]"""
-    
+
     import_parser = subparsers.add_parser(
         "import",
         usage=import_usage,
@@ -258,11 +255,12 @@ Full control usage:
         formatter_class=EnhancedHelpFormatter,
         add_help=False,
     )
-    
+
     # File Options group
-    file_group = import_parser.add_argument_group('File Options')
+    file_group = import_parser.add_argument_group("File Options")
     file_group.add_argument(
-        "--file", "-f",
+        "--file",
+        "-f",
         dest="file",
         help="Path to Office document (default: active document)",
     )
@@ -271,34 +269,37 @@ Full control usage:
         dest="vba_directory",
         help="Directory to import VBA files from (default: same directory as document)",
     )
-    
+
     # Configuration group
-    config_group = import_parser.add_argument_group('Configuration')
+    config_group = import_parser.add_argument_group("Configuration")
     config_group.add_argument(
-        "--conf", "--config",
+        "--conf",
+        "--config",
         metavar="FILE",
         help="Path to configuration file (TOML format)",
     )
-    
+
     # Encoding Options group (mutually exclusive)
-    encoding_group = import_parser.add_argument_group('Encoding Options (mutually exclusive)')
+    encoding_group = import_parser.add_argument_group("Encoding Options (mutually exclusive)")
     encoding_mutex = encoding_group.add_mutually_exclusive_group()
     encoding_mutex.add_argument(
-        "--encoding", "-e",
+        "--encoding",
+        "-e",
         dest="encoding",
         metavar="ENCODING",
         default=default_encoding,
         help=f"Encoding for reading VBA files (default: {default_encoding})",
     )
     encoding_mutex.add_argument(
-        "--detect-encoding", "-d",
+        "--detect-encoding",
+        "-d",
         dest="detect_encoding",
         action="store_true",
         help="Auto-detect file encoding for VBA files",
     )
-    
+
     # Header Options group (mutually exclusive)
-    header_group = import_parser.add_argument_group('Header Options (mutually exclusive)')
+    header_group = import_parser.add_argument_group("Header Options (mutually exclusive)")
     header_mutex = header_group.add_mutually_exclusive_group()
     header_mutex.add_argument(
         "--save-headers",
@@ -312,42 +313,46 @@ Full control usage:
         action="store_true",
         help="Read VBA headers directly from code files",
     )
-    
+
     # Import Options group
-    import_options_group = import_parser.add_argument_group('Import Options')
+    import_options_group = import_parser.add_argument_group("Import Options")
     import_options_group.add_argument(
         "--rubberduck-folders",
         dest="rubberduck_folders",
         action="store_true",
         help="Organize folders per RubberduckVBA @Folder annotations",
     )
-    
+
     # Excel-Specific Options group
-    excel_group = import_parser.add_argument_group('Excel-Specific Options')
+    excel_group = import_parser.add_argument_group("Excel-Specific Options")
     excel_group.add_argument(
-        "--xlwings", "-x",
+        "--xlwings",
+        "-x",
         dest="xlwings",
         action="store_true",
         help="Use wrapper for xlwings vba commands",
     )
-    
+
     # Common Options group
-    common_group = import_parser.add_argument_group('Common Options')
+    common_group = import_parser.add_argument_group("Common Options")
     common_group.add_argument(
-        "--verbose", "-v",
+        "--verbose",
+        "-v",
         dest="verbose",
         action="store_true",
         help="Enable verbose logging output",
     )
     common_group.add_argument(
-        "--logfile", "-l",
+        "--logfile",
+        "-l",
         dest="logfile",
         nargs="?",
         const="vba_edit.log",
         help="Enable logging to file (default: vba_edit.log)",
     )
     common_group.add_argument(
-        "--help", "-h",
+        "--help",
+        "-h",
         action="help",
         help="Show this help message and exit",
     )
@@ -360,7 +365,7 @@ Simple usage:
   
 Full control usage:
   excel-vba export -f file.xlsm --vba-directory src"""
-    
+
     export_usage = """excel-vba export
     [--file FILE | -f FILE]
     [--vba-directory DIR]
@@ -375,7 +380,7 @@ Full control usage:
     [--verbose | -v]
     [--logfile | -l]
     [--help | -h]"""
-    
+
     export_parser = subparsers.add_parser(
         "export",
         usage=export_usage,
@@ -384,11 +389,12 @@ Full control usage:
         formatter_class=EnhancedHelpFormatter,
         add_help=False,
     )
-    
+
     # File Options group
-    file_group = export_parser.add_argument_group('File Options')
+    file_group = export_parser.add_argument_group("File Options")
     file_group.add_argument(
-        "--file", "-f",
+        "--file",
+        "-f",
         dest="file",
         help="Path to Office document (default: active document)",
     )
@@ -403,34 +409,37 @@ Full control usage:
         action="store_true",
         help="Open export directory in file explorer after export",
     )
-    
+
     # Configuration group
-    config_group = export_parser.add_argument_group('Configuration')
+    config_group = export_parser.add_argument_group("Configuration")
     config_group.add_argument(
-        "--conf", "--config",
+        "--conf",
+        "--config",
         metavar="FILE",
         help="Path to configuration file (TOML format)",
     )
-    
+
     # Encoding Options group (mutually exclusive)
-    encoding_group = export_parser.add_argument_group('Encoding Options (mutually exclusive)')
+    encoding_group = export_parser.add_argument_group("Encoding Options (mutually exclusive)")
     encoding_mutex = encoding_group.add_mutually_exclusive_group()
     encoding_mutex.add_argument(
-        "--encoding", "-e",
+        "--encoding",
+        "-e",
         dest="encoding",
         metavar="ENCODING",
         default=default_encoding,
         help=f"Encoding for writing VBA files (default: {default_encoding})",
     )
     encoding_mutex.add_argument(
-        "--detect-encoding", "-d",
+        "--detect-encoding",
+        "-d",
         dest="detect_encoding",
         action="store_true",
         help="Auto-detect file encoding for VBA files",
     )
-    
+
     # Header Options group (mutually exclusive)
-    header_group = export_parser.add_argument_group('Header Options (mutually exclusive)')
+    header_group = export_parser.add_argument_group("Header Options (mutually exclusive)")
     header_mutex = header_group.add_mutually_exclusive_group()
     header_mutex.add_argument(
         "--save-headers",
@@ -444,11 +453,12 @@ Full control usage:
         action="store_true",
         help="Include VBA headers directly in code files",
     )
-    
+
     # Export Options group
-    export_options_group = export_parser.add_argument_group('Export Options')
+    export_options_group = export_parser.add_argument_group("Export Options")
     export_options_group.add_argument(
-        "--save-metadata", "-m",
+        "--save-metadata",
+        "-m",
         dest="save_metadata",
         action="store_true",
         help="Save metadata to file",
@@ -465,33 +475,37 @@ Full control usage:
         action="store_true",
         help="Organize folders per RubberduckVBA @Folder annotations",
     )
-    
+
     # Excel-Specific Options group
-    excel_group = export_parser.add_argument_group('Excel-Specific Options')
+    excel_group = export_parser.add_argument_group("Excel-Specific Options")
     excel_group.add_argument(
-        "--xlwings", "-x",
+        "--xlwings",
+        "-x",
         dest="xlwings",
         action="store_true",
         help="Use wrapper for xlwings vba commands",
     )
-    
+
     # Common Options group
-    common_group = export_parser.add_argument_group('Common Options')
+    common_group = export_parser.add_argument_group("Common Options")
     common_group.add_argument(
-        "--verbose", "-v",
+        "--verbose",
+        "-v",
         dest="verbose",
         action="store_true",
         help="Enable verbose logging output",
     )
     common_group.add_argument(
-        "--logfile", "-l",
+        "--logfile",
+        "-l",
         dest="logfile",
         nargs="?",
         const="vba_edit.log",
         help="Enable logging to file (default: vba_edit.log)",
     )
     common_group.add_argument(
-        "--help", "-h",
+        "--help",
+        "-h",
         action="help",
         help="Show this help message and exit",
     )
@@ -502,12 +516,12 @@ Full control usage:
 Simple usage:
   excel-vba check           # Check Excel VBA access
   excel-vba check all       # Check all Office applications"""
-    
+
     check_usage = """excel-vba check [all]
     [--verbose | -v]
     [--logfile | -l]
     [--help | -h]"""
-    
+
     check_parser = subparsers.add_parser(
         "check",
         usage=check_usage,
@@ -516,28 +530,31 @@ Simple usage:
         formatter_class=EnhancedHelpFormatter,
         add_help=False,
     )
-    
+
     # Common Options group
-    common_group = check_parser.add_argument_group('Common Options')
+    common_group = check_parser.add_argument_group("Common Options")
     common_group.add_argument(
-        "--verbose", "-v",
+        "--verbose",
+        "-v",
         dest="verbose",
         action="store_true",
         help="Enable verbose logging output",
     )
     common_group.add_argument(
-        "--logfile", "-l",
+        "--logfile",
+        "-l",
         dest="logfile",
         nargs="?",
         const="vba_edit.log",
         help="Enable logging to file (default: vba_edit.log)",
     )
     common_group.add_argument(
-        "--help", "-h",
+        "--help",
+        "-h",
         action="help",
         help="Show this help message and exit",
     )
-    
+
     # Subcommand for checking all applications
     check_subparser = check_parser.add_subparsers(
         dest="subcommand",
@@ -551,24 +568,27 @@ Simple usage:
         formatter_class=EnhancedHelpFormatter,
         add_help=False,
     )
-    
+
     # Common Options group for 'check all' subcommand
-    check_all_common = check_all_parser.add_argument_group('Common Options')
+    check_all_common = check_all_parser.add_argument_group("Common Options")
     check_all_common.add_argument(
-        "--verbose", "-v",
+        "--verbose",
+        "-v",
         dest="verbose",
         action="store_true",
         help="Enable verbose logging output",
     )
     check_all_common.add_argument(
-        "--logfile", "-l",
+        "--logfile",
+        "-l",
         dest="logfile",
         nargs="?",
         const="vba_edit.log",
         help="Enable logging to file (default: vba_edit.log)",
     )
     check_all_common.add_argument(
-        "--help", "-h",
+        "--help",
+        "-h",
         action="help",
         help="Show this help message and exit",
     )
@@ -728,18 +748,18 @@ def handle_xlwings_command(args):
 
 def validate_paths(args: argparse.Namespace) -> None:
     """Validate file and directory paths from command line arguments.
-    
+
     Only validates paths for commands that actually use them (edit, import, export).
     The 'check' command doesn't use file/vba_directory arguments.
     """
     # Skip validation for commands that don't use file paths
     if args.command == "check":
         return
-    
-    if hasattr(args, 'file') and args.file and not Path(args.file).exists():
+
+    if hasattr(args, "file") and args.file and not Path(args.file).exists():
         raise FileNotFoundError(f"File not found: {args.file}")
 
-    if hasattr(args, 'vba_directory') and args.vba_directory:
+    if hasattr(args, "vba_directory") and args.vba_directory:
         vba_dir = Path(args.vba_directory)
         if not vba_dir.exists():
             logger.info(f"Creating VBA directory: {vba_dir}")

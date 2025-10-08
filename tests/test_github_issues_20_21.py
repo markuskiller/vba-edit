@@ -25,7 +25,7 @@ from vba_edit.cli_common import (
 
 class TestIssue20_CheckCommandAttributeError:
     """Tests for Issue #20 - check command AttributeError fix.
-    
+
     The 'check' command doesn't use file/vba_directory arguments but validate_paths()
     was trying to access them, causing AttributeError.
     """
@@ -35,11 +35,11 @@ class TestIssue20_CheckCommandAttributeError:
         from vba_edit.word_vba import create_cli_parser
 
         parser = create_cli_parser()
-        
+
         # Should parse successfully without error
         args = parser.parse_args(["check"])
         assert args.command == "check"
-        
+
         # Should not have file or vba_directory attributes (not defined for check command)
         assert not hasattr(args, "file") or args.file is None
 
@@ -48,7 +48,7 @@ class TestIssue20_CheckCommandAttributeError:
         from vba_edit.word_vba import create_cli_parser
 
         parser = create_cli_parser()
-        
+
         # Should parse successfully
         args = parser.parse_args(["check", "all"])
         assert args.command == "check"
@@ -60,7 +60,7 @@ class TestIssue20_CheckCommandAttributeError:
 
         # Create a mock args namespace for check command
         args = argparse.Namespace(command="check")
-        
+
         # Should not raise AttributeError even though file/vba_directory don't exist
         try:
             validate_paths(args)
@@ -80,7 +80,7 @@ class TestIssue20_CheckCommandAttributeError:
         from vba_edit.excel_vba import validate_paths
 
         args = argparse.Namespace(command="check")
-        
+
         try:
             validate_paths(args)
         except AttributeError as e:
@@ -99,7 +99,7 @@ class TestIssue20_CheckCommandAttributeError:
         from vba_edit.access_vba import validate_paths
 
         args = argparse.Namespace(command="check")
-        
+
         try:
             validate_paths(args)
         except AttributeError as e:
@@ -118,7 +118,7 @@ class TestIssue20_CheckCommandAttributeError:
         from vba_edit.powerpoint_vba import validate_paths
 
         args = argparse.Namespace(command="check")
-        
+
         try:
             validate_paths(args)
         except AttributeError as e:
@@ -131,13 +131,9 @@ class TestIssue20_CheckCommandAttributeError:
         # Create a temporary file
         test_file = tmp_path / "test.docm"
         test_file.touch()
-        
-        args = argparse.Namespace(
-            command="edit",
-            file=str(test_file),
-            vba_directory=None
-        )
-        
+
+        args = argparse.Namespace(command="edit", file=str(test_file), vba_directory=None)
+
         # Should not raise any errors
         validate_paths(args)
 
@@ -145,12 +141,8 @@ class TestIssue20_CheckCommandAttributeError:
         """Test that validate_paths() still catches nonexistent files for edit/import/export."""
         from vba_edit.word_vba import validate_paths
 
-        args = argparse.Namespace(
-            command="export",
-            file="nonexistent_file.docm",
-            vba_directory=None
-        )
-        
+        args = argparse.Namespace(command="export", file="nonexistent_file.docm", vba_directory=None)
+
         # Should raise FileNotFoundError
         with pytest.raises(FileNotFoundError, match="Document not found"):
             validate_paths(args)
@@ -158,7 +150,7 @@ class TestIssue20_CheckCommandAttributeError:
 
 class TestIssue21_CommandSpecificOptions:
     """Tests for Issue #21 - CLI options should be command-specific.
-    
+
     Options like --rubberduck-folders and --open-folder should only be available
     for commands that export VBA code (edit, import, export), not globally.
     """
@@ -172,12 +164,12 @@ class TestIssue21_CommandSpecificOptions:
         """Test that add_folder_organization_arguments adds --rubberduck-folders option."""
         parser = argparse.ArgumentParser()
         add_folder_organization_arguments(parser)
-        
+
         # Should parse --rubberduck-folders flag
         args = parser.parse_args(["--rubberduck-folders"])
         assert hasattr(args, "rubberduck_folders")
         assert args.rubberduck_folders is True
-        
+
         # Default should be False
         args = parser.parse_args([])
         assert args.rubberduck_folders is False
@@ -186,12 +178,12 @@ class TestIssue21_CommandSpecificOptions:
         """Test that add_folder_organization_arguments adds --open-folder option."""
         parser = argparse.ArgumentParser()
         add_folder_organization_arguments(parser)
-        
+
         # Should parse --open-folder flag
         args = parser.parse_args(["--open-folder"])
         assert hasattr(args, "open_folder")
         assert args.open_folder is True
-        
+
         # Default should be False
         args = parser.parse_args([])
         assert args.open_folder is False
@@ -201,7 +193,7 @@ class TestIssue21_CommandSpecificOptions:
         from vba_edit.word_vba import create_cli_parser
 
         parser = create_cli_parser()
-        
+
         # Should accept --rubberduck-folders and --open-folder
         args = parser.parse_args(["edit", "--rubberduck-folders", "--open-folder"])
         assert args.command == "edit"
@@ -213,7 +205,7 @@ class TestIssue21_CommandSpecificOptions:
         from vba_edit.word_vba import create_cli_parser
 
         parser = create_cli_parser()
-        
+
         args = parser.parse_args(["import", "--rubberduck-folders"])
         assert args.command == "import"
         assert args.rubberduck_folders is True
@@ -223,7 +215,7 @@ class TestIssue21_CommandSpecificOptions:
         from vba_edit.word_vba import create_cli_parser
 
         parser = create_cli_parser()
-        
+
         args = parser.parse_args(["export", "--open-folder"])
         assert args.command == "export"
         assert args.open_folder is True
@@ -233,11 +225,11 @@ class TestIssue21_CommandSpecificOptions:
         from vba_edit.word_vba import create_cli_parser
 
         parser = create_cli_parser()
-        
+
         # Should fail when trying to use --rubberduck-folders with check command
         with pytest.raises(SystemExit):
             parser.parse_args(["check", "--rubberduck-folders"])
-        
+
         # Should fail with --open-folder too
         with pytest.raises(SystemExit):
             parser.parse_args(["check", "--open-folder"])
@@ -247,7 +239,7 @@ class TestIssue21_CommandSpecificOptions:
         from vba_edit.excel_vba import create_cli_parser
 
         parser = create_cli_parser()
-        
+
         args = parser.parse_args(["edit", "--rubberduck-folders", "--open-folder"])
         assert args.command == "edit"
         assert args.rubberduck_folders is True
@@ -258,7 +250,7 @@ class TestIssue21_CommandSpecificOptions:
         from vba_edit.excel_vba import create_cli_parser
 
         parser = create_cli_parser()
-        
+
         with pytest.raises(SystemExit):
             parser.parse_args(["check", "--rubberduck-folders"])
 
@@ -267,7 +259,7 @@ class TestIssue21_CommandSpecificOptions:
         from vba_edit.access_vba import create_cli_parser
 
         parser = create_cli_parser()
-        
+
         args = parser.parse_args(["export", "--rubberduck-folders", "--open-folder"])
         assert args.command == "export"
         assert args.rubberduck_folders is True
@@ -278,7 +270,7 @@ class TestIssue21_CommandSpecificOptions:
         from vba_edit.access_vba import create_cli_parser
 
         parser = create_cli_parser()
-        
+
         with pytest.raises(SystemExit):
             parser.parse_args(["check", "--rubberduck-folders"])
 
@@ -287,7 +279,7 @@ class TestIssue21_CommandSpecificOptions:
         from vba_edit.powerpoint_vba import create_cli_parser
 
         parser = create_cli_parser()
-        
+
         args = parser.parse_args(["import", "--rubberduck-folders"])
         assert args.command == "import"
         assert args.rubberduck_folders is True
@@ -297,7 +289,7 @@ class TestIssue21_CommandSpecificOptions:
         from vba_edit.powerpoint_vba import create_cli_parser
 
         parser = create_cli_parser()
-        
+
         with pytest.raises(SystemExit):
             parser.parse_args(["check", "--open-folder"])
 
@@ -305,11 +297,11 @@ class TestIssue21_CommandSpecificOptions:
         """Test that add_common_arguments doesn't include folder organization options."""
         parser = argparse.ArgumentParser()
         add_common_arguments(parser)
-        
+
         # Should fail to parse --rubberduck-folders (not in common arguments)
         with pytest.raises(SystemExit):
             parser.parse_args(["--rubberduck-folders"])
-        
+
         # Should fail to parse --open-folder (not in common arguments)
         with pytest.raises(SystemExit):
             parser.parse_args(["--open-folder"])
@@ -318,7 +310,7 @@ class TestIssue21_CommandSpecificOptions:
         """Test that add_common_arguments still includes appropriate common options."""
         parser = argparse.ArgumentParser()
         add_common_arguments(parser)
-        
+
         # These should still be in common arguments
         args = parser.parse_args(["--file", "test.docm", "--verbose"])
         assert args.file == "test.docm"
@@ -334,10 +326,10 @@ class TestIssue20And21_Integration:
 
         parser = create_cli_parser()
         args = parser.parse_args(["check"])
-        
+
         # Should parse successfully
         assert args.command == "check"
-        
+
         # validate_paths should not raise AttributeError
         try:
             validate_paths(args)
@@ -352,15 +344,15 @@ class TestIssue20And21_Integration:
             ("vba_edit.access_vba", "access-vba"),
             ("vba_edit.powerpoint_vba", "powerpoint-vba"),
         ]
-        
+
         for module_name, entry_point_name in entry_points:
             module = __import__(module_name, fromlist=["create_cli_parser", "validate_paths"])
             parser = module.create_cli_parser()
-            
+
             # Parse check command
             args = parser.parse_args(["check"])
             assert args.command == "check", f"{entry_point_name} check command parsing failed"
-            
+
             # Validate paths should not raise AttributeError
             try:
                 module.validate_paths(args)
@@ -375,16 +367,16 @@ class TestIssue20And21_Integration:
             "vba_edit.access_vba",
             "vba_edit.powerpoint_vba",
         ]
-        
+
         for module_name in entry_points:
             module = __import__(module_name, fromlist=["create_cli_parser"])
             parser = module.create_cli_parser()
-            
+
             # Should work with edit command
             args = parser.parse_args(["edit", "--rubberduck-folders", "--open-folder"])
             assert args.rubberduck_folders is True
             assert args.open_folder is True
-            
+
             # Should fail with check command
             with pytest.raises(SystemExit):
                 parser.parse_args(["check", "--rubberduck-folders"])
@@ -398,10 +390,10 @@ class TestRegressionPrevention:
         from vba_edit.word_vba import create_cli_parser
 
         parser = create_cli_parser()
-        
+
         # Parse edit command with options
         args = parser.parse_args(["edit", "--rubberduck-folders", "--open-folder", "--verbose"])
-        
+
         # Verify all arguments are present
         assert hasattr(args, "rubberduck_folders")
         assert hasattr(args, "open_folder")
@@ -415,19 +407,23 @@ class TestRegressionPrevention:
         from vba_edit.excel_vba import create_cli_parser
 
         parser = create_cli_parser()
-        
-        args = parser.parse_args([
-            "export",
-            "--file", "test.xlsm",
-            "--vba-directory", "src",
-            "--verbose",
-            "--save-metadata",
-            "--force-overwrite",
-            "--rubberduck-folders",
-            "--open-folder",
-            "--in-file-headers",
-        ])
-        
+
+        args = parser.parse_args(
+            [
+                "export",
+                "--file",
+                "test.xlsm",
+                "--vba-directory",
+                "src",
+                "--verbose",
+                "--save-metadata",
+                "--force-overwrite",
+                "--rubberduck-folders",
+                "--open-folder",
+                "--in-file-headers",
+            ]
+        )
+
         assert args.command == "export"
         assert args.file == "test.xlsm"
         assert args.vba_directory == "src"
@@ -441,15 +437,12 @@ class TestRegressionPrevention:
     def test_handler_creation_with_getattr_defaults(self):
         """Test that handler can be created even when folder args are missing."""
         # Simulate args namespace without folder organization options (like check command)
-        args = argparse.Namespace(
-            command="check",
-            verbose=False
-        )
-        
+        args = argparse.Namespace(command="check", verbose=False)
+
         # These getattr calls should work with defaults
         rubberduck = getattr(args, "rubberduck_folders", False)
         open_folder = getattr(args, "open_folder", False)
-        
+
         assert rubberduck is False
         assert open_folder is False
 

@@ -188,7 +188,7 @@ def get_placeholder_values(config_file_path: Optional[str] = None, file_path: Op
             file_name = resolved_file_path.stem  # filename without extension
             file_fullname = resolved_file_path.name  # filename with extension
             file_path_str = str(resolved_file_path.parent)
-            
+
             # New format
             placeholders[PLACEHOLDER_FILE_NAME] = file_name
             placeholders[PLACEHOLDER_FILE_FULLNAME] = file_fullname
@@ -445,7 +445,7 @@ def add_config_arguments(parser: argparse.ArgumentParser) -> None:
 
 def add_common_arguments(parser: argparse.ArgumentParser) -> None:
     """Add common arguments to a parser.
-    
+
     These are arguments common to edit/import/export commands.
     Global options (--version, --help) are added at the main parser level.
 
@@ -477,7 +477,7 @@ def add_common_arguments(parser: argparse.ArgumentParser) -> None:
 
 def add_folder_organization_arguments(parser: argparse.ArgumentParser) -> None:
     """Add folder organization arguments to a parser.
-    
+
     These arguments only make sense for commands that export VBA code
     (edit, export, import) and should not be available globally.
 

@@ -5,6 +5,49 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **Enhanced CLI Help System**: Complete refactoring of all CLI entry points with improved help formatting
+  - Streamlined main help with concise descriptions and 4 key examples per entry point
+  - Grouped argument options (File Options, Configuration, Encoding Options, Header Options, Command-Specific Options, Common Options)
+  - Consistent formatting using `EnhancedHelpFormatter` (title case headings, single colons)
+  - Professional "Commands" section with clear `<command>` metavar
+  - Enhanced "check" command with proper "Subcommands" section
+- **--save-metadata Option**: Added `-m/--save-metadata` flag to both `edit` and `export` commands
+  - Allows saving metadata during initial export in edit mode
+  - Previously only available in export command
+  - Comprehensive test coverage (4 new tests)
+
+### Changed
+
+- **CLI Architecture**: All four entry points (excel-vba, word-vba, access-vba, powerpoint-vba) now use inline argument definitions
+  - Removed dependency on old helper functions (`add_common_arguments`, `add_encoding_arguments`, etc.)
+  - Improved code visibility and maintainability with explicit argument declarations
+  - All entry points now have identical structure and formatting
+- **Help Output**: Streamlined from 12+ examples to 4 most important use cases per entry point
+  - Main help shows overview with basic examples
+  - Command-specific help shows detailed usage with all options
+  - Better organization with mutually exclusive groups properly labeled
+
+### Fixed
+
+- **Config File Processing**: Fixed critical bug where config files weren't being loaded
+  - Removed incorrect `dest="config_file"` parameter that prevented config processing
+  - Now correctly uses default `dest="conf"` to match `process_config_file()` function
+  - All 3 config file tests now passing
+- **Test Compatibility**: Updated test assertions to handle new argparse error message format
+  - Tests now accept "not allowed with" in addition to "mutually exclusive" messages
+  - All 337 tests passing with 100% success rate
+
+### Improved
+
+- **Code Quality**: Applied ruff formatting and linting across all CLI files
+  - Removed unused imports
+  - Consistent code formatting
+  - Better code organization
+
 ## [0.4.1a1] - 2025-10-08 (Alpha Release)
 
 ### Added
