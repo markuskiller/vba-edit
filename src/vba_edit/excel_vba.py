@@ -147,7 +147,6 @@ Full control usage:
     config_group = edit_parser.add_argument_group('Configuration')
     config_group.add_argument(
         "--conf", "--config",
-        dest="config_file",
         metavar="FILE",
         help="Path to configuration file (TOML format)",
     )
@@ -277,7 +276,6 @@ Full control usage:
     config_group = import_parser.add_argument_group('Configuration')
     config_group.add_argument(
         "--conf", "--config",
-        dest="config_file",
         metavar="FILE",
         help="Path to configuration file (TOML format)",
     )
@@ -410,7 +408,6 @@ Full control usage:
     config_group = export_parser.add_argument_group('Configuration')
     config_group.add_argument(
         "--conf", "--config",
-        dest="config_file",
         metavar="FILE",
         help="Path to configuration file (TOML format)",
     )
