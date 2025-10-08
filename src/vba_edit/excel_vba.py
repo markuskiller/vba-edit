@@ -12,6 +12,7 @@ from vba_edit.cli_common import (
     add_encoding_arguments,
     add_excel_specific_arguments,
     add_export_arguments,
+    add_folder_organization_arguments,
     add_header_arguments,
     add_metadata_arguments,
     handle_export_with_warnings,
@@ -79,7 +80,6 @@ IMPORTANT:
     parser.add_argument(
         "--version", "-V", action="version", version=f"{package_name_formatted} v{package_version} ({entry_point_name})"
     )
-    add_common_arguments(parser)
 
     subparsers = parser.add_subparsers(dest="command", required=True)
 
@@ -89,6 +89,7 @@ IMPORTANT:
     add_excel_specific_arguments(edit_parser)
     add_encoding_arguments(edit_parser, default_encoding)
     add_header_arguments(edit_parser)
+    add_folder_organization_arguments(edit_parser)  # Issue #21 fix
 
     # Import command
     import_parser = subparsers.add_parser("import", help="Import VBA content into Excel workbook")
@@ -96,6 +97,7 @@ IMPORTANT:
     add_excel_specific_arguments(import_parser)
     add_encoding_arguments(import_parser, default_encoding)
     add_header_arguments(import_parser)
+    add_folder_organization_arguments(import_parser)  # Issue #21 fix
 
     # Export command
     export_parser = subparsers.add_parser("export", help="Export VBA content from Excel workbook")
@@ -105,6 +107,7 @@ IMPORTANT:
     add_header_arguments(export_parser)
     add_metadata_arguments(export_parser)
     add_export_arguments(export_parser)
+    add_folder_organization_arguments(export_parser)  # Issue #21 fix
 
     # Check command - only needs basic args
     check_parser = subparsers.add_parser(
@@ -173,7 +176,7 @@ def handle_excel_vba_command(args: argparse.Namespace) -> None:
                 verbose=getattr(args, "verbose", False),
                 save_headers=getattr(args, "save_headers", False),
                 use_rubberduck_folders=getattr(args, "rubberduck_folders", False),
-                open_folder=args.open_folder,
+                open_folder=getattr(args, "open_folder", False),
                 in_file_headers=getattr(args, "in_file_headers", True),
             )
         except VBAError as e:
@@ -265,11 +268,19 @@ def handle_xlwings_command(args):
 
 
 def validate_paths(args: argparse.Namespace) -> None:
-    """Validate file and directory paths from command line arguments."""
-    if args.file and not Path(args.file).exists():
+    """Validate file and directory paths from command line arguments.
+    
+    Only validates paths for commands that actually use them (edit, import, export).
+    The 'check' command doesn't use file/vba_directory arguments.
+    """
+    # Skip validation for commands that don't use file paths
+    if args.command == "check":
+        return
+    
+    if hasattr(args, 'file') and args.file and not Path(args.file).exists():
         raise FileNotFoundError(f"File not found: {args.file}")
 
-    if args.vba_directory:
+    if hasattr(args, 'vba_directory') and args.vba_directory:
         vba_dir = Path(args.vba_directory)
         if not vba_dir.exists():
             logger.info(f"Creating VBA directory: {vba_dir}")

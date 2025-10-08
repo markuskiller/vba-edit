@@ -406,6 +406,9 @@ def add_config_arguments(parser: argparse.ArgumentParser) -> None:
 
 def add_common_arguments(parser: argparse.ArgumentParser) -> None:
     """Add common arguments to a parser.
+    
+    These are arguments common to edit/import/export commands.
+    Global options (--version, --help) are added at the main parser level.
 
     Args:
         parser: The argument parser to add arguments to
@@ -431,6 +434,17 @@ def add_common_arguments(parser: argparse.ArgumentParser) -> None:
         help="Enable logging to file. Optional path can be specified (default: vba_edit.log)"
         "Supports placeholders: {general.file.name}, {general.file.fullname}, {general.file.path}, {vbaproject}",
     )
+
+
+def add_folder_organization_arguments(parser: argparse.ArgumentParser) -> None:
+    """Add folder organization arguments to a parser.
+    
+    These arguments only make sense for commands that export VBA code
+    (edit, export, import) and should not be available globally.
+
+    Args:
+        parser: The argument parser to add arguments to
+    """
     parser.add_argument(
         "--rubberduck-folders",
         action="store_true",
