@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.4.1] - unreleased
+## [0.4.1a1] - 2025-10-08 (Alpha Release)
 
 ### Added
 
@@ -16,6 +16,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `{file.path}` - replaces `{general.file.path}`
   - `{file.vbaproject}` - replaces `{vbaproject}`
   - Legacy placeholders still supported for backward compatibility (will be removed in v0.5.0)
+- **Enhanced Help Formatter**: New help output system for better CLI documentation
+  - `EnhancedHelpFormatter` class for improved help text formatting
+  - `GroupedHelpFormatter` class for organizing options into logical groups
+  - Helper functions for creating consistent help output across all entry points
+  - Predefined example templates for all commands (edit, import, export, check)
 
 ### Changed
 
@@ -38,7 +43,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **[Issue #21](https://github.com/markuskiller/vba-edit/issues/21)**: CLI options are now properly scoped as command-specific vs global
   - `--rubberduck-folders` and `--open-folder` only appear on commands where they're applicable
   - `--help` and `--version` remain as global options
-  - Prevents user confusion from seeing irrelevant options on incompatible commands 
+  - Prevents user confusion from seeing irrelevant options on incompatible commands
+
+### Testing
+
+- Added 17 comprehensive tests for simplified placeholders (`test_placeholders.py`)
+- Added 29 comprehensive tests for enhanced help formatter (`test_help_formatter.py`)
+- All 93 tests passing (17 placeholder + 29 formatter + 47 existing)
+- Verified backward compatibility for legacy placeholder format 
 
 ## [0.4.0] - 2025-10-06
 
