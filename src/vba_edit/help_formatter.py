@@ -34,9 +34,12 @@ class EnhancedHelpFormatter(argparse.RawDescriptionHelpFormatter):
         """
         # Store heading for reference in other methods
         self._section_heading = heading
-        # Capitalize and add colon for consistency
-        if heading and not heading.endswith(':'):
-            heading = heading + ':'
+        # Capitalize first letter and add single colon for consistency
+        if heading:
+            # Capitalize first letter of each word for section headings
+            heading = heading.title() if heading.islower() else heading
+            # Remove any existing colons before adding our own
+            heading = heading.rstrip(':')
         super().start_section(heading)
 
     def _format_action(self, action):
@@ -48,6 +51,10 @@ class EnhancedHelpFormatter(argparse.RawDescriptionHelpFormatter):
         Returns:
             Formatted action string
         """
+        # Capitalize help text if it starts with lowercase
+        if action.help and action.help[0].islower():
+            action.help = action.help[0].upper() + action.help[1:]
+        
         # Get original formatting
         result = super()._format_action(action)
         
@@ -191,8 +198,10 @@ def create_parser_with_groups(parser, include_file=True, include_vba_dir=True,
 def add_examples_epilog(command_name, examples):
     """Create an examples epilog section for help text.
     
+    Automatically replaces placeholder 'word-vba' with the actual command name.
+    
     Args:
-        command_name: Name of the command
+        command_name: Name of the command (e.g., 'excel-vba', 'word-vba')
         examples: List of (description, command) tuples
         
     Returns:
@@ -201,6 +210,8 @@ def add_examples_epilog(command_name, examples):
     epilog_parts = ['\nExamples:']
     
     for desc, cmd in examples:
+        # Replace word-vba with the actual command name
+        cmd = cmd.replace('word-vba', command_name)
         epilog_parts.append(f'  # {desc}')
         epilog_parts.append(f'  {cmd}')
         epilog_parts.append('')
@@ -208,7 +219,7 @@ def add_examples_epilog(command_name, examples):
     return '\n'.join(epilog_parts)
 
 
-# Example usage patterns for different commands
+# Example usage patterns for different commands (using word-vba as template)
 EDIT_EXAMPLES = [
     ('Edit VBA in active document', 'word-vba edit'),
     ('Edit with specific VBA directory', 'word-vba edit --vba-directory path/to/vba'),
