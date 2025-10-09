@@ -85,8 +85,8 @@ As an exception, the developer may ask for a translation of terms and sentences 
    # Install/update dependencies
    uv sync --extra dev
    
-   # Run tests
-   uv run pytest
+   # Run tests (ALWAYS use -v for verbose output)
+   uv run pytest -v
    uv run pytest tests/test_cli_common.py -v
    
    # Code quality
@@ -235,12 +235,13 @@ When updating CHANGELOG.md:
   ```bash
   ruff check --fix
   ruff format
-  pytest
+  pytest -v
   ```
 - This prevents having to run tests multiple times due to formatting issues
 - Ruff should be automatic before any test run
 
 ### Testing Practices
+- **ALWAYS use pytest -v**: Verbose output required for proper test visibility
 - All new features require corresponding tests
 - Use `pytest.mark.parametrize` for testing multiple scenarios efficiently
 - Use `pytest.mark.skip` for tests requiring live Office interaction (with clear reasons)

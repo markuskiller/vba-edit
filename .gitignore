@@ -1,6 +1,10 @@
 # personal workarea / scratch
 _workbench/
 
+# Demo and debug test files (root directory only)
+/demo_*.py
+/test_*.py
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

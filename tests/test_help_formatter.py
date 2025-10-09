@@ -97,7 +97,8 @@ class TestEnhancedHelpFormatter:
         # Should have standard sections (check for the text without worrying about markup tags)
         # Strip any rich markup tags for testing
         import re
-        clean_text = re.sub(r'\[/?[^\]]+\]', '', help_text)
+
+        clean_text = re.sub(r"\[/?[^\]]+\]", "", help_text)
         assert (
             "positional arguments:" in clean_text.lower()
             or "optional arguments:" in clean_text.lower()
