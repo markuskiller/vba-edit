@@ -239,9 +239,10 @@ When updating CHANGELOG.md:
 - Dependabot monitors weekly for security updates
 
 ### Python Support
-- Support Python 3.9 - 3.14
+- Support Python 3.9 - 3.13
 - Test against all supported versions in CI
 - Don't use features from Python > 3.9 without compatibility checks
+- **Python 3.14**: Not yet supported - waiting for `watchfiles` to release pre-built wheels for cp314
 
 ---
 
