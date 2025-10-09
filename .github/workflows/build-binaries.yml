@@ -39,8 +39,21 @@ jobs:
     - name: List built binaries
       run: |
         Get-ChildItem -Path dist -Recurse -File | Select-Object FullName, Length
-        
-    - name: Upload binaries to release
+    
+    - name: Upload binaries as artifacts (for manual runs)
+      if: github.event_name == 'workflow_dispatch'
+      uses: actions/upload-artifact@v4
+      with:
+        name: windows-binaries-unsigned
+        path: |
+          dist/excel-vba.exe
+          dist/word-vba.exe
+          dist/access-vba.exe
+          dist/powerpoint-vba.exe
+        retention-days: 30
+
+    - name: Upload binaries to release (on release publish)
+      if: github.event_name == 'release'
       uses: softprops/action-gh-release@v2
       with:
         files: |
