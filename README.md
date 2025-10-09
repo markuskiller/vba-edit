@@ -195,11 +195,9 @@ excel-vba export --vba-directory ./src --force-overwrite
 - No more SmartScreen warnings
 - Enhanced trust and security
 
-### 💡 Your Ideas Welcome!
+### 💡 Feedback & Contributions
 
-Have suggestions? Want to contribute? Join the discussion:
-- 💬 [GitHub Discussions](https://github.com/markuskiller/vba-edit/discussions)
-- 🐛 [Report Issues](https://github.com/markuskiller/vba-edit/issues)
+Found a bug? Have a feature idea? Questions about usage? Open an [Issue](https://github.com/markuskiller/vba-edit/issues) - we use labels to organize different types of feedback.
 
 ---
 
