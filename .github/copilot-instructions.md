@@ -22,9 +22,11 @@ This project is a command-line application that allows users to export, import, 
 ## Planned Features (Future)
 
 **Not Yet Implemented:**
-- ❌ PowerQuery support (M language)
-- ❌ Bi-directional sync (Office VBA → external editor while edit mode active)
-- ❌ Code signing for Windows binaries (SignPath.io planned)
+- ❌ PowerQuery support (M language) - v0.5.0 or v0.6.0
+- ❌ Bi-directional sync (Office VBA → external editor) - v0.5.0 via keyboard shortcut approach
+- ❌ Code signing for Windows binaries (SignPath.io planned) - v0.5.0+
+
+**Detailed Roadmap**: See `docs/ROADMAP.md` (private, not published to GitHub during alpha/beta)
 
 ## Folder Structure
 
