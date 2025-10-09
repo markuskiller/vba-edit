@@ -4,6 +4,8 @@ This project is a command-line application that allows users to export, import, 
 
 ## Current Features (v0.4.x)
 
+**Status**: Active refinement across multiple 0.4.x releases
+
 **Supported Applications:**
 - ✅ Microsoft Excel (VBA: modules, classes, forms)
 - ✅ Microsoft Word (VBA: modules, classes, forms)
@@ -19,11 +21,13 @@ This project is a command-line application that allows users to export, import, 
   - Syncs changes back to Office VBA on save [CTRL+S]
   - **NO bi-directional sync**: Changes made in Office VBA editor while edit mode is active are NOT synced back to files
 
-**Advanced Features:**
+**Advanced Features (Being Refined):**
 - RubberduckVBA folder structure support (refining)
 - Configuration file support with TOML (optimizing)
 - Colorized CLI output (implementing in v0.4.1)
-- Safety features and data loss prevention
+- Safety features and data loss prevention (refining)
+- Enhanced CLI with organized help and grouped options (refining)
+- Windows binaries with security verification (ongoing)
 
 ## Planned Features (Future)
 
