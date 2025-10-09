@@ -13,9 +13,13 @@ permissions:
 jobs:
   lint:
     uses: ./.github/workflows/lint.yaml
+    permissions:
+      contents: read
   
   test:
     uses: ./.github/workflows/test.yaml
+    permissions:
+      contents: read
 
   build-binaries:
     needs: [lint, test]  # Ensure binaries only built if tests pass
