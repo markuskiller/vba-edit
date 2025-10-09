@@ -13,7 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Options are now organized into clear groups (File Options, Configuration, Encoding, etc.)
   - Main help shows concise overview with practical examples
   - Command-specific help displays all available options with detailed descriptions
-  - Design by @onderhold
+  - Design by ([@onderhold](https://github.com/onderhold))
 - **Metadata Saving**: New `-m/--save-metadata` option now available in both `edit` and `export` commands
   - Preserve metadata when exporting in edit mode
   - Makes workflows more consistent across commands
