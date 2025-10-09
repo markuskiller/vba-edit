@@ -40,6 +40,14 @@ jobs:
       run: |
         Get-ChildItem -Path dist -Recurse -File | Select-Object FullName, Length
     
+    - name: Generate checksums
+      run: |
+        cd dist
+        Get-FileHash *.exe -Algorithm SHA256 | Format-List > checksums.txt
+        Get-FileHash *.exe -Algorithm SHA256 | ForEach-Object { "$($_.Hash.ToLower())  $($_.Path | Split-Path -Leaf)" } > SHA256SUMS
+        Get-Content SHA256SUMS
+        Get-Content checksums.txt
+    
     - name: Upload binaries as artifacts (for manual runs)
       if: github.event_name == 'workflow_dispatch'
       uses: actions/upload-artifact@v4
@@ -50,6 +58,8 @@ jobs:
           dist/word-vba.exe
           dist/access-vba.exe
           dist/powerpoint-vba.exe
+          dist/SHA256SUMS
+          dist/checksums.txt
         retention-days: 30
 
     - name: Upload binaries to release (on release publish)
@@ -61,5 +71,7 @@ jobs:
           dist/word-vba.exe
           dist/access-vba.exe
           dist/powerpoint-vba.exe
+          dist/SHA256SUMS
+          dist/checksums.txt
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
