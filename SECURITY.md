@@ -98,6 +98,106 @@ We believe in giving credit where it's due:
 
 ---
 
+## False Positives from Antivirus Software
+
+### Why Antivirus Software Flags Our Executables
+
+Our Windows binaries (.exe files) are built with PyInstaller, a legitimate tool that packages Python applications into standalone executables. Unfortunately, antivirus software frequently flags PyInstaller executables as potentially malicious due to:
+
+1. **Packing/Bundling Behavior**: PyInstaller bundles the Python interpreter and libraries into a single executable, which looks similar to how malware packers work
+2. **Self-Extracting Code**: The executable extracts Python runtime components at startup, triggering heuristic detection
+3. **Code Obfuscation Appearance**: The packed structure can appear obfuscated to signature-based scanners
+4. **Low Prevalence**: Unsigned executables from smaller projects lack the reputation scores that antivirus vendors use
+5. **Generic Signatures**: Antivirus software uses broad heuristics that catch legitimate PyInstaller executables
+
+### Common False Positive Detections
+
+When scanning our executables with VirusTotal or similar services, you may see detections such as:
+- `Trojan.Generic.*`
+- `BehavesLike.Win64.Generic.*`
+- `Trojan.Blank.Script.*`
+- Generic "malicious" or "suspicious" flags
+
+**Typical detection rate**: 4-10 detections out of 70+ scanners on VirusTotal.
+
+**These are false positives.** The executables contain no malicious code.
+
+### Why We Don't Code Sign (Yet)
+
+Code signing certificates cost $300-500/year and require:
+- Business verification process (weeks to months)
+- Annual renewal fees
+- Administrative overhead for a small open-source project
+
+We're evaluating SignPath.io's free code signing for open-source projects (target: v0.6.0+), but this requires approval and setup time.
+
+### How to Verify Our Executables Are Safe
+
+Rather than relying solely on antivirus heuristics, use our security verification process:
+
+1. **Build Attestations** (Strongest verification):
+   - Every binary has a cryptographic attestation from GitHub
+   - Proves the binary was built from our source code by GitHub Actions
+   - Cannot be faked or tampered with
+   - See SECURITY_VERIFICATION.md for instructions
+
+2. **Verify Checksums**:
+   - Download SHA256SUMS from the same release
+   - Compare checksums to ensure file integrity
+   - Detects any modification after build
+
+3. **Review Source Code**:
+   - All source code is public on GitHub
+   - Review what the code actually does
+   - Build the executable yourself if desired
+
+4. **Check VirusTotal Results Carefully**:
+   - **4-10 detections out of 70+ scanners is typical for PyInstaller executables**
+   - Look at *which* vendors flag it (often lesser-known scanners)
+   - Major vendors (Microsoft Defender, Norton, Kaspersky, etc.) typically don't flag it
+   - Generic detection names indicate heuristic false positives, not actual malware
+
+### Building From Source (Ultimate Verification)
+
+If you're concerned about the pre-built binaries:
+
+```bash
+# Clone the repository
+git clone https://github.com/markuskiller/vba-edit.git
+cd vba-edit
+
+# Install dependencies
+pip install -e .[dev]
+
+# Build binaries yourself
+python create_binaries.py
+
+# Your binaries are in ./dist/
+```
+
+Building from source gives you complete control and transparency.
+
+### Reporting to Antivirus Vendors
+
+If you encounter false positives, you can help by reporting them to antivirus vendors:
+- **VirusTotal**: Use the "Report False Positive" option
+- **Vendor-specific**: Submit to Microsoft, Norton, McAfee, etc.
+
+Each report helps improve detection accuracy for all PyInstaller-based open-source tools.
+
+### Our Commitment
+
+- ✅ All builds happen on GitHub Actions (transparent, auditable)
+- ✅ Source code is fully public and reviewable
+- ✅ Build provenance is cryptographically verified (attestations)
+- ✅ No obfuscation or packing beyond standard PyInstaller
+- ✅ No telemetry, no network connections (except Office COM APIs)
+- ✅ BSD-3-Clause licensed (permissive open source)
+
+**Bottom line**: The detections are false positives caused by PyInstaller's legitimate behavior, not actual malware.
+
+---
+
 ## Security Best Practices for Users
 
 ### When Using vba-edit

@@ -1,12 +1,35 @@
 # Security Verification Guide for vba-edit Binaries
 
+## ⚠️ Antivirus False Positives
+
+**Important**: Antivirus software commonly flags our executables as suspicious due to PyInstaller packaging. This is a **well-known false positive issue** affecting many legitimate Python applications.
+
+**What you might see**:
+- VirusTotal: Typically 4-10 detections out of 70+ scanners
+- Windows Defender SmartScreen warnings
+- Generic "Trojan" or "suspicious behavior" alerts
+
+**Why this happens**:
+- PyInstaller bundles Python runtime into executables (looks like packing/obfuscation)
+- Self-extracting behavior triggers heuristic detection
+- Unsigned binaries lack reputation scores
+- Same issue affects popular tools like youtube-dl, streamlink, etc.
+
+**These are false positives, not actual malware.**
+
+For detailed explanation and how to verify safety, see the "False Positives from Antivirus Software" section in SECURITY.md.
+
+---
+
 ## Overview
 
 While vba-edit binaries are currently **unsigned**, we provide multiple security verification methods to ensure authenticity and integrity of downloads.
 
 ---
 
-## 🔐 Verification Methods (Best to Good)
+## 🔐 Verification Methods (Most to Least Secure)
+
+The methods below are listed from most secure (cryptographic proof) to least secure (convenience):
 
 ### 1. ✅ GitHub Attestations (RECOMMENDED - Cryptographic Proof)
 
