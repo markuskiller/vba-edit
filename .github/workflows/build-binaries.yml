@@ -75,8 +75,8 @@ jobs:
       with:
         subject-path: 'dist/*.exe'
     
-    - name: Upload binaries as artifacts (for manual runs)
-      if: github.event_name == 'workflow_dispatch'
+    - name: Upload binaries as artifacts (for manual runs and push)
+      if: github.event_name == 'workflow_dispatch' || github.event_name == 'push'
       uses: actions/upload-artifact@v4
       with:
         name: windows-binaries-unsigned
