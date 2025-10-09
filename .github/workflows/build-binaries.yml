@@ -4,6 +4,8 @@ on:
   release:
     types: [published]
   workflow_dispatch:
+  push:
+    branches: [dev]  # TEMPORARY: Remove after workflow is stable and visible
 
 permissions:
   contents: write      # Required to upload release assets
