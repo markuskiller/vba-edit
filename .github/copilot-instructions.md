@@ -128,3 +128,136 @@ When updating CHANGELOG.md:
 - 📚 **Tutorials**: Once core features are stable
 
 **Decision**: Wait until project is mature enough to warrant comprehensive public documentation.
+
+---
+
+## Code Quality & Testing
+
+### Pre-Test Workflow (CRITICAL)
+- **ALWAYS run ruff before testing**: After adding new tests, files, or major refactoring:
+  ```bash
+  ruff check --fix
+  ruff format
+  pytest
+  ```
+- This prevents having to run tests multiple times due to formatting issues
+- Ruff should be automatic before any test run
+
+### Testing Practices
+- All new features require corresponding tests
+- Use `pytest.mark.parametrize` for testing multiple scenarios efficiently
+- Use `pytest.mark.skip` for tests requiring live Office interaction (with clear reasons)
+- Test files follow naming convention: `test_<module_name>.py`
+- Aim for comprehensive coverage of edge cases and error conditions
+
+### Error Handling
+- Custom exception hierarchy exists in `exceptions.py` - use appropriate exceptions:
+  - `OfficeError` base for Office application issues
+  - `VBAError` base for VBA-specific issues
+  - `VBAExportWarning` for warnings requiring user decision (doesn't inherit from VBAError)
+  - Specific: `VBAAccessError`, `VBAImportError`, `VBAExportError`, `DocumentClosedError`, etc.
+- Always provide clear, user-friendly error messages
+- Include context about what failed and potential solutions
+
+### Code Comments
+- Use `NOTE:` for implementation notes worth highlighting
+- Use `IMPORTANT:` for critical information about behavior or requirements
+- Document complex logic, especially around VBA/COM interactions
+- Include examples in docstrings where helpful
+
+---
+
+## Release Management
+
+### Version Numbering
+- Follow [Semantic Versioning](https://semver.org/)
+- Alpha releases: `0.4.1a1`, `0.4.1a2`, etc.
+- Beta releases: `0.4.1b1`, `0.4.1b2`, etc.
+- Release candidates: `0.4.1rc1`
+- Stable releases: `0.4.1`
+
+### Release Process
+- Pre-releases go through `dev` branch
+- Stable releases merge `dev` → `main`
+- Always update `pyproject.toml` version before release
+- Update CHANGELOG.md with release date
+- Use GitHub releases with appropriate templates (see `docs/development/RELEASE_PROCESS.md`)
+- Binaries are built automatically on release creation
+
+### Release Branches
+- `dev`: Active development, pre-releases
+- `main`: Stable releases only
+- Feature branches: `feature/<name>` (merge to dev via PR)
+
+---
+
+## Dependencies & Tools
+
+### Dependency Management
+- Use `uv` for fast dependency installation and management
+- Keep `requirements.txt` minimal (VS Code needs only)
+- Main dependencies in `pyproject.toml`
+- Optional dependencies (like `xlwings`) properly declared in `[project.optional-dependencies]`
+- Dependabot monitors weekly for security updates
+
+### Python Support
+- Support Python 3.9 - 3.13
+- Test against all supported versions in CI
+- Don't use features from Python > 3.9 without compatibility checks
+
+---
+
+## Windows Binary Distribution
+
+### PyInstaller Binaries
+- Four separate executables: `excel-vba.exe`, `word-vba.exe`, `access-vba.exe`, `powerpoint-vba.exe`
+- Built via `create_binaries.py` script
+- Currently unsigned (expect Windows SmartScreen warnings)
+- Include SHA256 checksums, SBOM, and GitHub Attestations for security
+- Build workflow: `.github/workflows/build-binaries.yml`
+
+---
+
+## Office Application Support
+
+### Supported Applications
+- **Excel**: Full support (VBA modules, classes, forms)
+- **Word**: Full support (VBA modules, classes, forms)
+- **Access**: Basic support (modules and classes only, **NO forms** - Access forms handled differently)
+- **PowerPoint**: Full support (VBA modules, classes, forms)
+
+### VBA Trust Requirement
+- All operations require "Trust access to VBA project object model" enabled
+- `check` command verifies this setting
+- Provide clear error messages when not enabled
+
+---
+
+## User Communication
+
+### CLI Messages
+- Use clear, actionable messages
+- `IMPORTANT:` prefix for critical warnings
+- `NOTE:` prefix for helpful information
+- Include next steps when operations fail
+- Be explicit about data loss risks (overwrites, deletions)
+
+### User Prompts
+- Use `--force-overwrite` flag to bypass safety prompts (for CI/CD)
+- Always confirm before destructive operations (unless forced)
+- Explain consequences clearly in prompts
+
+---
+
+## Security Practices
+
+### Binary Verification
+- Provide multiple verification methods: GitHub Attestations (preferred), SHA256 checksums, SBOM
+- Document verification process in `SECURITY_VERIFICATION.md`
+- Include checksums in two formats for compatibility
+
+### Vulnerability Management
+- Security policy documented in `SECURITY.md`
+- Report vulnerabilities via GitHub Security Advisories
+- Dependabot provides automated monitoring
+- Response timeline: 48hr initial, 7-30 day resolution target
