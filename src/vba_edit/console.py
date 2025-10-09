@@ -36,16 +36,16 @@ try:
             "info": "cyan",
             # Elements
             "dim": "dim",
-            "path": "blue",
-            "file": "blue",
-            "command": "bold cyan",
-            "option": "bold magenta",
-            "action": "magenta",
-            "number": "yellow",
-            # Help text
-            "usage": "bold",
-            "metavar": "bold cyan",
-            "choices": "dim",
+            "path": "cyan",  # uv uses cyan for paths
+            "file": "cyan",  # uv uses cyan for files
+            "command": "bold cyan",  # uv uses bold cyan for commands
+            "option": "bold blue",  # uv uses blue for options (not magenta)
+            "action": "green",  # uv uses green for actions
+            "number": "cyan",  # uv uses cyan for numbers
+            # Help text styling
+            "usage": "bold white",  # Section headings in bold white
+            "metavar": "yellow",  # Metavars in yellow (FILE, DIR, etc.)
+            "choices": "dim cyan",  # Choices in dim cyan
         }
     )
 

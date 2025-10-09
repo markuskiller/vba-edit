@@ -1,16 +1,66 @@
 """Custom argument parser formatters for enhanced help output."""
 
 import argparse
+import re
+import sys
 import textwrap
+
+from vba_edit.console import RICH_AVAILABLE, console
+
+
+def print_help_with_rich(text):
+    """Print help text using rich console if available.
+
+    This function handles the rich markup tags in help text and prints
+    them with appropriate styling when rich is available.
+
+    Args:
+        text: Help text (potentially with rich markup tags)
+    """
+    if RICH_AVAILABLE and not console.no_color:
+        # Use rich console to print (will render markup tags)
+        console.print(text, end="", highlight=False, soft_wrap=True)
+    else:
+        # Strip markup tags and print normally
+        text = re.sub(r"\[/?[^\]]+\]", "", text)
+        sys.stdout.write(text)
+
+
+class ColorizedArgumentParser(argparse.ArgumentParser):
+    """ArgumentParser that uses rich console for help output.
+
+    This subclass intercepts help printing and routes it through
+    rich console if available and colors are enabled.
+    """
+
+    def print_help(self, file=None):
+        """Print help message using rich console if available.
+
+        Args:
+            file: Output file (ignored, always uses stdout)
+        """
+        help_text = self.format_help()
+        print_help_with_rich(help_text)
+
+    def _print_message(self, message, file=None):
+        """Print message using rich console if available.
+
+        Args:
+            message: Message to print
+            file: Output file (ignored when using rich)
+        """
+        if message:
+            print_help_with_rich(message)
 
 
 class EnhancedHelpFormatter(argparse.RawDescriptionHelpFormatter):
-    """Enhanced help formatter with better organization.
+    """Enhanced help formatter with better organization and optional colorization.
 
     Features:
     - Better indentation and spacing
     - Consistent formatting across all commands
     - Group support
+    - Optional syntax highlighting with rich (when available and colors enabled)
     """
 
     def __init__(self, prog, indent_increment=2, max_help_position=28, width=None):
@@ -24,9 +74,49 @@ class EnhancedHelpFormatter(argparse.RawDescriptionHelpFormatter):
         """
         super().__init__(prog, indent_increment, max_help_position, width)
         self._section_heading = None  # Store just the heading text for reference
+        # Check if colors should be used (rich available and not disabled)
+        self._use_colors = RICH_AVAILABLE and not console.no_color
+
+    def _colorize(self, text, style):
+        """Apply color styling to text if colors are enabled.
+
+        Args:
+            text: Text to colorize
+            style: Rich style name (e.g., 'command', 'option', 'metavar')
+
+        Returns:
+            Styled text if colors enabled, plain text otherwise
+        """
+        if not self._use_colors or not text:
+            return text
+        return f"[{style}]{text}[/{style}]"
+
+    def _format_usage(self, usage, actions, groups, prefix):
+        """Format usage string with optional colorization.
+
+        Args:
+            usage: Usage string
+            actions: List of actions
+            groups: List of groups
+            prefix: Prefix string (e.g., 'usage: ')
+
+        Returns:
+            Formatted usage string
+        """
+        result = super()._format_usage(usage, actions, groups, prefix)
+
+        if self._use_colors:
+            # Colorize command names (prog name)
+            result = re.sub(r"\b(\w+-vba)\b", lambda m: self._colorize(m.group(1), "command"), result)
+            # Colorize optional arguments in square brackets
+            result = re.sub(r"(\[--?[\w-]+[^\]]*\])", lambda m: self._colorize(m.group(1), "dim"), result)
+            # Colorize required arguments in angle brackets
+            result = re.sub(r"(<[^>]+>)", lambda m: self._colorize(m.group(1), "metavar"), result)
+
+        return result
 
     def start_section(self, heading):
-        """Start a new section with custom heading formatting.
+        """Start a new section with custom heading formatting and optional colorization.
 
         Args:
             heading: Section heading text
@@ -39,10 +129,13 @@ class EnhancedHelpFormatter(argparse.RawDescriptionHelpFormatter):
             heading = heading.title() if heading.islower() else heading
             # Remove any existing colons before adding our own
             heading = heading.rstrip(":")
+            # Colorize section headings
+            if self._use_colors:
+                heading = self._colorize(heading, "usage")  # Bold style for headings
         super().start_section(heading)
 
     def _format_action(self, action):
-        """Format an individual action with better alignment.
+        """Format an individual action with better alignment and optional colorization.
 
         Args:
             action: Action to format
@@ -56,6 +149,26 @@ class EnhancedHelpFormatter(argparse.RawDescriptionHelpFormatter):
 
         # Get original formatting
         result = super()._format_action(action)
+
+        # Apply colorization if enabled
+        if self._use_colors and result:
+            # Colorize option flags (--option, -o)
+            result = re.sub(r"(--?[\w-]+)", lambda m: self._colorize(m.group(1), "option"), result)
+            # Colorize metavars (FILE, DIR, ENCODING, etc.) - uppercase words
+            result = re.sub(r"\b([A-Z_]{2,})\b", lambda m: self._colorize(m.group(1), "metavar"), result)
+            # Colorize command names in the Commands/Subcommands section
+            if (
+                hasattr(self, "_section_heading")
+                and self._section_heading
+                and self._section_heading.lower() in ["commands", "subcommands"]
+            ):
+                # Colorize command names at start of line (after whitespace)
+                result = re.sub(
+                    r"(^\s+)(\w+)",
+                    lambda m: m.group(1) + self._colorize(m.group(2), "command"),
+                    result,
+                    flags=re.MULTILINE,
+                )
 
         # Add extra spacing after action groups for readability
         if (
@@ -84,6 +197,23 @@ class EnhancedHelpFormatter(argparse.RawDescriptionHelpFormatter):
             else:
                 lines.append("")
         return lines
+
+    def format_help(self):
+        """Format help text with optional rich rendering.
+
+        Returns:
+            Formatted help text
+        """
+        help_text = super().format_help()
+
+        # If rich is available and colors enabled, use rich console to print
+        # (The markup tags [option], [command], etc. will be rendered)
+        if self._use_colors and RICH_AVAILABLE:
+            # Return the help text with markup - argparse will print it,
+            # but we've already added the markup tags
+            return help_text
+
+        return help_text
 
 
 class GroupedHelpFormatter(EnhancedHelpFormatter):

@@ -22,6 +22,7 @@ from vba_edit.exceptions import (
     VBAError,
 )
 from vba_edit.help_formatter import (
+    ColorizedArgumentParser,
     EnhancedHelpFormatter,
 )
 from vba_edit.office_vba import ExcelVBAHandler
@@ -59,7 +60,7 @@ Use '{entry_point_name} <command> --help' for more information on a specific com
 IMPORTANT: Requires "Trust access to VBA project object model" enabled in Excel.
            Early release - backup important files before use!"""
 
-    parser = argparse.ArgumentParser(
+    parser = ColorizedArgumentParser(
         prog=entry_point_name,
         usage=f"{entry_point_name} [--help] [--version] <command> [<args>]",
         description=main_description,

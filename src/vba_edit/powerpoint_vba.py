@@ -19,7 +19,7 @@ from vba_edit.exceptions import (
     VBAAccessError,
     VBAError,
 )
-from vba_edit.help_formatter import EnhancedHelpFormatter
+from vba_edit.help_formatter import ColorizedArgumentParser, EnhancedHelpFormatter
 from vba_edit.office_vba import PowerPointVBAHandler
 from vba_edit.path_utils import get_document_paths
 from vba_edit.utils import get_active_office_document, get_windows_ansi_codepage, setup_logging
@@ -55,7 +55,7 @@ Use '{entry_point_name} <command> --help' for more information on a specific com
 IMPORTANT: Requires "Trust access to VBA project object model" enabled in PowerPoint.
            Early release - backup important files before use!"""
 
-    parser = argparse.ArgumentParser(
+    parser = ColorizedArgumentParser(
         prog=entry_point_name,
         usage=f"{entry_point_name} [--help] [--version] <command> [<args>]",
         description=main_description,

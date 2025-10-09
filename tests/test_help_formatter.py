@@ -94,11 +94,14 @@ class TestEnhancedHelpFormatter:
 
         help_text = parser.format_help()
 
-        # Should have standard sections
+        # Should have standard sections (check for the text without worrying about markup tags)
+        # Strip any rich markup tags for testing
+        import re
+        clean_text = re.sub(r'\[/?[^\]]+\]', '', help_text)
         assert (
-            "positional arguments:" in help_text.lower()
-            or "optional arguments:" in help_text.lower()
-            or "options:" in help_text.lower()
+            "positional arguments:" in clean_text.lower()
+            or "optional arguments:" in clean_text.lower()
+            or "options:" in clean_text.lower()
         )
 
     def test_version_action_formatting(self):
