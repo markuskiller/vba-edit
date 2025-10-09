@@ -5,7 +5,62 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.4.0-rc4] - 2025-10-06
+## [0.4.1a1] - unreleased
+
+### Added
+
+- **Enhanced CLI Help System**: Complete refactoring of all CLI entry points with improved help formatting
+  - Streamlined main help with concise descriptions and 4 key examples per entry point
+  - Grouped argument options (File Options, Configuration, Encoding Options, Header Options, Command-Specific Options, Common Options) (Specs provided by @oderhold)
+  - Consistent formatting using `EnhancedHelpFormatter` (title case headings, single colons)
+  - Professional "Commands" section with clear `<command>` metavar
+  - Enhanced "check" command with proper "Subcommands" section
+- **--save-metadata Option**: Added `-m/--save-metadata` flag to both `edit` and `export` commands
+  - Allows saving metadata during initial export in edit mode
+  - Previously only available in export command
+- `add_folder_organization_arguments()` function in `cli_common.py` for command-specific folder options
+- **Simplified Placeholders**: New streamlined placeholder format for configuration files
+  - `{file.name}` - replaces `{general.file.name}` 
+  - `{file.fullname}` - replaces `{general.file.fullname}`
+  - `{file.path}` - replaces `{general.file.path}`
+  - `{file.vbaproject}` - replaces `{vbaproject}`
+  - Legacy placeholders still supported for backward compatibility (will be removed in v0.5.0)
+- **Enhanced Help Formatter**: New help output system for better CLI documentation
+  - `EnhancedHelpFormatter` class for improved help text formatting
+  - `GroupedHelpFormatter` class for organizing options into logical groups
+  - Helper functions for creating consistent help output across all entry points
+  - Predefined example templates for all commands (edit, import, export, check)
+
+### Changed
+
+- **CLI Architecture**: All four entry points (excel-vba, word-vba, access-vba, powerpoint-vba) now use inline argument definitions
+  - Removed dependency on old helper functions (`add_common_arguments`, `add_encoding_arguments`, etc.)
+  - Improved code visibility and maintainability with explicit argument declarations
+  - All entry points now have identical structure and formatting
+  - Main help shows overview with basic examples
+  - Command-specific help shows detailed usage with all options
+  - Better organization with mutually exclusive groups properly labeled
+  - Folder organization options (`--rubberduck-folders`, `--open-folder`) are now command-specific (edit/import/export only)
+  - Removed `add_common_arguments()` from main parser level to prevent global option leakage
+- **Option Availability**: `--open-folder` now available on all manipulation commands (edit, import, export) for improved workflow continuity
+- Updated all handler initializations to use `getattr()` with defaults for optional folder organization arguments
+- **Placeholder System**: Simplified configuration placeholder naming for better clarity and consistency
+
+### Deprecated
+
+- Legacy placeholder format `{general.file.*}` and `{vbaproject}` (use new `{file.*}` format instead)
+
+### Fixed
+
+- **[Issue #20](https://github.com/markuskiller/vba-edit/issues/20)**: Fixed AttributeError in `check` command for all entry points (word-vba, excel-vba, access-vba, powerpoint-vba)
+  - Modified `validate_paths()` to skip validation for `check` command
+  - Added `hasattr()` guards for safer attribute access
+- **[Issue #21](https://github.com/markuskiller/vba-edit/issues/21)**: CLI options are now properly scoped as command-specific vs global
+  - `--rubberduck-folders` and `--open-folder` only appear on commands where they're applicable
+  - `--help` and `--version` remain as global options
+  - Prevents user confusion from seeing irrelevant options on incompatible commands
+
+## [0.4.0] - 2025-10-06
 
 ### Added
 - new option `--in-file-headers`: embedding VBA headers in code files ([@onderhold](https://github.com/onderhold))
@@ -31,7 +86,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Refactored warning handling logic into centralized helper function (`handle_export_with_warnings()` in `cli_common.py`)
 - Core logic (`office_vba.py`) now raises `VBAExportWarning` exceptions instead of handling user interaction
 - CLI layer handles all user prompts via shared helper, eliminating code duplication across entry points
-- **[Issue #14](https://github.com/markuskiller/vba-edit/issues/14)**: The watchgod library is no longer actively developed and has been superseded by watchfiles. Consider The dependency has been replaced with watchfiles ([@onderhold](https://github.com/onderhold))
+- **[Issue #14](https://github.com/markuskiller/vba-edit/issues/14)**: The watchgod library is no longer actively developed and has been superseded by watchfiles. The dependency has been replaced with watchfiles ([@onderhold](https://github.com/onderhold))
 
 ### Fixed
 - **[Issue #16](https://github.com/markuskiller/vba-edit/issues/16)**: Hidden member attributes (VB_VarHelpID, VB_VarDescription, VB_UserMemId) no longer appear in VBA editor after import. These attributes are legal in exported VBA files but cause syntax errors when written directly into modules. Solution: filter all member-level Attribute lines from code sections before calling AddFromString(). (Reported by [@takutta](https://github.com/takutta), [@loehnertj](https://github.com/loehnertj))
