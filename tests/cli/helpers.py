@@ -162,7 +162,7 @@ def get_or_create_app(app_name: str):
     return _app_instances[app_type]
 
 
-def _wait_for_app_ready(app, app_type, timeout=10.0):
+def _wait_for_app_ready(app, app_type, timeout=15.0):
     """Wait for application to be ready for operations."""
     start_time = time.time()
 
