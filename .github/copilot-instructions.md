@@ -19,14 +19,22 @@ This project is a command-line application that allows users to export, import, 
   - Syncs changes back to Office VBA on save [CTRL+S]
   - **NO bi-directional sync**: Changes made in Office VBA editor while edit mode is active are NOT synced back to files
 
+**Advanced Features:**
+- RubberduckVBA folder structure support (refining)
+- Configuration file support with TOML (optimizing)
+- Colorized CLI output (implementing in v0.4.1)
+- Safety features and data loss prevention
+
 ## Planned Features (Future)
 
 **Not Yet Implemented:**
-- ❌ PowerQuery support (M language) - v0.5.0 or v0.6.0
+- ❌ PowerQuery support (M language) - v0.5.0 (next release)
 - ❌ Bi-directional sync (Office VBA → external editor) - v0.5.0 via keyboard shortcut approach
-- ❌ Code signing for Windows binaries (SignPath.io planned) - v0.5.0+
+- ❌ Code signing for Windows binaries (SignPath.io) - v0.6.0+ if feasible
 
 **Detailed Roadmap**: See `docs/ROADMAP.md` (private, not published to GitHub during alpha/beta)
+
+**Note**: No specific date commitments - features released when ready
 
 ## Folder Structure
 
