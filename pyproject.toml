@@ -10,7 +10,7 @@ authors = [{ name = "Markus Killer", email = "m.killer@langui.ch" }]
 readme = "README.md"
 requires-python = ">=3.9" # Minimum Python version
 license = "BSD-3-Clause"
-license-files = ["LICENSE", "LICENSES/*.txt", "AUTHORS.md"]
+license-files = ["LICENSE", "LICENSES/*.txt", "AUTHORS.md", "SECURITY.md"]
 keywords = ["vba", "excel", "word", "office", "automation", "macro", "PyPI"]
 classifiers = [
     "Development Status :: 3 - Alpha",
