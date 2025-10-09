@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Colorized Terminal Output**: Modern, professional CLI appearance with automatic color support
+  - Success messages appear in green with checkmarks (✓)
+  - Error messages appear in red with X marks (✗)
+  - Warning messages appear in yellow with warning symbols (⚠)
+  - Help text now uses syntax highlighting with different colors for options, file names, and section headings
+  - Colors match modern tools like uv and ruff for a familiar experience
+  - Automatically disabled when output is piped or redirected
+  - Use `--no-color` flag to disable if needed
 - **Improved Help Messages**: Completely redesigned help output for all commands
   - Options are now organized into clear groups (File Options, Configuration, Encoding, etc.)
   - Main help shows concise overview with practical examples
