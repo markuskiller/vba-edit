@@ -28,7 +28,7 @@ jobs:
     - name: Set up Python
       uses: actions/setup-python@v5
       with:
-        python-version: '3.13'
+        python-version: '3.14'
         
     - name: Install uv
       uses: astral-sh/setup-uv@v4
@@ -58,7 +58,7 @@ jobs:
         uv export --format requirements-txt > dist/SBOM.txt
         echo "Build Information:" >> dist/SBOM.txt
         echo "Build Date: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss UTC')" >> dist/SBOM.txt
-        echo "Python Version: 3.13" >> dist/SBOM.txt
+        echo "Python Version: 3.14" >> dist/SBOM.txt
         echo "Built by: GitHub Actions" >> dist/SBOM.txt
         echo "Workflow: ${{ github.workflow }}" >> dist/SBOM.txt
         echo "Run ID: ${{ github.run_id }}" >> dist/SBOM.txt

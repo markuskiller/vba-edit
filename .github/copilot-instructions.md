@@ -239,7 +239,7 @@ When updating CHANGELOG.md:
 - Dependabot monitors weekly for security updates
 
 ### Python Support
-- Support Python 3.9 - 3.13
+- Support Python 3.9 - 3.14
 - Test against all supported versions in CI
 - Don't use features from Python > 3.9 without compatibility checks
 
