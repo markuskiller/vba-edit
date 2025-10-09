@@ -129,9 +129,9 @@ class EnhancedHelpFormatter(argparse.RawDescriptionHelpFormatter):
             heading = heading.title() if heading.islower() else heading
             # Remove any existing colons before adding our own
             heading = heading.rstrip(":")
-            # Colorize section headings
+            # Colorize section headings (bold green in uv style)
             if self._use_colors:
-                heading = self._colorize(heading, "usage")  # Bold style for headings
+                heading = self._colorize(heading, "heading")
         super().start_section(heading)
 
     def _format_action(self, action):

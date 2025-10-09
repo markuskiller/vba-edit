@@ -26,7 +26,7 @@ try:
     from rich.console import Console
     from rich.theme import Theme
 
-    # Define our color theme (uv/ruff-style)
+    # Define our color theme (uv-style - October 2025)
     custom_theme = Theme(
         {
             # Message types
@@ -36,15 +36,16 @@ try:
             "info": "cyan",
             # Elements
             "dim": "dim",
-            "path": "cyan",  # uv uses cyan for paths
-            "file": "cyan",  # uv uses cyan for files
-            "command": "bold cyan",  # uv uses bold cyan for commands
-            "option": "bold blue",  # uv uses blue for options (not magenta)
-            "action": "green",  # uv uses green for actions
-            "number": "cyan",  # uv uses cyan for numbers
-            # Help text styling
-            "usage": "bold white",  # Section headings in bold white
-            "metavar": "yellow",  # Metavars in yellow (FILE, DIR, etc.)
+            "path": "bold blue",  # uv: bold blue for paths
+            "file": "bold blue",  # uv: bold blue for files
+            "command": "bold cyan",  # uv: bold cyan for commands
+            "option": "bold cyan",  # uv: bold cyan for options like --file, -f
+            "action": "green",  # uv: green for actions
+            "number": "cyan",  # uv: cyan for numbers
+            # Help text styling (matches uv October 2025)
+            "heading": "bold green",  # Section headings: File Options, etc.
+            "usage": "bold white",  # Usage line
+            "metavar": "bold blue",  # Metavars: FILE, DIR, etc.
             "choices": "dim cyan",  # Choices in dim cyan
         }
     )

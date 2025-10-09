@@ -24,7 +24,7 @@ This project is a command-line application that allows users to export, import, 
 **Advanced Features (Being Refined):**
 - RubberduckVBA folder structure support (refining)
 - Configuration file support with TOML (optimizing)
-- Colorized CLI output (implementing in v0.4.1)
+- Colorized CLI output with uv-style aesthetics (implemented in v0.4.1)
 - Safety features and data loss prevention (refining)
 - Enhanced CLI with organized help and grouped options (refining)
 - Windows binaries with security verification (ongoing)
@@ -338,6 +338,27 @@ When updating CHANGELOG.md:
 ---
 
 ## User Communication
+
+### CLI Colorization (v0.4.1+)
+- **Color scheme**: Matches uv/ruff aesthetics (October 2025 style)
+- **Automatically disabled** when:
+  - Output is piped or redirected
+  - NO_COLOR environment variable is set
+  - `--no-color` flag is used
+  - Running in CI/CD environments (non-TTY)
+- **Runtime messages**:
+  - Success: `✓` in bold green
+  - Error: `✗` in bold red  
+  - Warning: `⚠` in bold yellow
+  - Info: cyan
+- **Help text styling**:
+  - Section headings (File Options, etc.): **bold green**
+  - Options (--file, -f): **bold cyan**
+  - Metavars (FILE, DIR): **bold blue**
+  - Commands (export, import): **bold cyan**
+  - Paths: **bold blue**
+  - Optional arguments: dimmed
+- **Implementation**: Rich library with custom theme in `console.py`
 
 ### CLI Messages
 - Use clear, actionable messages
