@@ -157,11 +157,11 @@ excel-vba export --vba-directory ./src --force-overwrite
 ## Roadmap
 
 ### 🎯 Current Focus (v0.4.x)
-- ✅ Stable VBA editing for Excel, Word, PowerPoint, Access
-- ✅ Enhanced CLI with organized help and grouped options
-- ✅ Refining RubberduckVBA integration (`@Folder` annotations)
-- ✅ Optimizing configuration file support (TOML)
-- ✅ Safety features and data loss prevention
+- 🔄 Stable VBA editing for Excel, Word, PowerPoint, Access
+- 🔄 Enhanced CLI with organized help and grouped options
+- 🔄 Refining RubberduckVBA integration (`@Folder` annotations)
+- 🔄 Optimizing configuration file support (TOML)
+- 🔄 Safety features and data loss prevention
 - 🔄 Colorized output for better readability (coming in v0.4.1)
 - 🔄 Windows binaries with security verification (SHA256, SBOM, Attestations)
 
