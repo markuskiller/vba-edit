@@ -1,20 +1,19 @@
-name: Build Windows Binaries
+name: Build and Attach Windows Binaries to Release
 
 on:
-  push:
-    branches:
-      - main
-      - dev
-    tags:
-      - 'v*'
-  pull_request:
-    branches:
-      - main
-      - dev
+  release:
+    types: [published]
   workflow_dispatch:
 
 jobs:
-  build:
+  lint:
+    uses: ./.github/workflows/lint.yaml
+  
+  test:
+    uses: ./.github/workflows/test.yaml
+
+  build-binaries:
+    needs: [lint, test]  # Ensure binaries only built if tests pass
     runs-on: windows-latest
     
     steps:
@@ -33,10 +32,6 @@ jobs:
       run: |
         uv sync
         
-    - name: Run tests
-      run: |
-        uv run pytest -v
-        
     - name: Build binaries with PyInstaller
       run: |
         uv run python create_binaries.py
@@ -45,48 +40,13 @@ jobs:
       run: |
         Get-ChildItem -Path dist -Recurse -File | Select-Object FullName, Length
         
-    - name: Upload binaries as artifacts
-      uses: actions/upload-artifact@v4
-      with:
-        name: windows-binaries-unsigned
-        path: |
-          dist/excel-vba.exe
-          dist/word-vba.exe
-          dist/access-vba.exe
-          dist/powerpoint-vba.exe
-        retention-days: 90
-        
-    - name: Create release (on tag push)
-      if: startsWith(github.ref, 'refs/tags/v')
-      uses: softprops/action-gh-release@v1
+    - name: Upload binaries to release
+      uses: softprops/action-gh-release@v2
       with:
         files: |
           dist/excel-vba.exe
           dist/word-vba.exe
           dist/access-vba.exe
           dist/powerpoint-vba.exe
-        body: |
-          ## Windows Binaries (Unsigned)
-          
-          ⚠️ **Note**: These binaries are currently unsigned. Windows SmartScreen may show warnings.
-          
-          ### Installation
-          1. Download the appropriate `*-vba.exe` file
-          2. When Windows shows a SmartScreen warning, click "More info" then "Run anyway"
-          3. Place the executable in a directory on your PATH
-          
-          See [Windows Executable Guide](https://github.com/markuskiller/vba-edit/blob/main/docs/WINDOWS_EXECUTABLE_GUIDE.md) for detailed installation instructions.
-          
-          ### Available Executables
-          - `excel-vba.exe` - Excel VBA management
-          - `word-vba.exe` - Word VBA management
-          - `access-vba.exe` - Access VBA management
-          - `powerpoint-vba.exe` - PowerPoint VBA management
-          
-          ### Alternative Installation
-          If you prefer to avoid Windows warnings, install via pip:
-          ```bash
-          pip install -U vba-edit
-          ```
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
