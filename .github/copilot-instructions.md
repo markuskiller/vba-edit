@@ -1,6 +1,30 @@
 # Project Overview
 
-This project is a command line application that allows users to export, import and synchronize custom program code (VBA and PowerQuery) contained in Microsoft Office files.
+This project is a command-line application that allows users to export, import, and edit VBA code from Microsoft Office files using external editors with one-way sync back to Office.
+
+## Current Features (v0.4.x)
+
+**Supported Applications:**
+- ✅ Microsoft Excel (VBA: modules, classes, forms)
+- ✅ Microsoft Word (VBA: modules, classes, forms)
+- ✅ Microsoft Access (VBA: modules, classes only - NO forms)
+- ✅ Microsoft PowerPoint (VBA: modules, classes, forms)
+
+**Core Functionality:**
+- **Export**: One-time export of VBA code to `.bas`, `.cls`, `.frm` files
+- **Import**: One-time import of VBA code from files back to Office
+- **Edit**: Live editing with **one-way sync** (external editor → Office VBA)
+  - Initial export on command start
+  - Watches filesystem for changes
+  - Syncs changes back to Office VBA on save [CTRL+S]
+  - **NO bi-directional sync**: Changes made in Office VBA editor while edit mode is active are NOT synced back to files
+
+## Planned Features (Future)
+
+**Not Yet Implemented:**
+- ❌ PowerQuery support (M language)
+- ❌ Bi-directional sync (Office VBA → external editor while edit mode active)
+- ❌ Code signing for Windows binaries (SignPath.io planned)
 
 ## Folder Structure
 
@@ -220,11 +244,17 @@ When updating CHANGELOG.md:
 
 ## Office Application Support
 
-### Supported Applications
+### Supported Applications (Current)
 - **Excel**: Full support (VBA modules, classes, forms)
 - **Word**: Full support (VBA modules, classes, forms)
 - **Access**: Basic support (modules and classes only, **NO forms** - Access forms handled differently)
 - **PowerPoint**: Full support (VBA modules, classes, forms)
+
+### Edit Mode Sync Behavior
+- **Initial export**: All VBA code exported to files when `edit` command starts
+- **One-way sync**: External editor → Office VBA (on save [CTRL+S])
+- **NO bi-directional sync**: Changes made in Office VBA editor while edit mode is active are NOT synced back to external files
+- **Future consideration**: Bi-directional sync may be added (e.g., via keyboard shortcut in terminal while edit mode active)
 
 ### VBA Trust Requirement
 - All operations require "Trust access to VBA project object model" enabled
