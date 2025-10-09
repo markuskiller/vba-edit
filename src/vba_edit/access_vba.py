@@ -749,6 +749,12 @@ def main() -> None:
         parser = create_cli_parser()
         args = parser.parse_args()
 
+        # Handle color control first (before any output)
+        if getattr(args, "no_color", False):
+            from vba_edit.console import disable_colors
+
+            disable_colors()
+
         # Process configuration file BEFORE setting up logging
         args = process_config_file(args)
 
@@ -774,7 +780,9 @@ def main() -> None:
             handle_access_vba_command(args)
 
     except Exception as e:
-        print(f"Critical error: {str(e)}", file=sys.stderr)
+        from vba_edit.console import error
+
+        error(f"Critical error: {str(e)}")
         sys.exit(1)
 
 

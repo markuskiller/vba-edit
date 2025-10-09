@@ -30,6 +30,7 @@ dependencies = [
     "pywin32 >= 224;platform_system=='Windows'",
     "watchfiles",                                # replaced watchgod
     "tomli>=2.0.0; python_version < '3.11'",
+    "rich>=13.0.0",                              # Modern terminal output with colors
 ]
 
 [project.optional-dependencies]

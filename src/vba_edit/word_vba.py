@@ -205,6 +205,13 @@ Full control usage:
         help="Enable logging to file (default: vba_edit.log)",
     )
     common_group.add_argument(
+        "--no-color",
+        "--no-colour",
+        dest="no_color",
+        action="store_true",
+        help="Disable colored output",
+    )
+    common_group.add_argument(
         "--help",
         "-h",
         action="help",
@@ -323,6 +330,13 @@ Full control usage:
         nargs="?",
         const="vba_edit.log",
         help="Enable logging to file (default: vba_edit.log)",
+    )
+    common_group.add_argument(
+        "--no-color",
+        "--no-colour",
+        dest="no_color",
+        action="store_true",
+        help="Disable colored output",
     )
     common_group.add_argument(
         "--help",
@@ -467,6 +481,13 @@ Full control usage:
         help="Enable logging to file (default: vba_edit.log)",
     )
     common_group.add_argument(
+        "--no-color",
+        "--no-colour",
+        dest="no_color",
+        action="store_true",
+        help="Disable colored output",
+    )
+    common_group.add_argument(
         "--help",
         "-h",
         action="help",
@@ -512,6 +533,13 @@ Simple usage:
         help="Enable logging to file (default: vba_edit.log)",
     )
     common_group.add_argument(
+        "--no-color",
+        "--no-colour",
+        dest="no_color",
+        action="store_true",
+        help="Disable colored output",
+    )
+    common_group.add_argument(
         "--help",
         "-h",
         action="help",
@@ -548,6 +576,13 @@ Simple usage:
         nargs="?",
         const="vba_edit.log",
         help="Enable logging to file (default: vba_edit.log)",
+    )
+    check_all_common.add_argument(
+        "--no-color",
+        "--no-colour",
+        dest="no_color",
+        action="store_true",
+        help="Disable colored output",
     )
     check_all_common.add_argument(
         "--help",
@@ -687,6 +722,12 @@ def main() -> None:
         parser = create_cli_parser()
         args = parser.parse_args()
 
+        # Handle color control first (before any output)
+        if getattr(args, "no_color", False):
+            from vba_edit.console import disable_colors
+
+            disable_colors()
+
         # Process configuration file BEFORE setting up logging
         args = process_config_file(args)
 
@@ -712,7 +753,9 @@ def main() -> None:
             handle_word_vba_command(args)
 
     except Exception as e:
-        print(f"Critical error: {str(e)}", file=sys.stderr)
+        from vba_edit.console import error
+
+        error(f"Critical error: {str(e)}")
         sys.exit(1)
 
 
