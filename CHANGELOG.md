@@ -9,56 +9,70 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **Enhanced CLI Help System**: Complete refactoring of all CLI entry points with improved help formatting
-  - Streamlined main help with concise descriptions and 4 key examples per entry point
-  - Grouped argument options (File Options, Configuration, Encoding Options, Header Options, Command-Specific Options, Common Options) (Specs provided by @oderhold)
-  - Consistent formatting using `EnhancedHelpFormatter` (title case headings, single colons)
-  - Professional "Commands" section with clear `<command>` metavar
-  - Enhanced "check" command with proper "Subcommands" section
-- **--save-metadata Option**: Added `-m/--save-metadata` flag to both `edit` and `export` commands
-  - Allows saving metadata during initial export in edit mode
-  - Previously only available in export command
-- `add_folder_organization_arguments()` function in `cli_common.py` for command-specific folder options
-- **Simplified Placeholders**: New streamlined placeholder format for configuration files
-  - `{file.name}` - replaces `{general.file.name}` 
-  - `{file.fullname}` - replaces `{general.file.fullname}`
-  - `{file.path}` - replaces `{general.file.path}`
-  - `{file.vbaproject}` - replaces `{vbaproject}`
-  - Legacy placeholders still supported for backward compatibility (will be removed in v0.5.0)
-- **Enhanced Help Formatter**: New help output system for better CLI documentation
-  - `EnhancedHelpFormatter` class for improved help text formatting
-  - `GroupedHelpFormatter` class for organizing options into logical groups
-  - Helper functions for creating consistent help output across all entry points
-  - Predefined example templates for all commands (edit, import, export, check)
+- **Improved Help Messages**: Completely redesigned help output for all commands
+  - Options are now organized into clear groups (File Options, Configuration, Encoding, etc.)
+  - Main help shows concise overview with practical examples
+  - Command-specific help displays all available options with detailed descriptions
+  - Design by @onderhold
+- **Metadata Saving**: New `-m/--save-metadata` option now available in both `edit` and `export` commands
+  - Preserve metadata when exporting in edit mode
+  - Makes workflows more consistent across commands
+- **Simpler Configuration Placeholders**: Streamlined placeholder names for config files
+  - Use `{file.name}`, `{file.fullname}`, `{file.path}` instead of `{general.file.*}`
+  - Use `{file.vbaproject}` instead of `{vbaproject}`
+  - Old placeholders still work (will be removed in v0.5.0)
+- **Windows Binaries**: Automated build workflow for Windows executables
+  - Built automatically when creating releases
+  - Includes SHA256 checksums for verification
+  - GitHub Attestations provide cryptographic proof of authenticity
+  - Software Bill of Materials (SBOM) included with each release
+- **Security Documentation**: Comprehensive security policy and verification guide
+  - Clear vulnerability reporting process
+  - Multiple verification methods for binaries
+  - Best practices for secure usage
+- **Automated Dependency Updates**: Dependabot monitors for security updates
+  - Weekly checks for outdated dependencies
+  - Automatic pull requests for updates
+  - Reduces security risk from vulnerable dependencies
 
 ### Changed
 
-- **CLI Architecture**: All four entry points (excel-vba, word-vba, access-vba, powerpoint-vba) now use inline argument definitions
-  - Removed dependency on old helper functions (`add_common_arguments`, `add_encoding_arguments`, etc.)
-  - Improved code visibility and maintainability with explicit argument declarations
-  - All entry points now have identical structure and formatting
-  - Main help shows overview with basic examples
-  - Command-specific help shows detailed usage with all options
-  - Better organization with mutually exclusive groups properly labeled
-  - Folder organization options (`--rubberduck-folders`, `--open-folder`) are now command-specific (edit/import/export only)
-  - Removed `add_common_arguments()` from main parser level to prevent global option leakage
-- **Option Availability**: `--open-folder` now available on all manipulation commands (edit, import, export) for improved workflow continuity
-- Updated all handler initializations to use `getattr()` with defaults for optional folder organization arguments
-- **Placeholder System**: Simplified configuration placeholder naming for better clarity and consistency
+- **Option Availability**: `--open-folder` now works with `edit`, `import`, and `export` commands
+  - Previously only available on some commands
+  - Improves workflow by opening results folder after operations
+- **Help Display**: Options now only appear where they're relevant
+  - Folder options (`--rubberduck-folders`, `--open-folder`) only show on commands that use them
+  - Less clutter in help output
+  - Easier to find the options you need
 
 ### Deprecated
 
-- Legacy placeholder format `{general.file.*}` and `{vbaproject}` (use new `{file.*}` format instead)
+- **Old placeholder format**: `{general.file.*}` and `{vbaproject}` 
+  - Still supported for backward compatibility
+  - Use new `{file.*}` format instead
+  - Will be removed in v0.5.0
 
 ### Fixed
 
-- **[Issue #20](https://github.com/markuskiller/vba-edit/issues/20)**: Fixed AttributeError in `check` command for all entry points (word-vba, excel-vba, access-vba, powerpoint-vba)
-  - Modified `validate_paths()` to skip validation for `check` command
-  - Added `hasattr()` guards for safer attribute access
-- **[Issue #21](https://github.com/markuskiller/vba-edit/issues/21)**: CLI options are now properly scoped as command-specific vs global
-  - `--rubberduck-folders` and `--open-folder` only appear on commands where they're applicable
-  - `--help` and `--version` remain as global options
-  - Prevents user confusion from seeing irrelevant options on incompatible commands
+- **[Issue #20](https://github.com/markuskiller/vba-edit/issues/20)**: Fixed crash when running `check` command
+  - All entry points (excel-vba, word-vba, access-vba, powerpoint-vba) now handle `check` correctly
+- **[Issue #21](https://github.com/markuskiller/vba-edit/issues/21)**: Commands no longer show irrelevant options
+  - Each command only displays options that actually work with it
+  - Prevents confusion about which options to use
+
+### Security
+
+- **GitHub Actions permissions**: Workflows now use minimal required permissions
+  - Follows security best practice of least privilege
+  - Limits potential damage if workflow is compromised
+- **Binary verification**: Multiple methods to verify download authenticity
+  - SHA256 checksums included with all releases
+  - GitHub Attestations prove binaries were built by official workflow
+  - Build provenance cryptographically signed by GitHub
+- **Security policy**: Clear process for reporting vulnerabilities
+  - Response within 48 hours
+  - Private disclosure via GitHub Security Advisories
+  - Documented timeline for fixes
 
 ## [0.4.0] - 2025-10-06
 
