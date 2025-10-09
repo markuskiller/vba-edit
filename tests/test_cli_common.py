@@ -227,7 +227,7 @@ class TestHandleExportWithWarnings:
             )
 
         captured = capsys.readouterr()
-        assert "WARNING" in captured.out
+        assert "⚠" in captured.out  # warning symbol
         assert "3" in captured.out  # file count
         assert "existing VBA file" in captured.out
 
@@ -246,7 +246,7 @@ class TestHandleExportWithWarnings:
             )
 
         captured = capsys.readouterr()
-        assert "WARNING" in captured.out
+        assert "⚠" in captured.out  # warning symbol
         assert "Header storage mode" in captured.out
         assert "separate header files" in captured.out
         assert "inline headers" in captured.out

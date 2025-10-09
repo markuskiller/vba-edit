@@ -59,7 +59,7 @@ def create_version_file(exe_name: str, app_description: str, output_dir: str = "
     # Convert version string to numeric format (e.g., "0.4.1a1" -> "0.4.1.0")
     # Split by '-' for rc/beta style, then clean each part of alpha suffixes
     version_numeric = version.split("-")[0]  # Remove any suffix like -rc2
-    
+
     # Clean each part of alpha/beta suffixes (e.g., "1a1" -> "1")
     parts = []
     for part in version_numeric.split("."):
@@ -71,7 +71,7 @@ def create_version_file(exe_name: str, app_description: str, output_dir: str = "
             else:
                 break  # Stop at first non-digit character
         parts.append(numeric_part if numeric_part else "0")
-    
+
     # Ensure we have exactly 4 parts
     while len(parts) < 4:
         parts.append("0")

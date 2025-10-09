@@ -54,6 +54,65 @@ Write code (names of classes, objects, variables, methods, comments etc) always 
 Also express all your answers in project language, even when prompted in any other language.
 As an exception, the developer may ask for a translation of terms and sentences he or she doesn't understand, on his/her behalf.
 
+---
+
+## Development Environment Setup
+
+### CRITICAL: Always Set Up Environment First
+
+**Before running any Python commands, tests, or scripts:**
+
+1. **Sync dependencies** (ensures all packages including dev dependencies are installed):
+   ```powershell
+   uv sync --extra dev
+   ```
+
+2. **For Python commands** - Use one of these methods:
+   ```powershell
+   # Method 1: Use uv run (recommended - handles environment automatically)
+   uv run python script.py
+   uv run pytest tests/
+   uv run ruff check
+   
+   # Method 2: Activate virtual environment manually
+   .venv\Scripts\Activate.ps1  # PowerShell
+   python script.py
+   pytest tests/
+   ```
+
+3. **Common commands**:
+   ```powershell
+   # Install/update dependencies
+   uv sync --extra dev
+   
+   # Run tests
+   uv run pytest
+   uv run pytest tests/test_cli_common.py -v
+   
+   # Code quality
+   uv run ruff check --fix
+   uv run ruff format
+   
+   # Run CLI tools
+   uv run python -m vba_edit.word_vba --help
+   ```
+
+### Why This Matters
+
+- **Missing dependencies**: Without `uv sync`, pytest, ruff, and other dev tools won't be available
+- **Import errors**: Python modules won't be found if environment isn't activated
+- **CI/CD parity**: Using `uv run` or activated venv matches CI/CD behavior
+- **Rich dependency**: Colorization features require `rich>=13.0.0` to be installed
+
+### Troubleshooting
+
+If you see errors like:
+- `ModuleNotFoundError: No module named 'pytest'` → Run `uv sync --extra dev`
+- `ModuleNotFoundError: No module named 'rich'` → Run `uv sync`
+- `Command 'pytest' not found` → Use `uv run pytest` or activate venv first
+
+---
+
 ## Version Control
 
 Currently, some developers are new to working with Git, Github and Copilot.

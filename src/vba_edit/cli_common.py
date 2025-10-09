@@ -7,6 +7,7 @@ import re
 from pathlib import Path
 from typing import Any, Dict, Optional
 
+from vba_edit.console import error, info, warning
 from vba_edit.exceptions import VBAExportWarning
 from vba_edit.utils import confirm_action, get_windows_ansi_codepage
 
@@ -55,26 +56,26 @@ def handle_export_with_warnings(
 
     try:
         handler.export_vba(save_metadata=save_metadata, overwrite=overwrite, interactive=interactive)
-    except VBAExportWarning as warning:
-        if warning.warning_type == "existing_files":
-            file_count = warning.context["file_count"]
-            print(f"\nWARNING: Found {file_count} existing VBA file(s) in the VBA directory.")
-            print("Continuing will overwrite these files with content from the document.")
+    except VBAExportWarning as warning_exc:
+        if warning_exc.warning_type == "existing_files":
+            file_count = warning_exc.context["file_count"]
+            warning(f"Found {file_count} existing VBA file(s) in the VBA directory.")
+            info("Continuing will overwrite these files with content from the document.")
             if not confirm_action("Do you want to continue?", default=False):
-                print("Export cancelled by user.")
+                info("Export cancelled by user.")
                 import sys
 
                 sys.exit(0)
             # User confirmed, retry with interactive=False to skip further prompts
             handler.export_vba(save_metadata=save_metadata, overwrite=True, interactive=False)
 
-        elif warning.warning_type == "header_mode_changed":
-            old_mode = warning.context["old_mode"]
-            new_mode = warning.context["new_mode"]
-            print(f"\nWARNING: Header storage mode has changed from {old_mode} to {new_mode}.")
-            print("Continuing will re-export all forms and clean up old .header files if needed.")
+        elif warning_exc.warning_type == "header_mode_changed":
+            old_mode = warning_exc.context["old_mode"]
+            new_mode = warning_exc.context["new_mode"]
+            warning(f"Header storage mode has changed from {old_mode} to {new_mode}.")
+            info("Continuing will re-export all forms and clean up old .header files if needed.")
             if not confirm_action("Do you want to continue?", default=True):
-                print("Export cancelled by user.")
+                info("Export cancelled by user.")
                 import sys
 
                 sys.exit(0)
@@ -418,7 +419,7 @@ def process_config_file(args: argparse.Namespace) -> argparse.Namespace:
             config = load_config_file(config_file_path)
             args = merge_config_with_args(args, config)
         except Exception as e:
-            print(f"Error loading configuration file: {e}")
+            error(f"Error loading configuration file: {e}")
             return args
 
     # Resolve all placeholders once after merging (except {vbaproject})
@@ -472,6 +473,12 @@ def add_common_arguments(parser: argparse.ArgumentParser) -> None:
         const="vba_edit.log",
         help="Enable logging to file. Optional path can be specified (default: vba_edit.log)"
         "Supports placeholders: {general.file.name}, {general.file.fullname}, {general.file.path}, {vbaproject}",
+    )
+    parser.add_argument(
+        "--no-color",
+        "--no-colour",
+        action="store_true",
+        help="Disable colored output (useful for CI/CD, piping, or personal preference)",
     )
 
 
