@@ -95,3 +95,36 @@ When updating CHANGELOG.md:
 - Always check if Windows binary/release features should be mentioned
 - Dependabot and automation features belong in **Added** if user-facing
 - Breaking changes should be very clearly called out
+
+## Documentation Strategy
+
+### Current Approach (Alpha/Beta Stage)
+- **Minimal public documentation**: Focus on README and excellent CLI help messages
+- **Keep development docs private**: Testing guides, build processes, and internal documentation remain in local/gitignored `docs/` folder
+- **Resource-conscious**: Limited documentation resources during alpha/beta development
+- **Quality over quantity**: Better to have great README and help than mediocre comprehensive docs
+
+### Public Documentation (What to Include)
+- ✅ **README.md**: Primary user-facing documentation
+- ✅ **CLI help messages**: Well-organized, grouped options with examples
+- ✅ **CHANGELOG.md**: User-focused release notes
+- ✅ **SECURITY.md**: Security policy and vulnerability reporting
+- ✅ **LICENSE**: Project license and third-party licenses
+- ✅ **AUTHORS.md**: Contributor recognition
+
+### Private/Local Documentation (Not for GitHub)
+- 🔒 **Testing guides**: Internal test strategies and procedures
+- 🔒 **Build documentation**: Binary creation, development setup
+- 🔒 **Developer workflows**: Team-specific processes
+- 🔒 **Architecture notes**: Internal design decisions
+- 🔒 **Experimental features**: Ideas and prototypes
+
+**Rationale**: Small team with limited resources should focus on end-user experience rather than comprehensive documentation. Internal docs help the team but don't need to be public during alpha/beta.
+
+### Future Plans (Post-1.0)
+- 📚 **ReadTheDocs**: Full documentation site when project matures
+- 📚 **API documentation**: If/when programmatic usage becomes common
+- 📚 **Contributing guide**: When ready for external contributors
+- 📚 **Tutorials**: Once core features are stable
+
+**Decision**: Wait until project is mature enough to warrant comprehensive public documentation.
