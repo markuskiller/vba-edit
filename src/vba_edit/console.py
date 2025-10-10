@@ -36,23 +36,25 @@ try:
             "info": "cyan",
             # Elements
             "dim": "dim",
-            "path": "bold blue",  # uv: bold blue for paths
-            "file": "bold blue",  # uv: bold blue for files
-            "command": "bold cyan",  # uv: bold cyan for commands
-            "option": "bold cyan",  # uv: bold cyan for options like --file, -f
+            "path": "cyan",  # uv: regular cyan for paths (no bold, no bright)
+            "file": "cyan",  # uv: regular cyan for files (no bold, no bright)
+            "command": "bold bright_cyan",  # uv: bold bright cyan for commands
+            "option": "bold bright_cyan",  # uv: bold bright cyan for options like --file, -f
             "action": "green",  # uv: green for actions
             "number": "cyan",  # uv: cyan for numbers
             # Help text styling (matches uv October 2025)
-            "heading": "bold green",  # Section headings: File Options, etc.
+            "heading": "bold bright_green",  # Section headings: File Options, etc.
             "usage": "bold white",  # Usage line
-            "metavar": "bold blue",  # Metavars: FILE, DIR, etc.
+            "metavar": "cyan",  # Metavars: FILE, DIR, etc. (regular cyan)
             "choices": "dim cyan",  # Choices in dim cyan
         }
     )
 
     # Create console instances
-    console = Console(theme=custom_theme, highlight=False)
-    error_console = Console(stderr=True, theme=custom_theme, highlight=False)
+    # NOTE: highlighter=None explicitly disables Rich's automatic syntax highlighting
+    # (which would colorize words like TOML, JSON, XML, etc. in help text)
+    console = Console(theme=custom_theme, highlight=False, highlighter=None)
+    error_console = Console(stderr=True, theme=custom_theme, highlight=False, highlighter=None)
 
     RICH_AVAILABLE = True
 
