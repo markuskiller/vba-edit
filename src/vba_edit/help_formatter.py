@@ -18,8 +18,9 @@ def print_help_with_rich(text):
         text: Help text (potentially with rich markup tags)
     """
     if RICH_AVAILABLE and not console.no_color:
-        # Use rich console to print (will render markup tags)
-        console.print(text, end="", highlight=False, soft_wrap=True)
+        # Use rich console to print (will render markup tags and apply highlighting)
+        # Note: highlight=True allows our custom highlighter to work on plain text portions
+        console.print(text, end="", highlight=True, soft_wrap=True)
     else:
         # Strip markup tags and print normally
         text = re.sub(r"\[/?[^\]]+\]", "", text)

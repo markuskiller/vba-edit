@@ -24,7 +24,197 @@ import sys
 
 try:
     from rich.console import Console
+    from rich.highlighter import Highlighter
     from rich.theme import Theme
+    from rich.text import Text
+
+    class HelpTextHighlighter(Highlighter):
+        """Custom highlighter for CLI help text.
+
+        Highlights:
+        - Technical terms (TOML, JSON, XML, HTTP, etc.) in bright blue
+        - Example commands (lines starting with whitespace + command name) in dim
+        - Does NOT highlight random capitalized words
+        - Works alongside Rich markup tags
+        """
+
+        # Technical terms/formats we want to highlight
+        TECH_TERMS = {
+            # File formats and data standards
+            "TOML",
+            "JSON",
+            "XML",
+            "YAML",
+            "HTML",
+            "CSV",
+            "SQL",
+            # Protocols and web
+            "HTTP",
+            "HTTPS",
+            "FTP",
+            "SSH",
+            "API",
+            "REST",
+            "URI",
+            "URL",
+            # Encodings
+            "UTF-8",
+            "UTF8",
+            "ASCII",
+            "cp1252",
+            # VBA and Office
+            "VBA",
+            "COM",
+            "Module",
+            "Class",
+            "Form",
+            "UserForm",
+            "Macro",
+            "Procedure",
+            "Function",
+            # Office applications
+            "Excel",
+            "Word",
+            "Access",
+            "PowerPoint",
+            "Outlook",
+            "Project",
+            "Visio",
+            # File extensions
+            ".bas",
+            ".cls",
+            ".frm",
+            # ".xlsm", ".docm", ".accdb", ".pptm",
+            # Dev tools and libraries
+            "RubberduckVBA",
+            "xlwings",
+            "xlwings vba",
+            "VS Code",
+            "Git",
+            # Operations
+            "export",
+            "import",
+            "sync",
+            "watch",
+            "watches",
+            "edit",
+            # Keyboard shortcuts
+            "[CTRL+S]",
+            "[SHIFT]",
+            "[ALT]",
+            "[ENTER]",
+            "[RETURN]",
+        }
+
+        def highlight(self, text: Text) -> None:
+            """Apply highlighting to text.
+
+            This works by adding styles to specific ranges without
+            overriding existing styles from markup tags.
+
+            IMPORTANT: Order matters! We dim example lines FIRST, then
+            check for dim style when adding technical term highlights.
+            """
+            plain_text = text.plain
+            import re
+
+            # STEP 1: Highlight example command lines and continuation lines FIRST
+            # This must happen before technical term highlighting so we can detect dimmed regions
+            lines = plain_text.split("\n")
+            offset = 0
+            in_example = False  # Track if we're in a multi-line example
+            in_usage = False  # Track if we're in the usage synopsis (indented options)
+            in_important = False  # Track if we're in an IMPORTANT warning
+
+            for line in lines:
+                # Check if this is an IMPORTANT warning (starts with "IMPORTANT:")
+                if line.strip().startswith("IMPORTANT:"):
+                    in_important = True
+                    line_start = offset
+                    line_end = offset + len(line)
+                    text.stylize("dim yellow", line_start, line_end)
+
+                # Check if we're continuing an IMPORTANT warning (indented to column 12)
+                elif in_important and len(line) >= 11 and line[:11] == " " * 11 and line[11] != " ":
+                    # Line starts at column 12 (11 spaces + content) - continuation of IMPORTANT
+                    line_start = offset
+                    line_end = offset + len(line)
+                    text.stylize("dim yellow", line_start, line_end)
+
+                # Check if IMPORTANT warning ended (empty line or non-matching indent)
+                elif in_important and (not line.strip() or not (len(line) >= 11 and line[:11] == " " * 11)):
+                    in_important = False
+
+                # Check if we're in usage synopsis (indented lines with brackets)
+                # Don't dim the first "usage:" line itself, only the indented option lines
+                if in_usage and re.match(r"^\s+\[", line):
+                    # Usage synopsis option line - make it dim
+                    line_start = offset
+                    line_end = offset + len(line)
+                    text.stylize("dim", line_start, line_end)
+
+                # Check if this is the start of usage synopsis
+                elif line.startswith("usage:"):
+                    in_usage = True
+                    # Don't dim the usage: line itself - let technical terms be highlighted
+
+                # Check if usage synopsis ended (empty line or non-indented line that's not a bracket line)
+                elif in_usage and not line.strip():
+                    in_usage = False
+
+                # Check if line looks like an example (starts with whitespace, contains command)
+                # Matches: "  excel-vba edit" or "  excel-vba edit -f file.xlsm"
+                if re.match(r"^\s{2,}(excel-vba|word-vba|access-vba|powerpoint-vba)\s+\w+", line):
+                    # This is an example line - make it dim
+                    line_start = offset
+                    line_end = offset + len(line)
+                    text.stylize("dim", line_start, line_end)
+                    in_example = True
+
+                # Check if this is a continuation line (indented, starts with #)
+                elif in_example and re.match(r"^\s+#", line):
+                    # This is a comment continuation - also make it dim
+                    line_start = offset
+                    line_end = offset + len(line)
+                    text.stylize("dim", line_start, line_end)
+
+                else:
+                    # Not an example or continuation - reset the flag
+                    in_example = False
+
+                offset += len(line) + 1  # +1 for newline
+
+            # STEP 2: Now highlight technical terms (but skip dimmed regions)
+            for term in self.TECH_TERMS:
+                # Find all occurrences of the term
+                # Use word boundaries only if term starts/ends with word characters
+                escaped_term = re.escape(term)
+                if term[0].isalnum() and term[-1].isalnum():
+                    # Standard word - use word boundaries
+                    pattern = rf"\b({escaped_term})\b"
+                else:
+                    # Special characters (like [CTRL+S]) - no word boundaries
+                    pattern = rf"({escaped_term})"
+
+                for match in re.finditer(pattern, plain_text):
+                    start, end = match.span(1)
+                    # Only apply if this range doesn't already have a style
+                    # Check if any span overlaps with this range
+                    # Also skip if the text is already dimmed (examples, usage synopsis)
+                    has_existing_style = False
+                    is_dimmed = False
+                    for span_start, span_end, style in text.spans:
+                        if not (end <= span_start or start >= span_end):
+                            # Overlaps - check if it's a dim style
+                            if style and "dim" in str(style):
+                                is_dimmed = True
+                                break
+                            # Other overlap - skip this highlighting
+                            has_existing_style = True
+                            break
+
+                    if not has_existing_style and not is_dimmed:
+                        text.stylize("cyan", start, end)
 
     # Define our color theme (uv-style - October 2025)
     custom_theme = Theme(
@@ -50,11 +240,14 @@ try:
         }
     )
 
-    # Create console instances
-    # NOTE: highlighter=None explicitly disables Rich's automatic syntax highlighting
-    # (which would colorize words like TOML, JSON, XML, etc. in help text)
-    console = Console(theme=custom_theme, highlight=False, highlighter=None)
-    error_console = Console(stderr=True, theme=custom_theme, highlight=False, highlighter=None)
+    # Create console instances with custom highlighter
+    # Uses our HelpTextHighlighter for smart, predictable highlighting:
+    # - Technical terms (TOML, JSON, etc.) in bright blue
+    # - Example command lines in dim grey
+    # - No random capitalized word highlighting
+    help_highlighter = HelpTextHighlighter()
+    console = Console(theme=custom_theme, highlight=False, highlighter=help_highlighter)
+    error_console = Console(stderr=True, theme=custom_theme, highlight=False, highlighter=help_highlighter)
 
     RICH_AVAILABLE = True
 
