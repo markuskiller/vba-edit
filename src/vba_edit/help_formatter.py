@@ -5,7 +5,7 @@ import re
 import sys
 import textwrap
 
-from vba_edit.console import RICH_AVAILABLE, console
+from vba_edit.console import RICH_AVAILABLE
 
 
 def print_help_with_rich(text):
@@ -17,13 +17,23 @@ def print_help_with_rich(text):
     Args:
         text: Help text (potentially with rich markup tags)
     """
+    # Import console dynamically to get the current (possibly replaced) instance
+    from vba_edit.console import console
+    
     if RICH_AVAILABLE and not console.no_color:
         # Use rich console to print (will render markup tags and apply highlighting)
         # Note: highlight=True allows our custom highlighter to work on plain text portions
         console.print(text, end="", highlight=True, soft_wrap=True)
     else:
-        # Strip markup tags and print normally
-        text = re.sub(r"\[/?[^\]]+\]", "", text)
+        # Strip Rich markup tags but preserve literal brackets like [--file FILE]
+        # Only remove tags that are Rich styles: [style] or [/style]
+        text = re.sub(
+            r"\[/?(?:bold|dim|cyan|bright_cyan|italic|underline|strike|reverse|blink|conceal|white|black|red|green|yellow|blue|magenta|white|default|bright_\w+|on_\w+|heading|usage|metavar|choices|command|option|action|number|path|file|success|error|warning|info)(?:\s+[^\]]+)?\]",
+            "",
+            text,
+        )
+        # Also remove link markup: [link=...] ... [/link]
+        text = re.sub(r"\[/?link[^\]]*\]", "", text)
         sys.stdout.write(text)
 
 
@@ -76,6 +86,8 @@ class EnhancedHelpFormatter(argparse.RawDescriptionHelpFormatter):
         super().__init__(prog, indent_increment, max_help_position, width)
         self._section_heading = None  # Store just the heading text for reference
         # Check if colors should be used (rich available and not disabled)
+        # Import console dynamically to get current instance
+        from vba_edit.console import console
         self._use_colors = RICH_AVAILABLE and not console.no_color
 
     def _colorize(self, text, style):

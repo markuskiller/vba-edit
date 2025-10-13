@@ -723,27 +723,22 @@ def handle_word_vba_command(args: argparse.Namespace) -> None:
 def main() -> None:
     """Main entry point for the word-vba CLI."""
     try:
+        # Check for --no-color flag BEFORE creating parser
+        # This ensures help messages honor the flag
+        if "--no-color" in sys.argv or "--no-colour" in sys.argv:
+            from vba_edit.console import disable_colors
+
+            disable_colors()
+
         # Handle easter egg flags first (before argparse validation)
         # This allows them to work without requiring a command
         if "--diagram" in sys.argv or "--how-it-works" in sys.argv:
-            # Check for --no-color flag before showing diagram
-            if "--no-color" in sys.argv or "--no-colour" in sys.argv:
-                from vba_edit.console import disable_colors
-
-                disable_colors()
-
             from vba_edit.utils import show_workflow_diagram
 
             show_workflow_diagram()
 
         parser = create_cli_parser()
         args = parser.parse_args()
-
-        # Handle color control first (before any output)
-        if getattr(args, "no_color", False):
-            from vba_edit.console import disable_colors
-
-            disable_colors()
 
         # Process configuration file BEFORE setting up logging
         args = process_config_file(args)

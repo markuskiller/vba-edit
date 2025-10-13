@@ -4,6 +4,8 @@ _workbench/
 # Demo and debug test files (root directory only)
 /demo_*.py
 /test_*.py
+/test_*.txt
+/temp_*.txt
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

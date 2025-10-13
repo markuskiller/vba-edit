@@ -801,7 +801,7 @@ def show_workflow_diagram() -> None:
    [dim]on save[/dim] [cyan][CTRL+S][/cyan]                             [dim]|                  |[/dim]
                                                 [dim]+------------------+[/dim]
 
-[dim]💡 Tip: Use[/dim] [bold bright_cyan]--diagram[/bold bright_cyan] [dim]or[/dim] [bold bright_cyan]--how-it-works[/bold bright_cyan] [dim]anytime to see this workflow[/dim]
+[dim]Tip: Use[/dim] [bold bright_cyan]--diagram[/bold bright_cyan] [dim]or[/dim] [bold bright_cyan]--how-it-works[/bold bright_cyan] [dim]anytime to see this workflow[/dim]
 """
     console.print(diagram)
     sys.exit(0)
