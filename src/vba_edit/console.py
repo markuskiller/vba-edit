@@ -394,8 +394,32 @@ def disable_colors():
     This function sets the no_color flag on both console instances,
     which causes them to output plain text without any styling.
     """
-    console.no_color = True
-    error_console.no_color = True
+    global console, error_console
+
+    # Replace with DummyConsole to fully disable color and markup
+    class DummyConsole:
+        def __init__(self, stderr=False):
+            self.file = sys.stderr if stderr else sys.stdout
+            self.no_color = True
+
+        def print(self, *args, **kwargs):
+            text = " ".join(str(arg) for arg in args)
+            # Strip Rich markup tags but preserve literal brackets like [CTRL+S]
+            # Only remove tags that are Rich styles: [style] or [/style] or [link=...] patterns
+            # This regex matches: [word] or [/word] or [word params] but NOT [WORD+WORD] or [WORD-WORD]
+            text = re.sub(
+                r"\[/?(?:bold|dim|cyan|bright_cyan|italic|underline|strike|reverse|blink|conceal|white|black|red|green|yellow|blue|magenta|white|default|bright_\w+|on_\w+)(?:\s+[^\]]+)?\]",
+                "",
+                text,
+            )
+            # Also remove link markup: [link=...] ... [/link]
+            text = re.sub(r"\[/?link[^\]]*\]", "", text)
+            print_kwargs = {k: v for k, v in kwargs.items() if k in ("file", "end", "sep")}
+            print_kwargs.setdefault("file", self.file)
+            print(text, **print_kwargs)
+
+    console = DummyConsole()
+    error_console = DummyConsole(stderr=True)
 
 
 def enable_colors():

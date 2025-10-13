@@ -73,6 +73,10 @@ IMPORTANT: Requires "Trust access to VBA project object model" enabled in Excel.
         "--version", "-V", action="version", version=f"{package_name_formatted} v{package_version} ({entry_point_name})"
     )
 
+    # Add hidden easter egg flags (not shown in help)
+    parser.add_argument("--diagram", action="store_true", help=argparse.SUPPRESS)
+    parser.add_argument("--how-it-works", action="store_true", help=argparse.SUPPRESS)
+
     subparsers = parser.add_subparsers(
         dest="command",
         required=True,
@@ -221,6 +225,13 @@ Full control usage:
         help="Enable logging to file (default: vba_edit.log)",
     )
     common_group.add_argument(
+        "--no-color",
+        "--no-colour",
+        dest="no_color",
+        action="store_true",
+        help="Disable colored output",
+    )
+    common_group.add_argument(
         "--help",
         "-h",
         action="help",
@@ -350,6 +361,13 @@ Full control usage:
         nargs="?",
         const="vba_edit.log",
         help="Enable logging to file (default: vba_edit.log)",
+    )
+    common_group.add_argument(
+        "--no-color",
+        "--no-colour",
+        dest="no_color",
+        action="store_true",
+        help="Disable colored output",
     )
     common_group.add_argument(
         "--help",
@@ -505,6 +523,13 @@ Full control usage:
         help="Enable logging to file (default: vba_edit.log)",
     )
     common_group.add_argument(
+        "--no-color",
+        "--no-colour",
+        dest="no_color",
+        action="store_true",
+        help="Disable colored output",
+    )
+    common_group.add_argument(
         "--help",
         "-h",
         action="help",
@@ -548,6 +573,13 @@ Simple usage:
         nargs="?",
         const="vba_edit.log",
         help="Enable logging to file (default: vba_edit.log)",
+    )
+    common_group.add_argument(
+        "--no-color",
+        "--no-colour",
+        dest="no_color",
+        action="store_true",
+        help="Disable colored output",
     )
     common_group.add_argument(
         "--help",
@@ -770,6 +802,19 @@ def validate_paths(args: argparse.Namespace) -> None:
 def main() -> None:
     """Main entry point for the excel-vba CLI."""
     try:
+        # Handle easter egg flags first (before argparse validation)
+        # This allows them to work without requiring a command
+        if "--diagram" in sys.argv or "--how-it-works" in sys.argv:
+            # Check for --no-color flag before showing diagram
+            if "--no-color" in sys.argv or "--no-colour" in sys.argv:
+                from vba_edit.console import disable_colors
+
+                disable_colors()
+
+            from vba_edit.utils import show_workflow_diagram
+
+            show_workflow_diagram()
+
         parser = create_cli_parser()
         args = parser.parse_args()
 

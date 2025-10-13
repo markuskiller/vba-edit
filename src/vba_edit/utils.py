@@ -766,6 +766,47 @@ def check_vba_trust_access(app_name: Optional[str] = None) -> None:
         logger.info("\n")
 
 
+def show_workflow_diagram() -> None:
+    """Display the vba-edit workflow diagram (easter egg feature).
+
+    This function prints the ASCII diagram showing how vba-edit integrates
+    with Office applications and external editors.
+    """
+    from vba_edit.console import console
+
+    diagram = """
+[bold bright_cyan]vba-edit Workflow[/bold bright_cyan]
+
+[dim]                        <--- vba-edit --->[/dim]
+
+[bold]Excel / Word[/bold]                 [bold bright_cyan]COMMANDS[/bold bright_cyan]              [bold]Your favourite[/bold]
+[bold]PowerPoint / Access[/bold]             [dim]v[/dim]                      [bold]Editor[/bold]
+
+[dim]+------------------+                            +------------------+[/dim]
+[dim]|                  |                            |                  |[/dim]
+[dim]|[/dim]   [bold]VBA Project[/bold]    [dim]|[/dim]   [bold bright_cyan]<---   EDIT*[/bold bright_cyan]   [dim](once ->) |[/dim]  [bold](e.g. VS CODE)[/bold]  [dim]|[/dim] 
+[dim]|                  |                            |                  |[/dim]     [cyan]latest[/cyan]
+[dim]|[/dim]  [dim](Office VBA-[/dim]    [dim]|[/dim]          [bold bright_cyan]EXPORT[/bold bright_cyan]      [dim]--->  |[/dim]   [cyan].bas[/cyan]           [dim]|[/dim]  [dim]<-[/dim] [cyan]AI coding-[/cyan]  
+[dim]|[/dim]    [dim]Editor)[/dim]       [dim]|                            |[/dim]   [cyan].cls[/cyan]           [dim]|[/dim]     [cyan]assistants[/cyan]
+[dim]|                  |[/dim]   [bold bright_cyan]<---   IMPORT[/bold bright_cyan]            [dim]|[/dim]   [cyan].frm[/cyan]           [dim]|[/dim]   
+[dim]|                  |                            |[/dim]  [dim](.frx binary)[/dim]   [dim]|[/dim] 
+[dim]|                  |                            |                  |[/dim] 
+[dim]+------------------+                            +------------------+[/dim]
+                                                         [dim]v[/dim]
+                                                [dim]+------------------+[/dim]
+                                                [dim]|                  |[/dim]
+ [bold]*[/bold] [dim]watches & syncs[/dim]                              [dim]|[/dim]    [bold](e.g. Git)[/bold]    [dim]|[/dim]
+   [dim]back to Office[/dim]                               [dim]|[/dim]  [bold]version control[/bold] [dim]|[/dim]
+   [dim]VBA-Editor live[/dim]                              [dim]|                  |[/dim]
+   [dim]on save[/dim] [cyan][CTRL+S][/cyan]                             [dim]|                  |[/dim]
+                                                [dim]+------------------+[/dim]
+
+[dim]💡 Tip: Use[/dim] [bold bright_cyan]--diagram[/bold bright_cyan] [dim]or[/dim] [bold bright_cyan]--how-it-works[/bold bright_cyan] [dim]anytime to see this workflow[/dim]
+"""
+    console.print(diagram)
+    sys.exit(0)
+
+
 if __name__ == "__main__":
     app_name = sys.argv[1] if len(sys.argv) > 1 else None
     setup_logging(verbose=True)

@@ -25,8 +25,8 @@ excel-vba edit    # or word-vba edit
 <pre>
                         <--- vba-edit --->
 
-Excel / Word                 COMMANDS            Your favourite
-PowerPoint / Access             v                    Editor
+Excel / Word                 COMMANDS              Your favourite
+PowerPoint / Access             v                       Editor
 
 +------------------+                            +------------------+
 |                  |                            |                  |
