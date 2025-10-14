@@ -75,7 +75,7 @@ try:
             # Office applications
             "Excel",
             "Word",
-            "Access",
+            # NOTE: "Access" intentionally excluded - conflicts with "Trust Access to VBA"
             "PowerPoint",
             "Outlook",
             "Project",
@@ -91,13 +91,19 @@ try:
             "xlwings vba",
             "VS Code",
             "Git",
-            # Operations
+            # Operations (lowercase for command descriptions)
             "export",
             "import",
             "sync",
             "watch",
             "watches",
             "edit",
+            # Command verbs (capitalized for emphasis in sentences)
+            "Edit",
+            "Export",
+            "Import",
+            "Check",
+            "Sync",
             # Keyboard shortcuts
             "[CTRL+S]",
             "[SHIFT]",
