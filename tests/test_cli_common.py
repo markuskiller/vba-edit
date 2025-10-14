@@ -212,8 +212,11 @@ class TestHandleExportWithWarnings:
         # Should only call export_vba once (no retry for unknown types)
         assert mock_handler.export_vba.call_count == 1
 
-    def test_output_messages_for_existing_files(self, capsys):
+    def test_output_messages_for_existing_files(self):
         """Test that appropriate messages are printed for existing_files warning."""
+        from io import StringIO
+        from vba_edit.console import console
+
         mock_handler = Mock()
 
         warning = VBAExportWarning(
@@ -221,19 +224,29 @@ class TestHandleExportWithWarnings:
         )
         mock_handler.export_vba = Mock(side_effect=[warning, None])
 
-        with patch("vba_edit.cli_common.confirm_action", return_value=True):
-            handle_export_with_warnings(
-                mock_handler, save_metadata=False, overwrite=True, interactive=True, force_overwrite=False
-            )
+        # Capture console output
+        buffer = StringIO()
+        original_file = console.file
+        console.file = buffer
 
-        captured = capsys.readouterr()
-        full_output = captured.out + captured.err  # Rich prints to stderr
-        assert "⚠" in full_output  # warning symbol
-        assert "3" in full_output  # file count
-        assert "existing VBA file" in full_output
+        try:
+            with patch("vba_edit.cli_common.confirm_action", return_value=True):
+                handle_export_with_warnings(
+                    mock_handler, save_metadata=False, overwrite=True, interactive=True, force_overwrite=False
+                )
+        finally:
+            console.file = original_file
 
-    def test_output_messages_for_header_mode_change(self, capsys):
+        output = buffer.getvalue()
+        assert "⚠" in output  # warning symbol
+        assert "3" in output  # file count
+        assert "existing VBA file" in output
+
+    def test_output_messages_for_header_mode_change(self):
         """Test that appropriate messages are printed for header_mode_changed warning."""
+        from io import StringIO
+        from vba_edit.console import console
+
         mock_handler = Mock()
 
         warning = VBAExportWarning(
@@ -241,31 +254,48 @@ class TestHandleExportWithWarnings:
         )
         mock_handler.export_vba = Mock(side_effect=[warning, None])
 
-        with patch("vba_edit.cli_common.confirm_action", return_value=True):
-            handle_export_with_warnings(
-                mock_handler, save_metadata=True, overwrite=True, interactive=True, force_overwrite=False
-            )
+        # Capture console output
+        buffer = StringIO()
+        original_file = console.file
+        console.file = buffer
 
-        captured = capsys.readouterr()
-        full_output = captured.out + captured.err  # Rich prints to stderr
-        assert "⚠" in full_output  # warning symbol
-        assert "Header storage mode" in full_output
-        assert "separate header files" in full_output
-        assert "inline headers" in full_output
+        try:
+            with patch("vba_edit.cli_common.confirm_action", return_value=True):
+                handle_export_with_warnings(
+                    mock_handler, save_metadata=True, overwrite=True, interactive=True, force_overwrite=False
+                )
+        finally:
+            console.file = original_file
 
-    def test_cancellation_message_printed(self, capsys):
+        output = buffer.getvalue()
+        assert "⚠" in output  # warning symbol
+        assert "Header storage mode" in output
+        assert "separate header files" in output
+        assert "inline headers" in output
+
+    def test_cancellation_message_printed(self):
         """Test that cancellation message is printed when user cancels."""
+        from io import StringIO
+        from vba_edit.console import console
+
         mock_handler = Mock()
 
         warning = VBAExportWarning("existing_files", {"file_count": 1})
         mock_handler.export_vba = Mock(side_effect=warning)
 
-        with patch("vba_edit.cli_common.confirm_action", return_value=False):
-            with pytest.raises(SystemExit):
-                handle_export_with_warnings(
-                    mock_handler, save_metadata=False, overwrite=True, interactive=True, force_overwrite=False
-                )
+        # Capture console output
+        buffer = StringIO()
+        original_file = console.file
+        console.file = buffer
 
-        captured = capsys.readouterr()
-        full_output = (captured.out + captured.err).lower()  # Rich prints to stderr
-        assert "cancelled" in full_output
+        try:
+            with patch("vba_edit.cli_common.confirm_action", return_value=False):
+                with pytest.raises(SystemExit):
+                    handle_export_with_warnings(
+                        mock_handler, save_metadata=False, overwrite=True, interactive=True, force_overwrite=False
+                    )
+        finally:
+            console.file = original_file
+
+        output = buffer.getvalue().lower()
+        assert "cancelled" in output
