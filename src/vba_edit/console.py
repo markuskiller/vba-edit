@@ -76,6 +76,8 @@ try:
             "Excel",
             "Word",
             # NOTE: "Access" intentionally excluded - conflicts with "Trust Access to VBA"
+            # Use "MS Access" instead to refer to Microsoft Access application
+            "MS Access",
             "PowerPoint",
             "Outlook",
             "Project",

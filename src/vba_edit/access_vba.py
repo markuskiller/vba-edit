@@ -39,7 +39,7 @@ def create_cli_parser() -> argparse.ArgumentParser:
     # Create streamlined main help description
     main_description = f"""{package_name_formatted} v{package_version} ({entry_point_name})
 
-A command-line tool for managing VBA content in Access databases.
+A command-line tool for managing VBA content in MS Access databases.
 Export, import, and edit VBA code in external editor with live sync back to database."""
 
     # Create streamlined examples for main help
@@ -52,7 +52,7 @@ Examples:
 
 Use '{entry_point_name} <command> --help' for more information on a specific command.
 
-IMPORTANT: Requires "Trust access to VBA project object model" enabled in Access.
+IMPORTANT: Requires "Trust access to VBA project object model" enabled in MS Access.
            Early release - backup important files before use!"""
 
     parser = ColorizedArgumentParser(
@@ -505,7 +505,7 @@ Full control usage:
     check_description = """Check if 'Trust access to the VBA project object model' is enabled
 
 Simple usage:
-  access-vba check          # Check Access VBA access
+  access-vba check          # Check MS Access VBA access
   access-vba check all      # Check all Office applications"""
 
     check_usage = """access-vba check
