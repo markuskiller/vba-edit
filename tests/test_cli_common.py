@@ -227,9 +227,10 @@ class TestHandleExportWithWarnings:
             )
 
         captured = capsys.readouterr()
-        assert "⚠" in captured.out  # warning symbol
-        assert "3" in captured.out  # file count
-        assert "existing VBA file" in captured.out
+        full_output = captured.out + captured.err  # Rich prints to stderr
+        assert "⚠" in full_output  # warning symbol
+        assert "3" in full_output  # file count
+        assert "existing VBA file" in full_output
 
     def test_output_messages_for_header_mode_change(self, capsys):
         """Test that appropriate messages are printed for header_mode_changed warning."""
@@ -246,10 +247,11 @@ class TestHandleExportWithWarnings:
             )
 
         captured = capsys.readouterr()
-        assert "⚠" in captured.out  # warning symbol
-        assert "Header storage mode" in captured.out
-        assert "separate header files" in captured.out
-        assert "inline headers" in captured.out
+        full_output = captured.out + captured.err  # Rich prints to stderr
+        assert "⚠" in full_output  # warning symbol
+        assert "Header storage mode" in full_output
+        assert "separate header files" in full_output
+        assert "inline headers" in full_output
 
     def test_cancellation_message_printed(self, capsys):
         """Test that cancellation message is printed when user cancels."""
@@ -265,4 +267,5 @@ class TestHandleExportWithWarnings:
                 )
 
         captured = capsys.readouterr()
-        assert "cancelled" in captured.out.lower()
+        full_output = (captured.out + captured.err).lower()  # Rich prints to stderr
+        assert "cancelled" in full_output
