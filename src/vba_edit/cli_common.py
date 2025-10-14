@@ -482,6 +482,57 @@ def add_common_arguments(parser: argparse.ArgumentParser) -> None:
     )
 
 
+def add_common_option_group(parser: argparse.ArgumentParser) -> argparse._ArgumentGroup:
+    """Add common CLI options to a parser as an organized group.
+
+    This helper reduces boilerplate by providing a consistent way to add
+    common options (verbose, logfile, no-color, help) across all commands.
+
+    Use this in subparser setup to avoid repeating the same argument definitions.
+    This creates a "Common Options" group with the standard set of options.
+
+    Args:
+        parser: The argument parser to add the group to
+
+    Returns:
+        The argument group that was created (for further customization if needed)
+
+    Example:
+        >>> import_parser = subparsers.add_parser("import")
+        >>> add_common_option_group(import_parser)
+    """
+    common_group = parser.add_argument_group("Common Options")
+    common_group.add_argument(
+        "--verbose",
+        "-v",
+        dest="verbose",
+        action="store_true",
+        help="Enable verbose logging output",
+    )
+    common_group.add_argument(
+        "--logfile",
+        "-l",
+        dest="logfile",
+        nargs="?",
+        const="vba_edit.log",
+        help="Enable logging to file (default: vba_edit.log)",
+    )
+    common_group.add_argument(
+        "--no-color",
+        "--no-colour",
+        dest="no_color",
+        action="store_true",
+        help="Disable colored output",
+    )
+    common_group.add_argument(
+        "--help",
+        "-h",
+        action="help",
+        help="Show this help message and exit",
+    )
+    return common_group
+
+
 def add_folder_organization_arguments(parser: argparse.ArgumentParser) -> None:
     """Add folder organization arguments to a parser.
 
