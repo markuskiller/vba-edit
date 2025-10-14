@@ -22,31 +22,30 @@ excel-vba edit    # or word-vba edit
 ```
 
 ## How It Works
-
 <pre>
-                         ←── vba-edit ──→
+                        <--- vba-edit --->
 
-Excel / Word                 COMMANDS            Your favourite
-PowerPoint / Access              ↓                   Editor
+Excel / Word                 COMMANDS              Your favourite
+PowerPoint / Access             v                       Editor
 
-┌──────────────────┐                          ┌──────────────────┐
-│                  │                          │                  │
-│   VBA Project    │    ←──    EDIT* (once →) │  (e.g. VS CODE)  │ 
-│                  │                          │                  │     latest
-│  (Office VBA-    │           EXPORT ──→     │   .bas           │   ← AI coding-  
-│    Editor)       │                          │   .cls           │     assistants
-│                  │       ←── IMPORT         │   .frm           │   
-│                  │                          │  (.frx binary)   │ 
-│                  │                          │                  │ 
-└──────────────────┘                          └──────────────────┘
-                                                       ↓
-                                              ┌──────────────────┐
-                                              │                  │
- * watches & syncs                            │    (e.g. Git)    │
-   back to Office                             │  version control │
-   VBA-Editor live                            │                  │
-   on save [CTRL+S]                           │                  │
-                                              └──────────────────┘
++------------------+                            +------------------+
+|                  |                            |                  |
+|   VBA Project    |   <---   EDIT*   (once ->) |  (e.g. VS CODE)  | 
+|                  |                            |                  |     latest
+|  (Office VBA-    |          EXPORT      --->  |   .bas           |  <- AI coding-  
+|    Editor)       |                            |   .cls           |     assistants
+|                  |   <---   IMPORT            |   .frm           |   
+|                  |                            |  (.frx binary)   | 
+|                  |                            |                  | 
++------------------+                            +------------------+
+                                                         v
+                                                +------------------+
+                                                |                  |
+ * watches & syncs                              |    (e.g. Git)    |
+   back to Office                               |  version control |
+   VBA-Editor live                              |                  |
+   on save [CTRL+S]                             |                  |
+                                                +------------------+
 </pre>
 
 ## Why vba-edit?

@@ -1129,7 +1129,7 @@ End Sub
         # Clear the module
         code_module.DeleteLines(1, code_module.CountOfLines)
 
-        # Import with --in-file-headers
+        # Import - now uses automatic header detection
         # This is where the bug occurred: headers were imported as code
         cli.assert_success(
             [
@@ -1138,7 +1138,7 @@ End Sub
                 str(wb_path),
                 "--vba-directory",
                 str(vba_dir),
-                "--in-file-headers",  # TEST THE FIX
+                # AUTO-DETECTION: No flag needed - headers detected automatically
             ]
         )
 
@@ -1266,11 +1266,9 @@ End Sub
         if code_module.CountOfLines > 0:
             code_module.DeleteLines(1, code_module.CountOfLines)
 
-        # Now import just this ONE file using vba-edit
+        # Now import just this ONE file using vba-edit - AUTO-DETECTION
         cli = CLITester("excel-vba")
-        cli.assert_success(
-            ["import", "-f", str(wb_path), "--vba-directory", str(vba_dir_isolated), "--in-file-headers"]
-        )
+        cli.assert_success(["import", "-f", str(wb_path), "--vba-directory", str(vba_dir_isolated)])
 
         # Verify the code is back
         test_class = vb_project.VBComponents("TestClass")  # Re-get the component
@@ -1386,11 +1384,10 @@ End Sub
             code_module.DeleteLines(1, code_module.CountOfLines)
 
         # Import - Issue #16 fix should filter hidden member attributes but preserve module-level
+        # AUTO-DETECTION: Headers detected automatically
         print("Importing module with mixed attribute types...")
         cli = CLITester("excel-vba")
-        cli.assert_success(
-            ["import", "-f", str(wb_path), "--vba-directory", str(vba_dir_isolated), "--in-file-headers"]
-        )
+        cli.assert_success(["import", "-f", str(wb_path), "--vba-directory", str(vba_dir_isolated)])
 
         # Verify the code is intact
         test_module = vb_project.VBComponents("TestModule")  # Re-get the component
