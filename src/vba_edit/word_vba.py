@@ -100,6 +100,7 @@ Full control usage:
     [--rubberduck-folders]
     [--verbose | -v]
     [--logfile | -l]
+    [--no-color | --no-colour]
     [--help | -h]"""
 
     edit_parser = subparsers.add_parser(
@@ -226,21 +227,26 @@ Full control usage:
     # Import command
     import_description = """Import VBA code from filesystem into Office document
 
+Header handling is automatic - no flags needed:
+  • Detects inline headers (VERSION/BEGIN/Attribute at file start)
+  • Falls back to separate .header files if present
+  • Creates minimal headers if neither exists
+
 Simple usage:
   word-vba import           # Uses active document and imports from same directory
 
 Full control usage:
-  word-vba import -f file.docm --vba-directory src"""
+  word-vba import -f document.docm --vba-directory src"""
 
     import_usage = """word-vba import
     [--file FILE | -f FILE]
     [--vba-directory DIR]
     [--conf FILE | --config FILE]
     [--encoding ENCODING | -e ENCODING | --detect-encoding | -d]
-    [--save-headers | --in-file-headers]
     [--rubberduck-folders]
     [--verbose | -v]
     [--logfile | -l]
+    [--no-color | --no-colour]
     [--help | -h]"""
 
     import_parser = subparsers.add_parser(
@@ -293,22 +299,6 @@ Full control usage:
         dest="detect_encoding",
         action="store_true",
         help="Auto-detect file encoding for VBA files",
-    )
-
-    # Header Options group (mutually exclusive)
-    header_group = import_parser.add_argument_group("Header Options (mutually exclusive)")
-    header_mutex = header_group.add_mutually_exclusive_group()
-    header_mutex.add_argument(
-        "--save-headers",
-        dest="save_headers",
-        action="store_true",
-        help="Read VBA component headers from separate .header files",
-    )
-    header_mutex.add_argument(
-        "--in-file-headers",
-        dest="in_file_headers",
-        action="store_true",
-        help="Read VBA headers directly from code files",
     )
 
     # Import Options group
@@ -372,6 +362,7 @@ Full control usage:
     [--rubberduck-folders]
     [--verbose | -v]
     [--logfile | -l]
+    [--no-color | --no-colour]
     [--help | -h]"""
 
     export_parser = subparsers.add_parser(

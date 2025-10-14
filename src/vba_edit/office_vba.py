@@ -456,6 +456,44 @@ class VBAComponentHandler:
 
         return header.strip(), code.strip()
 
+    def has_inline_headers(self, file_path: Path, encoding: str = "utf-8") -> bool:
+        """Detect if a code file contains embedded VBA headers.
+
+        Checks if the file starts with header markers like VERSION, BEGIN, or Attribute.
+        This allows automatic detection of header format during import.
+
+        Args:
+            file_path: Path to the code file to check
+            encoding: File encoding to use
+
+        Returns:
+            True if file contains inline headers, False otherwise
+        """
+        try:
+            with open(file_path, "r", encoding=encoding) as f:
+                # Read first few lines to check for header markers
+                first_lines = []
+                for i, line in enumerate(f):
+                    if i >= 10:  # Headers are always at the top
+                        break
+                    first_lines.append(line.strip())
+
+            # Check for header markers
+            for line in first_lines:
+                if line.upper().startswith(("VERSION ", "BEGIN")):
+                    logger.debug(f"Detected inline headers in {file_path.name} (found: {line[:30]}...)")
+                    return True
+                if line.startswith("Attribute VB_"):
+                    logger.debug(f"Detected inline headers in {file_path.name} (found VB attribute)")
+                    return True
+
+            logger.debug(f"No inline headers detected in {file_path.name}")
+            return False
+
+        except Exception as e:
+            logger.debug(f"Error checking for inline headers in {file_path}: {e}")
+            return False
+
     def create_minimal_header(self, name: str, module_type: VBAModuleType) -> str:
         """Create a minimal header for a VBA component.
 
@@ -1110,11 +1148,15 @@ class OfficeVBAHandler(ABC):
                     pass
 
     def import_component(self, file_path: Path, components: Any) -> None:
-        """Import a VBA component with app-specific handling.
+        """Import a VBA component with automatic header format detection.
 
-        This method handles both new module creation and updates to existing modules.
-        For updates, it will prefer in-place content updates where possible, only doing
-        full imports when required by specific applications or module types.
+        This method automatically detects whether headers are embedded in the code file
+        or stored in separate .header files, eliminating the need for user flags.
+
+        Detection logic:
+        1. Check if file contains inline headers (VERSION/BEGIN/Attribute at start)
+        2. If not, look for separate .header file
+        3. If neither, create minimal headers as needed
 
         Args:
             file_path: Path to the code file
@@ -1125,18 +1167,22 @@ class OfficeVBAHandler(ABC):
         """
         try:
             name = file_path.stem
-            # Pass in_file_headers flag to get_module_type
+            
+            # Auto-detect header format
+            has_inline_headers = self.component_handler.has_inline_headers(file_path, encoding=self.encoding)
+            
+            # Pass detected format to get_module_type
             module_type = self.component_handler.get_module_type(
-                file_path, in_file_headers=getattr(self, "in_file_headers", False), encoding=self.encoding
+                file_path, in_file_headers=has_inline_headers, encoding=self.encoding
             )
 
-            logger.debug(f"Processing module: {name} (Type: {module_type})")
+            logger.debug(f"Processing module: {name} (Type: {module_type}, Inline headers: {has_inline_headers})")
 
-            # For in-file headers, we need different logic
-            if getattr(self, "in_file_headers", False):
+            # Route to appropriate import handler based on detection
+            if has_inline_headers:
                 self._import_with_in_file_headers(file_path, components, module_type)
             else:
-                # Existing logic for separate header files
+                # Existing logic for separate header files (or no headers)
                 self._import_with_separate_headers(file_path, components, module_type)
 
             # Handle any form binaries if needed
