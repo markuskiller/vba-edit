@@ -225,14 +225,6 @@ class EnhancedHelpFormatter(argparse.RawDescriptionHelpFormatter):
 
             result = "\n".join(colorized_lines)
 
-        # Add extra spacing after action groups for readability
-        if (
-            hasattr(self, "_section_heading")
-            and self._section_heading
-            and self._section_heading.lower() in ["commands", "subcommands"]
-        ):
-            result += "\n"
-
         return result
 
     def _split_lines(self, text, width):

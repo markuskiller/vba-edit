@@ -128,6 +128,7 @@ Full control usage:
     file_group.add_argument(
         "--vba-directory",
         dest="vba_directory",
+        metavar="DIR",
         help="Directory to export VBA files (default: same directory as document)",
     )
     file_group.add_argument(
@@ -279,6 +280,7 @@ Full control usage:
     file_group.add_argument(
         "--vba-directory",
         dest="vba_directory",
+        metavar="DIR",
         help="Directory to import VBA files from (default: same directory as document)",
     )
 
@@ -420,6 +422,7 @@ Full control usage:
     file_group.add_argument(
         "--vba-directory",
         dest="vba_directory",
+        metavar="DIR",
         help="Directory to export VBA files (default: same directory as document)",
     )
     file_group.add_argument(
@@ -543,9 +546,10 @@ Simple usage:
   excel-vba check           # Check Excel VBA access
   excel-vba check all       # Check all Office applications"""
 
-    check_usage = """excel-vba check [all]
+    check_usage = """excel-vba check
     [--verbose | -v]
     [--logfile | -l]
+    [--no-color | --no-colour]
     [--help | -h]"""
 
     check_parser = subparsers.add_parser(
@@ -589,11 +593,12 @@ Simple usage:
     )
 
     # Subcommand for checking all applications
+    # Note: Using custom usage above, so subparser metavar doesn't affect main help
     check_subparser = check_parser.add_subparsers(
         dest="subcommand",
         required=False,
         title="Subcommands",
-        metavar="[all]",
+        metavar="",  # Empty metavar to avoid space in usage line
     )
     check_all_parser = check_subparser.add_parser(
         "all",
