@@ -116,6 +116,121 @@ try:
             "[RETURN]",
         }
 
+        def _dim_important_warnings(self, text: Text, lines: list[str], offset_tracker: list[int]) -> None:
+            """Dim IMPORTANT warnings (first priority).
+
+            Args:
+                text: Rich Text object to apply styles to
+                lines: List of text lines
+                offset_tracker: Single-item list tracking current offset [offset]
+            """
+            import re
+
+            offset = offset_tracker[0]
+            in_important = False
+
+            for line in lines:
+                if line.strip().startswith("IMPORTANT:"):
+                    in_important = True
+                    text.stylize("dim yellow", offset, offset + len(line))
+                elif in_important and len(line) >= 11 and line[:11] == " " * 11 and line[11] != " ":
+                    # Continuation line (indented to column 12)
+                    text.stylize("dim yellow", offset, offset + len(line))
+                elif in_important and (not line.strip() or not (len(line) >= 11 and line[:11] == " " * 11)):
+                    in_important = False
+
+                offset += len(line) + 1
+            offset_tracker[0] = 0  # Reset for next pass
+
+        def _dim_usage_synopsis(self, text: Text, lines: list[str], offset_tracker: list[int]) -> None:
+            """Dim usage synopsis option lines (second priority).
+
+            Args:
+                text: Rich Text object to apply styles to
+                lines: List of text lines
+                offset_tracker: Single-item list tracking current offset [offset]
+            """
+            import re
+
+            offset = offset_tracker[0]
+            in_usage = False
+
+            for line in lines:
+                if line.startswith("usage:"):
+                    in_usage = True
+                elif in_usage and not line.strip():
+                    in_usage = False
+                elif in_usage and re.match(r"^\s+\[", line):
+                    text.stylize("dim", offset, offset + len(line))
+
+                offset += len(line) + 1
+            offset_tracker[0] = 0  # Reset for next pass
+
+        def _dim_example_lines(self, text: Text, lines: list[str], offset_tracker: list[int]) -> None:
+            """Dim example command lines and comment continuations (third priority).
+
+            Args:
+                text: Rich Text object to apply styles to
+                lines: List of text lines
+                offset_tracker: Single-item list tracking current offset [offset]
+            """
+            import re
+
+            offset = offset_tracker[0]
+            in_example = False
+
+            for line in lines:
+                if re.match(r"^\s{2,}(excel-vba|word-vba|access-vba|powerpoint-vba)\s+\w+", line):
+                    text.stylize("dim", offset, offset + len(line))
+                    in_example = True
+                elif in_example and re.match(r"^\s+#", line):
+                    text.stylize("dim", offset, offset + len(line))
+                else:
+                    in_example = False
+
+                offset += len(line) + 1
+            offset_tracker[0] = 0  # Reset for next pass
+
+        def _highlight_technical_terms(self, text: Text, plain_text: str) -> None:
+            """Highlight technical terms (final pass - skips dimmed regions).
+
+            Args:
+                text: Rich Text object to apply styles to
+                plain_text: Plain text version for pattern matching
+            """
+            import re
+
+            for term in self.TECH_TERMS:
+                # Build pattern with word boundaries for alphanumeric terms
+                escaped_term = re.escape(term)
+                if term[0].isalnum() and term[-1].isalnum():
+                    pattern = rf"\b({escaped_term})\b"
+                else:
+                    pattern = rf"({escaped_term})"
+
+                for match in re.finditer(pattern, plain_text):
+                    start, end = match.span(1)
+                    # Skip if already styled or dimmed
+                    if self._is_range_styled_or_dimmed(text, start, end):
+                        continue
+                    text.stylize("cyan", start, end)
+
+        def _is_range_styled_or_dimmed(self, text: Text, start: int, end: int) -> bool:
+            """Check if a range already has styling or is dimmed.
+
+            Args:
+                text: Rich Text object
+                start: Start position
+                end: End position
+
+            Returns:
+                True if range is already styled or dimmed
+            """
+            for span_start, span_end, style in text.spans:
+                if not (end <= span_start or start >= span_end):
+                    return True  # Overlaps with existing style
+            return False
+
         def highlight(self, text: Text) -> None:
             """Apply highlighting to text.
 
@@ -125,106 +240,17 @@ try:
             IMPORTANT: Order matters! We dim example lines FIRST, then
             check for dim style when adding technical term highlights.
             """
-            plain_text = text.plain
             import re
 
-            # STEP 1: Highlight example command lines and continuation lines FIRST
-            # This must happen before technical term highlighting so we can detect dimmed regions
+            plain_text = text.plain
             lines = plain_text.split("\n")
-            offset = 0
-            in_example = False  # Track if we're in a multi-line example
-            in_usage = False  # Track if we're in the usage synopsis (indented options)
-            in_important = False  # Track if we're in an IMPORTANT warning
+            offset_tracker = [0]  # Mutable list to pass offset by reference
 
-            for line in lines:
-                # Check if this is an IMPORTANT warning (starts with "IMPORTANT:")
-                if line.strip().startswith("IMPORTANT:"):
-                    in_important = True
-                    line_start = offset
-                    line_end = offset + len(line)
-                    text.stylize("dim yellow", line_start, line_end)
-
-                # Check if we're continuing an IMPORTANT warning (indented to column 12)
-                elif in_important and len(line) >= 11 and line[:11] == " " * 11 and line[11] != " ":
-                    # Line starts at column 12 (11 spaces + content) - continuation of IMPORTANT
-                    line_start = offset
-                    line_end = offset + len(line)
-                    text.stylize("dim yellow", line_start, line_end)
-
-                # Check if IMPORTANT warning ended (empty line or non-matching indent)
-                elif in_important and (not line.strip() or not (len(line) >= 11 and line[:11] == " " * 11)):
-                    in_important = False
-
-                # Check if we're in usage synopsis (indented lines with brackets)
-                # Don't dim the first "usage:" line itself, only the indented option lines
-                if in_usage and re.match(r"^\s+\[", line):
-                    # Usage synopsis option line - make it dim
-                    line_start = offset
-                    line_end = offset + len(line)
-                    text.stylize("dim", line_start, line_end)
-
-                # Check if this is the start of usage synopsis
-                elif line.startswith("usage:"):
-                    in_usage = True
-                    # Don't dim the usage: line itself - let technical terms be highlighted
-
-                # Check if usage synopsis ended (empty line or non-indented line that's not a bracket line)
-                elif in_usage and not line.strip():
-                    in_usage = False
-
-                # Check if line looks like an example (starts with whitespace, contains command)
-                # Matches: "  excel-vba edit" or "  excel-vba edit -f file.xlsm"
-                if re.match(r"^\s{2,}(excel-vba|word-vba|access-vba|powerpoint-vba)\s+\w+", line):
-                    # This is an example line - make it dim
-                    line_start = offset
-                    line_end = offset + len(line)
-                    text.stylize("dim", line_start, line_end)
-                    in_example = True
-
-                # Check if this is a continuation line (indented, starts with #)
-                elif in_example and re.match(r"^\s+#", line):
-                    # This is a comment continuation - also make it dim
-                    line_start = offset
-                    line_end = offset + len(line)
-                    text.stylize("dim", line_start, line_end)
-
-                else:
-                    # Not an example or continuation - reset the flag
-                    in_example = False
-
-                offset += len(line) + 1  # +1 for newline
-
-            # STEP 2: Now highlight technical terms (but skip dimmed regions)
-            for term in self.TECH_TERMS:
-                # Find all occurrences of the term
-                # Use word boundaries only if term starts/ends with word characters
-                escaped_term = re.escape(term)
-                if term[0].isalnum() and term[-1].isalnum():
-                    # Standard word - use word boundaries
-                    pattern = rf"\b({escaped_term})\b"
-                else:
-                    # Special characters (like [CTRL+S]) - no word boundaries
-                    pattern = rf"({escaped_term})"
-
-                for match in re.finditer(pattern, plain_text):
-                    start, end = match.span(1)
-                    # Only apply if this range doesn't already have a style
-                    # Check if any span overlaps with this range
-                    # Also skip if the text is already dimmed (examples, usage synopsis)
-                    has_existing_style = False
-                    is_dimmed = False
-                    for span_start, span_end, style in text.spans:
-                        if not (end <= span_start or start >= span_end):
-                            # Overlaps - check if it's a dim style
-                            if style and "dim" in str(style):
-                                is_dimmed = True
-                                break
-                            # Other overlap - skip this highlighting
-                            has_existing_style = True
-                            break
-
-                    if not has_existing_style and not is_dimmed:
-                        text.stylize("cyan", start, end)
+            # Apply styling in priority order
+            self._dim_important_warnings(text, lines, offset_tracker)
+            self._dim_usage_synopsis(text, lines, offset_tracker)
+            self._dim_example_lines(text, lines, offset_tracker)
+            self._highlight_technical_terms(text, plain_text)
 
     # Define our color theme (uv-style - October 2025)
     custom_theme = Theme(
