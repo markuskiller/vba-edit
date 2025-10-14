@@ -82,13 +82,15 @@ try:
             "Outlook",
             "Project",
             "Visio",
-            # File extensions
+            # File extensions and filenames
             ".bas",
             ".cls",
             ".frm",
+            "vba_edit.log",
             # ".xlsm", ".docm", ".accdb", ".pptm",
             # Dev tools and libraries
             "RubberduckVBA",
+            "@Folder",
             "xlwings",
             "xlwings vba",
             "VS Code",
