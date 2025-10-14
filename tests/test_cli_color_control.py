@@ -353,10 +353,7 @@ class TestColorWithTTY:
         # In a TTY with Rich available, should have ANSI codes
         # This is a "nice to have" test that documents expected behavior
         # but we don't fail the test if colors are missing (could be NO_COLOR set)
-        if "\x1b[" in result.stdout:
-            # Colors detected - good!
-            assert True
-        else:
+        if "\x1b[" not in result.stdout:
             # No colors - could be NO_COLOR env var or other reason
             # Just log it for visibility
             pytest.skip("No colors detected - NO_COLOR may be set or terminal doesn't support colors")
@@ -370,9 +367,7 @@ class TestColorWithTTY:
         )
 
         # Similar to above - nice to have but not critical
-        if "\x1b[" in result.stdout:
-            assert True
-        else:
+        if "\x1b[" not in result.stdout:
             pytest.skip("No colors detected in easter egg output")
 
 

@@ -8,6 +8,29 @@ import textwrap
 from vba_edit.console import RICH_AVAILABLE
 
 
+def strip_rich_markup(text: str) -> str:
+    """Strip Rich markup tags while preserving literal brackets.
+
+    Removes Rich styling tags like [bold], [/cyan], etc. while preserving
+    literal brackets like [--file FILE], [CTRL+S], etc.
+
+    Args:
+        text: Text potentially containing Rich markup tags
+
+    Returns:
+        Text with Rich markup removed
+    """
+    # Remove Rich style tags: [style] or [/style] or [style params]
+    text = re.sub(
+        r"\[/?(?:bold|dim|cyan|bright_cyan|italic|underline|strike|reverse|blink|conceal|white|black|red|green|yellow|blue|magenta|white|default|bright_\w+|on_\w+|heading|usage|metavar|choices|command|option|action|number|path|file|success|error|warning|info)(?:\s+[^\]]+)?\]",
+        "",
+        text,
+    )
+    # Remove link markup: [link=...] ... [/link]
+    text = re.sub(r"\[/?link[^\]]*\]", "", text)
+    return text
+
+
 def print_help_with_rich(text):
     """Print help text using rich console if available.
 
@@ -26,14 +49,7 @@ def print_help_with_rich(text):
         console.print(text, end="", highlight=True, soft_wrap=True)
     else:
         # Strip Rich markup tags but preserve literal brackets like [--file FILE]
-        # Only remove tags that are Rich styles: [style] or [/style]
-        text = re.sub(
-            r"\[/?(?:bold|dim|cyan|bright_cyan|italic|underline|strike|reverse|blink|conceal|white|black|red|green|yellow|blue|magenta|white|default|bright_\w+|on_\w+|heading|usage|metavar|choices|command|option|action|number|path|file|success|error|warning|info)(?:\s+[^\]]+)?\]",
-            "",
-            text,
-        )
-        # Also remove link markup: [link=...] ... [/link]
-        text = re.sub(r"\[/?link[^\]]*\]", "", text)
+        text = strip_rich_markup(text)
         sys.stdout.write(text)
 
 

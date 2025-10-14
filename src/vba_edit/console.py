@@ -272,10 +272,13 @@ except ImportError:
 
         def print(self, *args, **kwargs):
             """Print with rich markup stripped."""
+            # Import at function level to avoid circular imports
+            from vba_edit.help_formatter import strip_rich_markup
+
             # Combine args into single string
             text = " ".join(str(arg) for arg in args)
-            # Remove [style]...[/style] markup
-            text = re.sub(r"\[/?[^\]]+\]", "", text)
+            # Remove Rich markup using shared utility
+            text = strip_rich_markup(text)
             # Filter kwargs to only print-compatible ones
             print_kwargs = {k: v for k, v in kwargs.items() if k in ("file", "end", "sep")}
             print_kwargs.setdefault("file", self.file)
@@ -406,6 +409,9 @@ def disable_colors():
     """
     global console, error_console
 
+    # Import at function level to avoid circular imports
+    from vba_edit.help_formatter import strip_rich_markup
+
     # Replace with DummyConsole to fully disable color and markup
     class DummyConsole:
         def __init__(self, stderr=False):
@@ -414,16 +420,8 @@ def disable_colors():
 
         def print(self, *args, **kwargs):
             text = " ".join(str(arg) for arg in args)
-            # Strip Rich markup tags but preserve literal brackets like [CTRL+S]
-            # Only remove tags that are Rich styles: [style] or [/style] or [link=...] patterns
-            # This regex matches: [word] or [/word] or [word params] but NOT [WORD+WORD] or [WORD-WORD]
-            text = re.sub(
-                r"\[/?(?:bold|dim|cyan|bright_cyan|italic|underline|strike|reverse|blink|conceal|white|black|red|green|yellow|blue|magenta|white|default|bright_\w+|on_\w+)(?:\s+[^\]]+)?\]",
-                "",
-                text,
-            )
-            # Also remove link markup: [link=...] ... [/link]
-            text = re.sub(r"\[/?link[^\]]*\]", "", text)
+            # Strip Rich markup using shared utility
+            text = strip_rich_markup(text)
             print_kwargs = {k: v for k, v in kwargs.items() if k in ("file", "end", "sep")}
             print_kwargs.setdefault("file", self.file)
             print(text, **print_kwargs)

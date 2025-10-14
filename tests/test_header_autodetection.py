@@ -285,9 +285,9 @@ End Sub
         test_file = tmp_path / "Binary.frx"
         test_file.write_bytes(b"\x00\x01\x02\x03\xff\xfe\xfd")
 
-        # Should return False without crashing
+        # Should return False for binary files without crashing
         result = handler.has_inline_headers(test_file)
-        assert result in (True, False)  # Either is acceptable for binary
+        assert result is False
 
 
 class TestHeaderAutoDetectionIntegration:
@@ -389,16 +389,16 @@ class TestHeaderDetectionPerformance:
     def test_only_reads_first_10_lines(self, tmp_path, handler):
         """Test that detection only reads first 10 lines for efficiency."""
         # Create a file with 1000 lines but headers only at top
-        lines = []
-        lines.append("VERSION 1.0 CLASS")
-        lines.append("BEGIN")
-        lines.append("END")
-        lines.append('Attribute VB_Name = "Module1"')
-        lines.append("")
+        lines = [
+            "VERSION 1.0 CLASS",
+            "BEGIN",
+            "END",
+            'Attribute VB_Name = "Module1"',
+            "",
+        ]
 
         # Add 995 more lines of code
-        for i in range(995):
-            lines.append(f"' Comment line {i}")
+        lines.extend(f"' Comment line {i}" for i in range(995))
 
         test_file = tmp_path / "Large.bas"
         test_file.write_text("\n".join(lines), encoding="utf-8")
@@ -409,14 +409,8 @@ class TestHeaderDetectionPerformance:
     def test_ignores_headers_after_line_10(self, tmp_path, handler):
         """Test that headers after line 10 are ignored."""
         # Create file with headers starting at line 20
-        lines = []
-        for i in range(15):
-            lines.append(f"' Comment line {i}")
-
-        # Add headers after line 15
-        lines.append("VERSION 1.0 CLASS")
-        lines.append("BEGIN")
-        lines.append("END")
+        lines = [f"' Comment line {i}" for i in range(15)]
+        lines.extend(("VERSION 1.0 CLASS", "BEGIN", "END"))
 
         test_file = tmp_path / "LateHeaders.bas"
         test_file.write_text("\n".join(lines), encoding="utf-8")
