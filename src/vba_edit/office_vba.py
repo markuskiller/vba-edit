@@ -462,6 +462,11 @@ class VBAComponentHandler:
         Checks if the file starts with header markers like VERSION, BEGIN, or Attribute.
         This allows automatic detection of header format during import.
 
+        The detection is strict to avoid false positives from comments:
+        - VERSION and BEGIN must be at start of non-comment, non-blank lines
+        - Attribute VB_ must be at line start (not in comments)
+        - Only checks first 10 lines for performance
+
         Args:
             file_path: Path to the code file to check
             encoding: File encoding to use
@@ -476,14 +481,33 @@ class VBAComponentHandler:
                 for i, line in enumerate(f):
                     if i >= 10:  # Headers are always at the top
                         break
-                    first_lines.append(line.strip())
+                    first_lines.append(line)  # Keep original line with whitespace
 
-            # Check for header markers
+            # Check for header markers - must be actual code, not comments
             for line in first_lines:
-                if line.upper().startswith(("VERSION ", "BEGIN")):
-                    logger.debug(f"Detected inline headers in {file_path.name} (found: {line[:30]}...)")
+                stripped = line.strip()
+                
+                # Skip blank lines
+                if not stripped:
+                    continue
+                
+                # Skip comment lines (VBA comments start with ' or REM)
+                if stripped.startswith("'") or stripped.upper().startswith("REM "):
+                    continue
+                
+                # Check for VERSION marker (case-insensitive, must have space or be exact)
+                if stripped.upper().startswith("VERSION "):
+                    logger.debug(f"Detected inline headers in {file_path.name} (found VERSION marker)")
                     return True
-                if line.startswith("Attribute VB_"):
+                
+                # Check for BEGIN marker (case-insensitive)
+                # Matches: "BEGIN" or "Begin {GUID} FormName"
+                if stripped.upper() == "BEGIN" or stripped.upper().startswith("BEGIN "):
+                    logger.debug(f"Detected inline headers in {file_path.name} (found BEGIN marker)")
+                    return True
+                
+                # Check for Attribute VB_ (case-sensitive for VB_, as per VBA convention)
+                if stripped.startswith("Attribute VB_"):
                     logger.debug(f"Detected inline headers in {file_path.name} (found VB attribute)")
                     return True
 

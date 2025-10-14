@@ -105,6 +105,93 @@ End Sub
 
         assert handler.has_inline_headers(test_file) is False
 
+    def test_ignores_version_in_comments(self, tmp_path, handler):
+        """Test that VERSION mentioned in comments doesn't trigger detection."""
+        test_file = tmp_path / "Module1.bas"
+        test_file.write_text(
+            """' VERSION 1.0 released on 2025-01-01
+' This module handles data processing
+
+Sub Test()
+    MsgBox "Hello"
+End Sub
+""",
+            encoding="utf-8",
+        )
+
+        assert handler.has_inline_headers(test_file) is False
+
+    def test_ignores_begin_in_comments(self, tmp_path, handler):
+        """Test that BEGIN mentioned in comments doesn't trigger detection."""
+        test_file = tmp_path / "Module1.bas"
+        test_file.write_text(
+            """' BEGIN with basic setup
+' REM BEGIN the initialization
+' Initialize system
+
+Sub Test()
+    ' BEGIN processing
+    MsgBox "Hello"
+End Sub
+""",
+            encoding="utf-8",
+        )
+
+        assert handler.has_inline_headers(test_file) is False
+
+    def test_ignores_attribute_in_comments(self, tmp_path, handler):
+        """Test that Attribute mentioned in comments doesn't trigger detection."""
+        test_file = tmp_path / "Module1.bas"
+        test_file.write_text(
+            """' Set the Attribute VB_Name property
+' Attribute configuration follows
+
+Sub Test()
+    ' Attribute VB_Name should be set
+    MsgBox "Hello"
+End Sub
+""",
+            encoding="utf-8",
+        )
+
+        assert handler.has_inline_headers(test_file) is False
+
+    def test_detects_version_after_blank_lines(self, tmp_path, handler):
+        """Test that VERSION is detected even if there are blank lines at top."""
+        test_file = tmp_path / "Module1.cls"
+        test_file.write_text(
+            """
+
+VERSION 1.0 CLASS
+BEGIN
+END
+Attribute VB_Name = "Module1"
+
+Sub Test()
+End Sub
+""",
+            encoding="utf-8",
+        )
+
+        assert handler.has_inline_headers(test_file) is True
+
+    def test_detects_attribute_after_blank_lines(self, tmp_path, handler):
+        """Test that Attribute VB_ is detected after blank lines."""
+        test_file = tmp_path / "Module1.bas"
+        test_file.write_text(
+            """
+
+
+Attribute VB_Name = "Module1"
+
+Sub Test()
+End Sub
+""",
+            encoding="utf-8",
+        )
+
+        assert handler.has_inline_headers(test_file) is True
+
     def test_handles_empty_file(self, tmp_path, handler):
         """Test detection handles empty files gracefully."""
         test_file = tmp_path / "Empty.bas"
