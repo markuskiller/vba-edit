@@ -167,6 +167,9 @@ class EnhancedHelpFormatter(argparse.RawDescriptionHelpFormatter):
     def _format_action(self, action):
         """Format an individual action with better alignment and optional colorization.
 
+        Uses 3 regex passes over the entire string instead of line-by-line processing.
+        This is simpler and more maintainable than manual string splitting.
+
         Args:
             action: Action to format
 
@@ -180,67 +183,42 @@ class EnhancedHelpFormatter(argparse.RawDescriptionHelpFormatter):
         # Get original formatting
         result = super()._format_action(action)
 
-        # Apply colorization if enabled
+        # Apply colorization if enabled using 3 regex passes
         if self._use_colors and result:
-            # Split into lines to process each line separately
-            lines = result.split("\n")
-            colorized_lines = []
+            # Pass 1: Colorize option flags (--option, -o)
+            # Matches options at start of line or after comma/whitespace
+            # Avoids matching options inside help text (after 2+ spaces)
+            result = re.sub(
+                r"(^|\s)(--?[\w-]+)(?=\s*(?:,|[A-Z_]|\s{2,}|$))",
+                lambda m: m.group(1) + self._colorize(m.group(2), "option"),
+                result,
+                flags=re.MULTILINE,
+            )
 
-            for line in lines:
-                # Check if this line has the option/metavar part (left side) and help text (right side)
-                # Typically looks like: "  --option, -o METAVAR    Help text here"
-                # We want to colorize only the left part, not the help text
+            # Pass 2: Colorize metavars (FILE, DIR, ENCODING)
+            # Matches uppercase words of 2+ chars that appear before help text (2+ spaces)
+            # or at end of line
+            result = re.sub(
+                r"\b([A-Z_]{2,})\b(?=\s{2,}|$)",
+                lambda m: self._colorize(m.group(1), "metavar"),
+                result,
+                flags=re.MULTILINE,
+            )
 
-                # Find where the help text starts (multiple spaces after option definition)
-                # Pattern: option definition followed by 2+ spaces, then help text
-                # Handles both: --opt, -o  and  --opt, --option
-                help_match = re.search(r"^(\s*(?:--?[\w-]+(?:,\s*--?[\w-]+)?(?:\s+[A-Z_]+)?)\s{2,})(.*)", line)
-
-                if help_match:
-                    # Split into left (option def) and right (help text)
-                    left_part = help_match.group(1)
-                    right_part = help_match.group(2)
-
-                    # Colorize only the left part
-                    # Colorize option flags (--option, -o)
-                    left_part = re.sub(r"(--?[\w-]+)", lambda m: self._colorize(m.group(1), "option"), left_part)
-                    # Colorize metavars (FILE, DIR, ENCODING, etc.) - uppercase words in left part only
-                    left_part = re.sub(r"\b([A-Z_]{2,})\b", lambda m: self._colorize(m.group(1), "metavar"), left_part)
-
-                    # Recombine - right_part stays unmodified (no colorization in help text)
-                    colorized_lines.append(left_part + right_part)
-                else:
-                    # No help text on this line, check if it's a continuation line
-                    # Continuation lines are indented more and don't start with option flags
-                    colored_line = line
-
-                    # Only colorize if it looks like an option line (starts with - or has command name)
-                    if re.match(r"^\s*--?", line):
-                        # Colorize option flags
-                        colored_line = re.sub(
-                            r"(--?[\w-]+)", lambda m: self._colorize(m.group(1), "option"), colored_line
-                        )
-                        # Colorize metavars
-                        colored_line = re.sub(
-                            r"\b([A-Z_]{2,})\b", lambda m: self._colorize(m.group(1), "metavar"), colored_line
-                        )
-                    elif (
-                        hasattr(self, "_section_heading")
-                        and self._section_heading
-                        and self._section_heading.lower() in ["commands", "subcommands"]
-                    ):
-                        # Colorize command names in the Commands/Subcommands section
-                        # Colorize command names at start of line (after whitespace)
-                        colored_line = re.sub(
-                            r"(^\s+)(\w+)",
-                            lambda m: m.group(1) + self._colorize(m.group(2), "command"),
-                            colored_line,
-                        )
-                    # else: it's a continuation line of help text, leave it uncolored
-
-                    colorized_lines.append(colored_line)
-
-            result = "\n".join(colorized_lines)
+            # Pass 3: Colorize command names in Commands/Subcommands section
+            # Only if we're in the commands section
+            if (
+                hasattr(self, "_section_heading")
+                and self._section_heading
+                and self._section_heading.lower() in ["commands", "subcommands"]
+            ):
+                # Matches command name at start of line (after whitespace) followed by 2+ spaces
+                result = re.sub(
+                    r"^(\s+)(\w+)(?=\s{2,})",
+                    lambda m: m.group(1) + self._colorize(m.group(2), "command"),
+                    result,
+                    flags=re.MULTILINE,
+                )
 
         return result
 
