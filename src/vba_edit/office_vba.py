@@ -486,26 +486,26 @@ class VBAComponentHandler:
             # Check for header markers - must be actual code, not comments
             for line in first_lines:
                 stripped = line.strip()
-                
+
                 # Skip blank lines
                 if not stripped:
                     continue
-                
+
                 # Skip comment lines (VBA comments start with ' or REM)
                 if stripped.startswith("'") or stripped.upper().startswith("REM "):
                     continue
-                
+
                 # Check for VERSION marker (case-insensitive, must have space or be exact)
                 if stripped.upper().startswith("VERSION "):
                     logger.debug(f"Detected inline headers in {file_path.name} (found VERSION marker)")
                     return True
-                
+
                 # Check for BEGIN marker (case-insensitive)
                 # Matches: "BEGIN" or "Begin {GUID} FormName"
                 if stripped.upper() == "BEGIN" or stripped.upper().startswith("BEGIN "):
                     logger.debug(f"Detected inline headers in {file_path.name} (found BEGIN marker)")
                     return True
-                
+
                 # Check for Attribute VB_ (case-sensitive for VB_, as per VBA convention)
                 if stripped.startswith("Attribute VB_"):
                     logger.debug(f"Detected inline headers in {file_path.name} (found VB attribute)")
@@ -1191,10 +1191,10 @@ class OfficeVBAHandler(ABC):
         """
         try:
             name = file_path.stem
-            
+
             # Auto-detect header format
             has_inline_headers = self.component_handler.has_inline_headers(file_path, encoding=self.encoding)
-            
+
             # Pass detected format to get_module_type
             module_type = self.component_handler.get_module_type(
                 file_path, in_file_headers=has_inline_headers, encoding=self.encoding

@@ -19,7 +19,7 @@ def print_help_with_rich(text):
     """
     # Import console dynamically to get the current (possibly replaced) instance
     from vba_edit.console import console
-    
+
     if RICH_AVAILABLE and not console.no_color:
         # Use rich console to print (will render markup tags and apply highlighting)
         # Note: highlight=True allows our custom highlighter to work on plain text portions
@@ -88,6 +88,7 @@ class EnhancedHelpFormatter(argparse.RawDescriptionHelpFormatter):
         # Check if colors should be used (rich available and not disabled)
         # Import console dynamically to get current instance
         from vba_edit.console import console
+
         self._use_colors = RICH_AVAILABLE and not console.no_color
 
     def _colorize(self, text, style):

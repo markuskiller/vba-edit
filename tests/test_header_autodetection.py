@@ -283,7 +283,7 @@ End Sub
     def test_handles_binary_file(self, tmp_path, handler):
         """Test detection handles binary files gracefully."""
         test_file = tmp_path / "Binary.frx"
-        test_file.write_bytes(b"\x00\x01\x02\x03\xFF\xFE\xFD")
+        test_file.write_bytes(b"\x00\x01\x02\x03\xff\xfe\xfd")
 
         # Should return False without crashing
         result = handler.has_inline_headers(test_file)
@@ -393,7 +393,7 @@ class TestHeaderDetectionPerformance:
         lines.append("VERSION 1.0 CLASS")
         lines.append("BEGIN")
         lines.append("END")
-        lines.append("Attribute VB_Name = \"Module1\"")
+        lines.append('Attribute VB_Name = "Module1"')
         lines.append("")
 
         # Add 995 more lines of code
