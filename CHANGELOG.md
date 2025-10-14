@@ -9,49 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **Automatic Header Detection**: Import command now intelligently detects VBA headers
-  - Checks for inline headers (VERSION/BEGIN/Attribute lines at file start)
-  - Falls back to separate `.header` files if present
-  - Creates minimal headers automatically if neither exists
-  - No manual header flags needed for most workflows
-  - Smart detection avoids false positives from code comments
-- **Enhanced Help Text Highlighting**: Technical terms now stand out in help messages
-  - File formats (TOML, JSON, XML) highlighted in cyan
-  - VBA-specific terms (Module, Class, Form) emphasized
-  - Office applications and tools clearly marked
-  - Example command lines displayed in dim gray for easy distinction
-  - IMPORTANT warnings highlighted in yellow
-- **Workflow Diagram**: New ASCII art diagram shows how edit mode works
-  - Visualizes the one-way sync from external editor to Office VBA
-  - Accessible via hidden easter egg in help output
-  - Works correctly with `--no-color` flag
-
-### Changed
-
-- **Code Quality Improvements**: Internal refactoring for better maintainability
-  - Extracted shared utility functions to eliminate code duplication (~50 lines removed)
-  - Complex methods broken into smaller, focused functions
-  - Test quality improved following Google SWE best practices
-  - Better separation of concerns throughout codebase
-- **Help Formatter**: Simplified colorization logic
-  - Replaced line-by-line processing with efficient regex passes
-  - Reduced method complexity significantly
-  - More maintainable and easier to understand
-
-### Fixed
-
-- **Access Application Reference**: Clarified "MS Access" vs "Trust Access to VBA"
-  - Help text now uses "MS Access" to refer to Microsoft Access application
-  - Avoids confusion with VBA trust settings
-  - More precise language throughout documentation
-
-### Internal
-
-- **Test Infrastructure**: Improved test reliability and clarity
-  - Tests now use StringIO to properly capture Rich console output
-  - Removed unnecessary conditionals and loops from tests
-  - Stricter assertions for better test validation
-  - All 393 tests passing successfully
+- **Automatic Header Detection**: Import command now works without manual header flags
+  - Automatically finds VBA headers in your code files (VERSION/BEGIN/Attribute lines)
+  - Falls back to separate `.header` files if you use those
+  - Creates minimal headers if neither exists
+  - Just works - no need to remember which flag to use
+  - Smart detection avoids treating code comments as headers
+- **Better Help Text Readability**: Important information stands out more clearly
+  - Technical terms (TOML, JSON, VBA, Module, Class) highlighted in cyan
+  - Example command lines shown in dim gray for easy scanning
+  - IMPORTANT warnings appear in yellow so you don't miss them
+  - Easier to find what you need in help output
+  - Respects `--no-color` flag for accessibility
 
 ## [0.4.1a1] - 2025-10-10
 
