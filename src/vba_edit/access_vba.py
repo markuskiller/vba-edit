@@ -39,7 +39,7 @@ def create_cli_parser() -> argparse.ArgumentParser:
     # Create streamlined main help description
     main_description = f"""{package_name_formatted} v{package_version} ({entry_point_name})
 
-A command-line tool for managing VBA content in Access databases.
+A command-line tool for managing VBA content in MS Access databases.
 Export, import, and edit VBA code in external editor with live sync back to database."""
 
     # Create streamlined examples for main help
@@ -52,7 +52,7 @@ Examples:
 
 Use '{entry_point_name} <command> --help' for more information on a specific command.
 
-IMPORTANT: Requires "Trust access to VBA project object model" enabled in Access.
+IMPORTANT: Requires "Trust access to VBA project object model" enabled in MS Access.
            Early release - backup important files before use!"""
 
     parser = ColorizedArgumentParser(
@@ -67,6 +67,10 @@ IMPORTANT: Requires "Trust access to VBA project object model" enabled in Access
     parser.add_argument(
         "--version", "-V", action="version", version=f"{package_name_formatted} v{package_version} ({entry_point_name})"
     )
+
+    # Add hidden easter egg flags (not shown in help)
+    parser.add_argument("--diagram", action="store_true", help=argparse.SUPPRESS)
+    parser.add_argument("--how-it-works", action="store_true", help=argparse.SUPPRESS)
 
     subparsers = parser.add_subparsers(
         dest="command",
@@ -96,6 +100,7 @@ Full control usage:
     [--rubberduck-folders]
     [--verbose | -v]
     [--logfile | -l]
+    [--no-color | --no-colour]
     [--help | -h]"""
 
     edit_parser = subparsers.add_parser(
@@ -118,6 +123,7 @@ Full control usage:
     file_group.add_argument(
         "--vba-directory",
         dest="vba_directory",
+        metavar="DIR",
         help="Directory to export VBA files (default: same directory as document)",
     )
     file_group.add_argument(
@@ -205,6 +211,13 @@ Full control usage:
         help="Enable logging to file (default: vba_edit.log)",
     )
     common_group.add_argument(
+        "--no-color",
+        "--no-colour",
+        dest="no_color",
+        action="store_true",
+        help="Disable colored output",
+    )
+    common_group.add_argument(
         "--help",
         "-h",
         action="help",
@@ -214,21 +227,26 @@ Full control usage:
     # Import command
     import_description = """Import VBA code from filesystem into Office document
 
+Header handling is automatic - no flags needed:
+  • Detects inline headers (VERSION/BEGIN/Attribute at file start)
+  • Falls back to separate .header files if present
+  • Creates minimal headers if neither exists
+
 Simple usage:
-  access-vba import         # Uses active database and imports from same directory
+  access-vba import         # Uses active document and imports from same directory
 
 Full control usage:
-  access-vba import -f file.accdb --vba-directory src"""
+  access-vba import -f database.accdb --vba-directory src"""
 
     import_usage = """access-vba import
     [--file FILE | -f FILE]
     [--vba-directory DIR]
     [--conf FILE | --config FILE]
     [--encoding ENCODING | -e ENCODING | --detect-encoding | -d]
-    [--save-headers | --in-file-headers]
     [--rubberduck-folders]
     [--verbose | -v]
     [--logfile | -l]
+    [--no-color | --no-colour]
     [--help | -h]"""
 
     import_parser = subparsers.add_parser(
@@ -251,6 +269,7 @@ Full control usage:
     file_group.add_argument(
         "--vba-directory",
         dest="vba_directory",
+        metavar="DIR",
         help="Directory to import VBA files from (default: same directory as document)",
     )
 
@@ -282,22 +301,6 @@ Full control usage:
         help="Auto-detect file encoding for VBA files",
     )
 
-    # Header Options group (mutually exclusive)
-    header_group = import_parser.add_argument_group("Header Options (mutually exclusive)")
-    header_mutex = header_group.add_mutually_exclusive_group()
-    header_mutex.add_argument(
-        "--save-headers",
-        dest="save_headers",
-        action="store_true",
-        help="Read VBA component headers from separate .header files",
-    )
-    header_mutex.add_argument(
-        "--in-file-headers",
-        dest="in_file_headers",
-        action="store_true",
-        help="Read VBA headers directly from code files",
-    )
-
     # Import Options group
     import_options_group = import_parser.add_argument_group("Import Options")
     import_options_group.add_argument(
@@ -323,6 +326,13 @@ Full control usage:
         nargs="?",
         const="vba_edit.log",
         help="Enable logging to file (default: vba_edit.log)",
+    )
+    common_group.add_argument(
+        "--no-color",
+        "--no-colour",
+        dest="no_color",
+        action="store_true",
+        help="Disable colored output",
     )
     common_group.add_argument(
         "--help",
@@ -352,6 +362,7 @@ Full control usage:
     [--rubberduck-folders]
     [--verbose | -v]
     [--logfile | -l]
+    [--no-color | --no-colour]
     [--help | -h]"""
 
     export_parser = subparsers.add_parser(
@@ -374,6 +385,7 @@ Full control usage:
     file_group.add_argument(
         "--vba-directory",
         dest="vba_directory",
+        metavar="DIR",
         help="Directory to export VBA files (default: same directory as document)",
     )
     file_group.add_argument(
@@ -467,6 +479,13 @@ Full control usage:
         help="Enable logging to file (default: vba_edit.log)",
     )
     common_group.add_argument(
+        "--no-color",
+        "--no-colour",
+        dest="no_color",
+        action="store_true",
+        help="Disable colored output",
+    )
+    common_group.add_argument(
         "--help",
         "-h",
         action="help",
@@ -477,12 +496,13 @@ Full control usage:
     check_description = """Check if 'Trust access to the VBA project object model' is enabled
 
 Simple usage:
-  access-vba check          # Check Access VBA access
+  access-vba check          # Check MS Access VBA access
   access-vba check all      # Check all Office applications"""
 
-    check_usage = """access-vba check [all]
+    check_usage = """access-vba check
     [--verbose | -v]
     [--logfile | -l]
+    [--no-color | --no-colour]
     [--help | -h]"""
 
     check_parser = subparsers.add_parser(
@@ -512,6 +532,13 @@ Simple usage:
         help="Enable logging to file (default: vba_edit.log)",
     )
     common_group.add_argument(
+        "--no-color",
+        "--no-colour",
+        dest="no_color",
+        action="store_true",
+        help="Disable colored output",
+    )
+    common_group.add_argument(
         "--help",
         "-h",
         action="help",
@@ -519,11 +546,12 @@ Simple usage:
     )
 
     # Subcommand for checking all applications
+    # Note: Using custom usage above, so subparser metavar doesn't affect main help
     check_subparser = check_parser.add_subparsers(
         dest="subcommand",
         required=False,
         title="Subcommands",
-        metavar="[all]",
+        metavar="",  # Empty metavar to avoid space in usage line
     )
     check_all_parser = check_subparser.add_parser(
         "all",
@@ -746,14 +774,22 @@ def validate_paths(args: argparse.Namespace) -> None:
 def main() -> None:
     """Main entry point for the access-vba CLI."""
     try:
-        parser = create_cli_parser()
-        args = parser.parse_args()
-
-        # Handle color control first (before any output)
-        if getattr(args, "no_color", False):
+        # Check for --no-color flag BEFORE creating parser
+        # This ensures help messages honor the flag
+        if "--no-color" in sys.argv or "--no-colour" in sys.argv:
             from vba_edit.console import disable_colors
 
             disable_colors()
+
+        # Handle easter egg flags first (before argparse validation)
+        # This allows them to work without requiring a command
+        if "--diagram" in sys.argv or "--how-it-works" in sys.argv:
+            from vba_edit.utils import show_workflow_diagram
+
+            show_workflow_diagram()
+
+        parser = create_cli_parser()
+        args = parser.parse_args()
 
         # Process configuration file BEFORE setting up logging
         args = process_config_file(args)

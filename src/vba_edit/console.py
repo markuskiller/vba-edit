@@ -19,12 +19,235 @@ Usage:
     console.print("[success]✓[/success] Exported: [path]Module1.bas[/path]")
 """
 
-import re
 import sys
 
 try:
     from rich.console import Console
+    from rich.highlighter import Highlighter
     from rich.theme import Theme
+    from rich.text import Text
+
+    class HelpTextHighlighter(Highlighter):
+        """Custom highlighter for CLI help text.
+
+        Highlights:
+        - Technical terms (TOML, JSON, XML, HTTP, etc.) in bright blue
+        - Example commands (lines starting with whitespace + command name) in dim
+        - Does NOT highlight random capitalized words
+        - Works alongside Rich markup tags
+        """
+
+        # Technical terms/formats we want to highlight
+        TECH_TERMS = {
+            # File formats and data standards
+            "TOML",
+            "JSON",
+            "XML",
+            "YAML",
+            "HTML",
+            "CSV",
+            "SQL",
+            # Protocols and web
+            "HTTP",
+            "HTTPS",
+            "FTP",
+            "SSH",
+            "API",
+            "REST",
+            "URI",
+            "URL",
+            # Encodings
+            "UTF-8",
+            "UTF8",
+            "ASCII",
+            "cp1252",
+            # VBA and Office
+            "VBA",
+            "COM",
+            "Module",
+            "Class",
+            "Form",
+            "UserForm",
+            "Macro",
+            "Procedure",
+            "Function",
+            # Office applications
+            "Excel",
+            "Word",
+            # NOTE: "Access" intentionally excluded - conflicts with "Trust Access to VBA"
+            # Use "MS Access" instead to refer to Microsoft Access application
+            "MS Access",
+            "PowerPoint",
+            "Outlook",
+            "Project",
+            "Visio",
+            # File extensions and filenames
+            ".bas",
+            ".cls",
+            ".frm",
+            "vba_edit.log",
+            # ".xlsm", ".docm", ".accdb", ".pptm",
+            # Dev tools and libraries
+            "RubberduckVBA",
+            "@Folder",
+            "xlwings",
+            "xlwings vba",
+            "VS Code",
+            "Git",
+            # Operations (lowercase for command descriptions)
+            "export",
+            "import",
+            "sync",
+            "watch",
+            "watches",
+            "edit",
+            # Command verbs (capitalized for emphasis in sentences)
+            "Edit",
+            "Export",
+            "Import",
+            "Check",
+            "Sync",
+            # Keyboard shortcuts
+            "[CTRL+S]",
+            "[SHIFT]",
+            "[ALT]",
+            "[ENTER]",
+            "[RETURN]",
+        }
+
+        def _dim_important_warnings(self, text: Text, lines: list[str], offset_tracker: list[int]) -> None:
+            """Dim IMPORTANT warnings (first priority).
+
+            Args:
+                text: Rich Text object to apply styles to
+                lines: List of text lines
+                offset_tracker: Single-item list tracking current offset [offset]
+            """
+
+            offset = offset_tracker[0]
+            in_important = False
+
+            for line in lines:
+                if line.strip().startswith("IMPORTANT:"):
+                    in_important = True
+                    text.stylize("dim yellow", offset, offset + len(line))
+                elif in_important and len(line) >= 11 and line[:11] == " " * 11 and line[11] != " ":
+                    # Continuation line (indented to column 12)
+                    text.stylize("dim yellow", offset, offset + len(line))
+                elif in_important and (not line.strip() or not (len(line) >= 11 and line[:11] == " " * 11)):
+                    in_important = False
+
+                offset += len(line) + 1
+            offset_tracker[0] = 0  # Reset for next pass
+
+        def _dim_usage_synopsis(self, text: Text, lines: list[str], offset_tracker: list[int]) -> None:
+            """Dim usage synopsis option lines (second priority).
+
+            Args:
+                text: Rich Text object to apply styles to
+                lines: List of text lines
+                offset_tracker: Single-item list tracking current offset [offset]
+            """
+            import re
+
+            offset = offset_tracker[0]
+            in_usage = False
+
+            for line in lines:
+                if line.startswith("usage:"):
+                    in_usage = True
+                elif in_usage and not line.strip():
+                    in_usage = False
+                elif in_usage and re.match(r"^\s+\[", line):
+                    text.stylize("dim", offset, offset + len(line))
+
+                offset += len(line) + 1
+            offset_tracker[0] = 0  # Reset for next pass
+
+        def _dim_example_lines(self, text: Text, lines: list[str], offset_tracker: list[int]) -> None:
+            """Dim example command lines and comment continuations (third priority).
+
+            Args:
+                text: Rich Text object to apply styles to
+                lines: List of text lines
+                offset_tracker: Single-item list tracking current offset [offset]
+            """
+            import re
+
+            offset = offset_tracker[0]
+            in_example = False
+
+            for line in lines:
+                if re.match(r"^\s{2,}(excel-vba|word-vba|access-vba|powerpoint-vba)\s+\w+", line):
+                    text.stylize("dim", offset, offset + len(line))
+                    in_example = True
+                elif in_example and re.match(r"^\s+#", line):
+                    text.stylize("dim", offset, offset + len(line))
+                else:
+                    in_example = False
+
+                offset += len(line) + 1
+            offset_tracker[0] = 0  # Reset for next pass
+
+        def _highlight_technical_terms(self, text: Text, plain_text: str) -> None:
+            """Highlight technical terms (final pass - skips dimmed regions).
+
+            Args:
+                text: Rich Text object to apply styles to
+                plain_text: Plain text version for pattern matching
+            """
+            import re
+
+            for term in self.TECH_TERMS:
+                # Build pattern with word boundaries for alphanumeric terms
+                escaped_term = re.escape(term)
+                if term[0].isalnum() and term[-1].isalnum():
+                    pattern = rf"\b({escaped_term})\b"
+                else:
+                    pattern = rf"({escaped_term})"
+
+                for match in re.finditer(pattern, plain_text):
+                    start, end = match.span(1)
+                    # Skip if already styled or dimmed
+                    if self._is_range_styled_or_dimmed(text, start, end):
+                        continue
+                    text.stylize("cyan", start, end)
+
+        def _is_range_styled_or_dimmed(self, text: Text, start: int, end: int) -> bool:
+            """Check if a range already has styling or is dimmed.
+
+            Args:
+                text: Rich Text object
+                start: Start position
+                end: End position
+
+            Returns:
+                True if range is already styled or dimmed
+            """
+            for span_start, span_end, style in text.spans:
+                if not (end <= span_start or start >= span_end):
+                    return True  # Overlaps with existing style
+            return False
+
+        def highlight(self, text: Text) -> None:
+            """Apply highlighting to text.
+
+            This works by adding styles to specific ranges without
+            overriding existing styles from markup tags.
+
+            IMPORTANT: Order matters! We dim example lines FIRST, then
+            check for dim style when adding technical term highlights.
+            """
+
+            plain_text = text.plain
+            lines = plain_text.split("\n")
+            offset_tracker = [0]  # Mutable list to pass offset by reference
+
+            # Apply styling in priority order
+            self._dim_important_warnings(text, lines, offset_tracker)
+            self._dim_usage_synopsis(text, lines, offset_tracker)
+            self._dim_example_lines(text, lines, offset_tracker)
+            self._highlight_technical_terms(text, plain_text)
 
     # Define our color theme (uv-style - October 2025)
     custom_theme = Theme(
@@ -36,23 +259,28 @@ try:
             "info": "cyan",
             # Elements
             "dim": "dim",
-            "path": "bold blue",  # uv: bold blue for paths
-            "file": "bold blue",  # uv: bold blue for files
-            "command": "bold cyan",  # uv: bold cyan for commands
-            "option": "bold cyan",  # uv: bold cyan for options like --file, -f
+            "path": "cyan",  # uv: regular cyan for paths (no bold, no bright)
+            "file": "cyan",  # uv: regular cyan for files (no bold, no bright)
+            "command": "bold bright_cyan",  # uv: bold bright cyan for commands
+            "option": "bold bright_cyan",  # uv: bold bright cyan for options like --file, -f
             "action": "green",  # uv: green for actions
             "number": "cyan",  # uv: cyan for numbers
             # Help text styling (matches uv October 2025)
-            "heading": "bold green",  # Section headings: File Options, etc.
+            "heading": "bold bright_green",  # Section headings: File Options, etc.
             "usage": "bold white",  # Usage line
-            "metavar": "bold blue",  # Metavars: FILE, DIR, etc.
+            "metavar": "cyan",  # Metavars: FILE, DIR, etc. (regular cyan)
             "choices": "dim cyan",  # Choices in dim cyan
         }
     )
 
-    # Create console instances
-    console = Console(theme=custom_theme, highlight=False)
-    error_console = Console(stderr=True, theme=custom_theme, highlight=False)
+    # Create console instances with custom highlighter
+    # Uses our HelpTextHighlighter for smart, predictable highlighting:
+    # - Technical terms (TOML, JSON, etc.) in bright blue
+    # - Example command lines in dim grey
+    # - No random capitalized word highlighting
+    help_highlighter = HelpTextHighlighter()
+    console = Console(theme=custom_theme, highlight=False, highlighter=help_highlighter)
+    error_console = Console(stderr=True, theme=custom_theme, highlight=False, highlighter=help_highlighter)
 
     RICH_AVAILABLE = True
 
@@ -67,10 +295,13 @@ except ImportError:
 
         def print(self, *args, **kwargs):
             """Print with rich markup stripped."""
+            # Import at function level to avoid circular imports
+            from vba_edit.help_formatter import strip_rich_markup
+
             # Combine args into single string
             text = " ".join(str(arg) for arg in args)
-            # Remove [style]...[/style] markup
-            text = re.sub(r"\[/?[^\]]+\]", "", text)
+            # Remove Rich markup using shared utility
+            text = strip_rich_markup(text)
             # Filter kwargs to only print-compatible ones
             print_kwargs = {k: v for k, v in kwargs.items() if k in ("file", "end", "sep")}
             print_kwargs.setdefault("file", self.file)
@@ -199,8 +430,27 @@ def disable_colors():
     This function sets the no_color flag on both console instances,
     which causes them to output plain text without any styling.
     """
-    console.no_color = True
-    error_console.no_color = True
+    global console, error_console
+
+    # Import at function level to avoid circular imports
+    from vba_edit.help_formatter import strip_rich_markup
+
+    # Replace with DummyConsole to fully disable color and markup
+    class DummyConsole:
+        def __init__(self, stderr=False):
+            self.file = sys.stderr if stderr else sys.stdout
+            self.no_color = True
+
+        def print(self, *args, **kwargs):
+            text = " ".join(str(arg) for arg in args)
+            # Strip Rich markup using shared utility
+            text = strip_rich_markup(text)
+            print_kwargs = {k: v for k, v in kwargs.items() if k in ("file", "end", "sep")}
+            print_kwargs.setdefault("file", self.file)
+            print(text, **print_kwargs)
+
+    console = DummyConsole()
+    error_console = DummyConsole(stderr=True)
 
 
 def enable_colors():

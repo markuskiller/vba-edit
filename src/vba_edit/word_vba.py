@@ -68,6 +68,10 @@ IMPORTANT: Requires "Trust access to VBA project object model" enabled in Word.
         "--version", "-V", action="version", version=f"{package_name_formatted} v{package_version} ({entry_point_name})"
     )
 
+    # Add hidden easter egg flags (not shown in help)
+    parser.add_argument("--diagram", action="store_true", help=argparse.SUPPRESS)
+    parser.add_argument("--how-it-works", action="store_true", help=argparse.SUPPRESS)
+
     subparsers = parser.add_subparsers(
         dest="command",
         required=True,
@@ -96,6 +100,7 @@ Full control usage:
     [--rubberduck-folders]
     [--verbose | -v]
     [--logfile | -l]
+    [--no-color | --no-colour]
     [--help | -h]"""
 
     edit_parser = subparsers.add_parser(
@@ -118,6 +123,7 @@ Full control usage:
     file_group.add_argument(
         "--vba-directory",
         dest="vba_directory",
+        metavar="DIR",
         help="Directory to export VBA files (default: same directory as document)",
     )
     file_group.add_argument(
@@ -221,21 +227,26 @@ Full control usage:
     # Import command
     import_description = """Import VBA code from filesystem into Office document
 
+Header handling is automatic - no flags needed:
+  • Detects inline headers (VERSION/BEGIN/Attribute at file start)
+  • Falls back to separate .header files if present
+  • Creates minimal headers if neither exists
+
 Simple usage:
   word-vba import           # Uses active document and imports from same directory
 
 Full control usage:
-  word-vba import -f file.docm --vba-directory src"""
+  word-vba import -f document.docm --vba-directory src"""
 
     import_usage = """word-vba import
     [--file FILE | -f FILE]
     [--vba-directory DIR]
     [--conf FILE | --config FILE]
     [--encoding ENCODING | -e ENCODING | --detect-encoding | -d]
-    [--save-headers | --in-file-headers]
     [--rubberduck-folders]
     [--verbose | -v]
     [--logfile | -l]
+    [--no-color | --no-colour]
     [--help | -h]"""
 
     import_parser = subparsers.add_parser(
@@ -258,6 +269,7 @@ Full control usage:
     file_group.add_argument(
         "--vba-directory",
         dest="vba_directory",
+        metavar="DIR",
         help="Directory to import VBA files from (default: same directory as document)",
     )
 
@@ -287,22 +299,6 @@ Full control usage:
         dest="detect_encoding",
         action="store_true",
         help="Auto-detect file encoding for VBA files",
-    )
-
-    # Header Options group (mutually exclusive)
-    header_group = import_parser.add_argument_group("Header Options (mutually exclusive)")
-    header_mutex = header_group.add_mutually_exclusive_group()
-    header_mutex.add_argument(
-        "--save-headers",
-        dest="save_headers",
-        action="store_true",
-        help="Read VBA component headers from separate .header files",
-    )
-    header_mutex.add_argument(
-        "--in-file-headers",
-        dest="in_file_headers",
-        action="store_true",
-        help="Read VBA headers directly from code files",
     )
 
     # Import Options group
@@ -366,6 +362,7 @@ Full control usage:
     [--rubberduck-folders]
     [--verbose | -v]
     [--logfile | -l]
+    [--no-color | --no-colour]
     [--help | -h]"""
 
     export_parser = subparsers.add_parser(
@@ -388,6 +385,7 @@ Full control usage:
     file_group.add_argument(
         "--vba-directory",
         dest="vba_directory",
+        metavar="DIR",
         help="Directory to export VBA files (default: same directory as document)",
     )
     file_group.add_argument(
@@ -501,9 +499,10 @@ Simple usage:
   word-vba check            # Check Word VBA access
   word-vba check all        # Check all Office applications"""
 
-    check_usage = """word-vba check [all]
+    check_usage = """word-vba check
     [--verbose | -v]
     [--logfile | -l]
+    [--no-color | --no-colour]
     [--help | -h]"""
 
     check_parser = subparsers.add_parser(
@@ -547,11 +546,12 @@ Simple usage:
     )
 
     # Subcommand for checking all applications
+    # Note: Using custom usage above, so subparser metavar doesn't affect main help
     check_subparser = check_parser.add_subparsers(
         dest="subcommand",
         required=False,
         title="Subcommands",
-        metavar="[all]",
+        metavar="",  # Empty metavar to avoid space in usage line
     )
     check_all_parser = check_subparser.add_parser(
         "all",
@@ -719,14 +719,22 @@ def handle_word_vba_command(args: argparse.Namespace) -> None:
 def main() -> None:
     """Main entry point for the word-vba CLI."""
     try:
-        parser = create_cli_parser()
-        args = parser.parse_args()
-
-        # Handle color control first (before any output)
-        if getattr(args, "no_color", False):
+        # Check for --no-color flag BEFORE creating parser
+        # This ensures help messages honor the flag
+        if "--no-color" in sys.argv or "--no-colour" in sys.argv:
             from vba_edit.console import disable_colors
 
             disable_colors()
+
+        # Handle easter egg flags first (before argparse validation)
+        # This allows them to work without requiring a command
+        if "--diagram" in sys.argv or "--how-it-works" in sys.argv:
+            from vba_edit.utils import show_workflow_diagram
+
+            show_workflow_diagram()
+
+        parser = create_cli_parser()
+        args = parser.parse_args()
 
         # Process configuration file BEFORE setting up logging
         args = process_config_file(args)

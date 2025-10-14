@@ -5,7 +5,30 @@ import re
 import sys
 import textwrap
 
-from vba_edit.console import RICH_AVAILABLE, console
+from vba_edit.console import RICH_AVAILABLE
+
+
+def strip_rich_markup(text: str) -> str:
+    """Strip Rich markup tags while preserving literal brackets.
+
+    Removes Rich styling tags like [bold], [/cyan], etc. while preserving
+    literal brackets like [--file FILE], [CTRL+S], etc.
+
+    Args:
+        text: Text potentially containing Rich markup tags
+
+    Returns:
+        Text with Rich markup removed
+    """
+    # Remove Rich style tags: [style] or [/style] or [style params]
+    text = re.sub(
+        r"\[/?(?:bold|dim|cyan|bright_cyan|italic|underline|strike|reverse|blink|conceal|white|black|red|green|yellow|blue|magenta|white|default|bright_\w+|on_\w+|heading|usage|metavar|choices|command|option|action|number|path|file|success|error|warning|info)(?:\s+[^\]]+)?\]",
+        "",
+        text,
+    )
+    # Remove link markup: [link=...] ... [/link]
+    text = re.sub(r"\[/?link[^\]]*\]", "", text)
+    return text
 
 
 def print_help_with_rich(text):
@@ -17,12 +40,16 @@ def print_help_with_rich(text):
     Args:
         text: Help text (potentially with rich markup tags)
     """
+    # Import console dynamically to get the current (possibly replaced) instance
+    from vba_edit.console import console
+
     if RICH_AVAILABLE and not console.no_color:
-        # Use rich console to print (will render markup tags)
-        console.print(text, end="", highlight=False, soft_wrap=True)
+        # Use rich console to print (will render markup tags and apply highlighting)
+        # Note: highlight=True allows our custom highlighter to work on plain text portions
+        console.print(text, end="", highlight=True, soft_wrap=True)
     else:
-        # Strip markup tags and print normally
-        text = re.sub(r"\[/?[^\]]+\]", "", text)
+        # Strip Rich markup tags but preserve literal brackets like [--file FILE]
+        text = strip_rich_markup(text)
         sys.stdout.write(text)
 
 
@@ -75,6 +102,9 @@ class EnhancedHelpFormatter(argparse.RawDescriptionHelpFormatter):
         super().__init__(prog, indent_increment, max_help_position, width)
         self._section_heading = None  # Store just the heading text for reference
         # Check if colors should be used (rich available and not disabled)
+        # Import console dynamically to get current instance
+        from vba_edit.console import console
+
         self._use_colors = RICH_AVAILABLE and not console.no_color
 
     def _colorize(self, text, style):
@@ -137,6 +167,9 @@ class EnhancedHelpFormatter(argparse.RawDescriptionHelpFormatter):
     def _format_action(self, action):
         """Format an individual action with better alignment and optional colorization.
 
+        Uses 3 regex passes over the entire string instead of line-by-line processing.
+        This is simpler and more maintainable than manual string splitting.
+
         Args:
             action: Action to format
 
@@ -150,33 +183,42 @@ class EnhancedHelpFormatter(argparse.RawDescriptionHelpFormatter):
         # Get original formatting
         result = super()._format_action(action)
 
-        # Apply colorization if enabled
+        # Apply colorization if enabled using 3 regex passes
         if self._use_colors and result:
-            # Colorize option flags (--option, -o)
-            result = re.sub(r"(--?[\w-]+)", lambda m: self._colorize(m.group(1), "option"), result)
-            # Colorize metavars (FILE, DIR, ENCODING, etc.) - uppercase words
-            result = re.sub(r"\b([A-Z_]{2,})\b", lambda m: self._colorize(m.group(1), "metavar"), result)
-            # Colorize command names in the Commands/Subcommands section
+            # Pass 1: Colorize option flags (--option, -o)
+            # Matches options at start of line or after comma/whitespace
+            # Avoids matching options inside help text (after 2+ spaces)
+            result = re.sub(
+                r"(^|\s)(--?[\w-]+)(?=\s*(?:,|[A-Z_]|\s{2,}|$))",
+                lambda m: m.group(1) + self._colorize(m.group(2), "option"),
+                result,
+                flags=re.MULTILINE,
+            )
+
+            # Pass 2: Colorize metavars (FILE, DIR, ENCODING)
+            # Matches uppercase words of 2+ chars that appear before help text (2+ spaces)
+            # or at end of line
+            result = re.sub(
+                r"\b([A-Z_]{2,})\b(?=\s{2,}|$)",
+                lambda m: self._colorize(m.group(1), "metavar"),
+                result,
+                flags=re.MULTILINE,
+            )
+
+            # Pass 3: Colorize command names in Commands/Subcommands section
+            # Only if we're in the commands section
             if (
                 hasattr(self, "_section_heading")
                 and self._section_heading
                 and self._section_heading.lower() in ["commands", "subcommands"]
             ):
-                # Colorize command names at start of line (after whitespace)
+                # Matches command name at start of line (after whitespace) followed by 2+ spaces
                 result = re.sub(
-                    r"(^\s+)(\w+)",
+                    r"^(\s+)(\w+)(?=\s{2,})",
                     lambda m: m.group(1) + self._colorize(m.group(2), "command"),
                     result,
                     flags=re.MULTILINE,
                 )
-
-        # Add extra spacing after action groups for readability
-        if (
-            hasattr(self, "_section_heading")
-            and self._section_heading
-            and self._section_heading.lower() in ["commands", "subcommands"]
-        ):
-            result += "\n"
 
         return result
 
