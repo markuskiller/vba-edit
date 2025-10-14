@@ -19,7 +19,6 @@ Usage:
     console.print("[success]✓[/success] Exported: [path]Module1.bas[/path]")
 """
 
-import re
 import sys
 
 try:
@@ -124,7 +123,6 @@ try:
                 lines: List of text lines
                 offset_tracker: Single-item list tracking current offset [offset]
             """
-            import re
 
             offset = offset_tracker[0]
             in_important = False
@@ -240,7 +238,6 @@ try:
             IMPORTANT: Order matters! We dim example lines FIRST, then
             check for dim style when adding technical term highlights.
             """
-            import re
 
             plain_text = text.plain
             lines = plain_text.split("\n")
