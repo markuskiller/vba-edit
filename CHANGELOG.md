@@ -11,7 +11,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Support for Python 3.14**
 - **Windows Binaries**: Automated build workflow for Windows executables
-  - Built automatically when creating releases
   - Includes SHA256 checksums for verification
   - GitHub Attestations provide cryptographic proof of authenticity
   - Software Bill of Materials (SBOM) included with each release
@@ -21,7 +20,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Falls back to separate `.header` files if you use those
   - Creates minimal headers if neither exists
   - Import command now warns when both inline and separate header formats exist
-  - Prevents confusion about which header format is being used
   - Clearly states that inline headers take precedence
   - Helps identify conflicting header configurations
 - **Colorized Terminal Output**: Modern, professional CLI appearance with automatic color support
@@ -31,6 +29,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Help text uses syntax highlighting with different colors for options, file names, and section headings
   - Technical terms (TOML, JSON, VBA, Module, Class) highlighted in cyan
   - Example command lines shown in dim gray for easy scanning
+
+### Fixed
+
+- **CI/CD Reliability**: Improved test stability on GitHub Actions runners
+  - Added subprocess timeouts to prevent intermittent hangs
+  - Increased test timeouts for better reliability on slower CI runners
+  - Prevents rare deadlocks when running help commands under load
   - IMPORTANT warnings appear in yellow so you don't miss them
   - Colors match modern tools like uv and ruff for a familiar experience
   - Automatically disabled when output is piped or redirected
