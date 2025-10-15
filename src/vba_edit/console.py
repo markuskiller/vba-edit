@@ -21,6 +21,10 @@ Usage:
 
 import sys
 
+# Module-level flag to track if colors are disabled
+# This is set by disable_colors() and checked by help formatter
+_colors_disabled = False
+
 try:
     from rich.console import Console
     from rich.highlighter import Highlighter
@@ -427,7 +431,10 @@ def disable_colors():
     This function sets the no_color flag on both console instances,
     which causes them to output plain text without any styling.
     """
-    global console, error_console
+    global console, error_console, _colors_disabled
+    
+    # Set module-level flag for help formatter
+    _colors_disabled = True
 
     # Import at function level to avoid circular imports
     from vba_edit.help_formatter import strip_rich_markup

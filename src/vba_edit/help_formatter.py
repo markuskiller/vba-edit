@@ -40,13 +40,13 @@ def print_help_with_rich(text):
     Args:
         text: Help text (potentially with rich markup tags)
     """
-    # Import console dynamically to get the current (possibly replaced) instance
-    from vba_edit.console import console
-
-    if RICH_AVAILABLE and not console.no_color:
+    # Import module to check if colors were disabled
+    import vba_edit.console as console_module
+    
+    if RICH_AVAILABLE and not console_module._colors_disabled:
         # Use rich console to print (will render markup tags and apply highlighting)
         # Note: highlight=True allows our custom highlighter to work on plain text portions
-        console.print(text, end="", highlight=True, soft_wrap=True)
+        console_module.console.print(text, end="", highlight=True, soft_wrap=True)
     else:
         # Strip Rich markup tags but preserve literal brackets like [--file FILE]
         text = strip_rich_markup(text)
@@ -58,7 +58,25 @@ class ColorizedArgumentParser(argparse.ArgumentParser):
 
     This subclass intercepts help printing and routes it through
     rich console if available and colors are enabled.
+    
+    Also disables Python 3.13+ built-in argparse colors when --no-color is used.
     """
+
+    def __init__(self, *args, **kwargs):
+        """Initialize parser with color support control.
+        
+        In Python 3.13+, argparse has built-in color support via the 'color' parameter.
+        We need to disable it when our --no-color flag is used.
+        """
+        # Check if colors are disabled via our module-level flag
+        import vba_edit.console as console_module
+        
+        # For Python 3.13+, disable built-in argparse colors if our flag is set
+        # For older Python, the 'color' parameter is ignored
+        if console_module._colors_disabled:
+            kwargs.setdefault('color', False)
+        
+        super().__init__(*args, **kwargs)
 
     def print_help(self, file=None):
         """Print help message using rich console if available.
@@ -101,11 +119,19 @@ class EnhancedHelpFormatter(argparse.RawDescriptionHelpFormatter):
         """
         super().__init__(prog, indent_increment, max_help_position, width)
         self._section_heading = None  # Store just the heading text for reference
-        # Check if colors should be used (rich available and not disabled)
-        # Import console dynamically to get current instance
-        from vba_edit.console import console
+        # NOTE: Don't cache _use_colors here - check dynamically via _should_use_colors()
+        # This ensures --no-color flag is respected even when checked before parser creation
 
-        self._use_colors = RICH_AVAILABLE and not console.no_color
+    def _should_use_colors(self):
+        """Check if colors should be used (dynamic check).
+
+        Returns:
+            True if colors should be used, False otherwise
+        """
+        # Import module to check if colors were disabled
+        import vba_edit.console as console_module
+        
+        return RICH_AVAILABLE and not console_module._colors_disabled
 
     def _colorize(self, text, style):
         """Apply color styling to text if colors are enabled.
@@ -117,7 +143,7 @@ class EnhancedHelpFormatter(argparse.RawDescriptionHelpFormatter):
         Returns:
             Styled text if colors enabled, plain text otherwise
         """
-        if not self._use_colors or not text:
+        if not self._should_use_colors() or not text:
             return text
         return f"[{style}]{text}[/{style}]"
 
@@ -165,7 +191,7 @@ class EnhancedHelpFormatter(argparse.RawDescriptionHelpFormatter):
             # Remove any existing colons before adding our own
             heading = heading.rstrip(":")
             # Colorize section headings (bold green in uv style)
-            if self._use_colors:
+            if self._should_use_colors():
                 heading = self._colorize(heading, "heading")
         super().start_section(heading)
 
@@ -189,7 +215,7 @@ class EnhancedHelpFormatter(argparse.RawDescriptionHelpFormatter):
         result = super()._format_action(action)
 
         # Apply colorization if enabled using 3 regex passes
-        if self._use_colors and result:
+        if self._should_use_colors() and result:
             # Pass 1: Colorize option flags (--option, -o)
             # Matches options at start of line or after comma/whitespace
             # Avoids matching options inside help text (after 2+ spaces)
@@ -255,7 +281,7 @@ class EnhancedHelpFormatter(argparse.RawDescriptionHelpFormatter):
 
         # If rich is available and colors enabled, use rich console to print
         # (The markup tags [option], [command], etc. will be rendered)
-        if self._use_colors and RICH_AVAILABLE:
+        if self._should_use_colors() and RICH_AVAILABLE:
             # Return the help text with markup - argparse will print it,
             # but we've already added the markup tags
             return help_text
