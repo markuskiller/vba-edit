@@ -571,9 +571,7 @@ End Sub
                     # Check that NO warning about conflicting headers was logged
                     warning_messages = [record.message for record in caplog.records if record.levelname == "WARNING"]
                     assert all(
-                        "Both inline headers and separate header file found"
-                        not in msg
-                        for msg in warning_messages
+                        "Both inline headers and separate header file found" not in msg for msg in warning_messages
                     )
 
     def test_no_warning_with_only_separate_headers(self, tmp_path, handler, caplog):
@@ -616,7 +614,5 @@ End Sub
                     # Check that NO warning about conflicting headers was logged
                     warning_messages = [record.message for record in caplog.records if record.levelname == "WARNING"]
                     assert all(
-                        "Both inline headers and separate header file found"
-                        not in msg
-                        for msg in warning_messages
+                        "Both inline headers and separate header file found" not in msg for msg in warning_messages
                     )

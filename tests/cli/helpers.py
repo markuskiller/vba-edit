@@ -455,7 +455,7 @@ class CLITester:
             input=input_text.encode() if input_text else None,
             capture_output=True,
             text=True,
-            timeout=10  # 10 second timeout to prevent CI/CD hangs
+            timeout=10,  # 10 second timeout to prevent CI/CD hangs
         )
 
     def assert_success(self, args: List[str], expected_output: Optional[str] = None) -> None:

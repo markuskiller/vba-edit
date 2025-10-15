@@ -42,7 +42,7 @@ def print_help_with_rich(text):
     """
     # Import module to check if colors were disabled
     import vba_edit.console as console_module
-    
+
     if RICH_AVAILABLE and not console_module._colors_disabled:
         # Use rich console to print (will render markup tags and apply highlighting)
         # Note: highlight=True allows our custom highlighter to work on plain text portions
@@ -58,24 +58,33 @@ class ColorizedArgumentParser(argparse.ArgumentParser):
 
     This subclass intercepts help printing and routes it through
     rich console if available and colors are enabled.
-    
+
     Disables Python 3.14+ built-in argparse colors in favor of our Rich colors.
     """
 
     def __init__(self, *args, **kwargs):
         """Initialize parser with color support control.
-        
+
         Python 3.14+ added built-in color support to argparse with a 'color' parameter.
-        We always disable it (color=False) because we use Rich for superior colorization.
+        We always disable it (color=False) because we use Rich for custom colorization.
         This ensures our custom color scheme (uv/ruff style) is used instead of argparse's
         default colors.
-        
-        For Python <3.14, the 'color' parameter is ignored (backward compatible).
+
+        For Python <3.14, the 'color' parameter doesn't exist and is safely ignored.
         """
         # Always disable argparse's built-in colors - we use Rich instead
-        kwargs.setdefault('color', False)
-        
-        super().__init__(*args, **kwargs)
+        # Only available in Python 3.14+, safely ignored in earlier versions
+        kwargs.setdefault("color", False)
+
+        try:
+            super().__init__(*args, **kwargs)
+        except TypeError as e:
+            # Python <3.14 doesn't support 'color' parameter
+            if "color" in str(e):
+                kwargs.pop("color", None)
+                super().__init__(*args, **kwargs)
+            else:
+                raise
 
     def print_help(self, file=None):
         """Print help message using rich console if available.
@@ -129,7 +138,7 @@ class EnhancedHelpFormatter(argparse.RawDescriptionHelpFormatter):
         """
         # Import module to check if colors were disabled
         import vba_edit.console as console_module
-        
+
         return RICH_AVAILABLE and not console_module._colors_disabled
 
     def _colorize(self, text, style):
@@ -164,7 +173,7 @@ class EnhancedHelpFormatter(argparse.RawDescriptionHelpFormatter):
         # The usage line is formatted by argparse before reaching Rich console,
         # which causes raw escape codes (like '35m') to appear in output.
         # The usage line is already clear without colorization.
-        
+
         # if self._use_colors:
         #     # Colorize command names (prog name)
         #     result = re.sub(r"\b(\w+-vba)\b", lambda m: self._colorize(m.group(1), "command"), result)

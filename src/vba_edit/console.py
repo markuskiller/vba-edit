@@ -432,7 +432,7 @@ def disable_colors():
     which causes them to output plain text without any styling.
     """
     global console, error_console, _colors_disabled
-    
+
     # Set module-level flag for help formatter
     _colors_disabled = True
 
