@@ -5,40 +5,31 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.4.1a2] - 2025-10-15
+## [0.4.1-rc1] - unreleased
 
 ### Added
 
+- **Support for Python 3.14**
 - **Automatic Header Detection**: Import command now works without manual header flags
   - Automatically finds VBA headers in your code files (VERSION/BEGIN/Attribute lines)
   - Falls back to separate `.header` files if you use those
   - Creates minimal headers if neither exists
-  - Just works - no need to remember which flag to use
-  - Smart detection avoids treating code comments as headers
-- **Better Help Text Readability**: Important information stands out more clearly
-  - Technical terms (TOML, JSON, VBA, Module, Class) highlighted in cyan
-  - Example command lines shown in dim gray for easy scanning
-  - IMPORTANT warnings appear in yellow so you don't miss them
-  - Easier to find what you need in help output
-  - Respects `--no-color` flag for accessibility
-
-## [0.4.1a1] - 2025-10-10
-
-### Added
-
 - **Colorized Terminal Output**: Modern, professional CLI appearance with automatic color support
   - Success messages appear in green with checkmarks (✓)
   - Error messages appear in red with X marks (✗)
   - Warning messages appear in yellow with warning symbols (⚠)
-  - Help text now uses syntax highlighting with different colors for options, file names, and section headings
+  - Help text uses syntax highlighting with different colors for options, file names, and section headings
+  - Technical terms (TOML, JSON, VBA, Module, Class) highlighted in cyan
+  - Example command lines shown in dim gray for easy scanning
+  - IMPORTANT warnings appear in yellow so you don't miss them
   - Colors match modern tools like uv and ruff for a familiar experience
   - Automatically disabled when output is piped or redirected
   - Use `--no-color` flag to disable if needed
 - **Improved Help Messages**: Completely redesigned help output for all commands
-  - Options are now organized into clear groups (File Options, Configuration, Encoding, etc.)
+  - Options organized into clear groups (File Options, Configuration, Encoding, etc.)
   - Main help shows concise overview with practical examples
   - Command-specific help displays all available options with detailed descriptions
-  - Design by ([@onderhold](https://github.com/onderhold))
+  - Design by [@onderhold](https://github.com/onderhold)
 - **Metadata Saving**: New `-m/--save-metadata` option now available in both `edit` and `export` commands
   - Preserve metadata when exporting in edit mode
   - Makes workflows more consistent across commands
@@ -51,6 +42,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Includes SHA256 checksums for verification
   - GitHub Attestations provide cryptographic proof of authenticity
   - Software Bill of Materials (SBOM) included with each release
+  - See **[Issue #24](https://github.com/markuskiller/vba-edit/issues/24)** for more information on expected 'false positive' categorization of our unsigned binaries by some anti-malware tools 
 - **Security Documentation**: Comprehensive security policy and verification guide
   - Clear vulnerability reporting process
   - Multiple verification methods for binaries
