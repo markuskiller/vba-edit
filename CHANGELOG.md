@@ -39,6 +39,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Help Display**: Fixed ANSI escape code leakage in Windows binaries
   - Removed raw color codes (like '35m') appearing in usage line
   - Help text colorization now works correctly in all scenarios
+- **Color Control**: Fixed `--no-color` flag to work with Python 3.13+ argparse
+  - Python 3.13+ added built-in color support to argparse that wasn't being disabled
+  - `--no-color` now correctly disables both Rich colors and argparse colors
+  - Ensures completely plain text output when color is disabled
 - **Colorized Output**: IMPORTANT warnings appear in yellow so you don't miss them
   - Colors match modern tools like uv and ruff for a familiar experience
   - Automatically disabled when output is piped or redirected
