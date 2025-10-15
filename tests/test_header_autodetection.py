@@ -417,3 +417,202 @@ class TestHeaderDetectionPerformance:
 
         # Should NOT detect headers (they're after line 10)
         assert handler.has_inline_headers(test_file) is False
+
+
+class TestConflictingHeaders:
+    """Test handling of conflicting header formats (inline + separate .header file)."""
+
+    @pytest.fixture
+    def handler(self):
+        """Create a VBAComponentHandler instance."""
+        return VBAComponentHandler()
+
+    def test_warns_when_both_formats_exist(self, tmp_path, handler, caplog):
+        """Test that a warning is logged when both inline and separate headers exist."""
+        import logging
+        from unittest.mock import Mock, patch
+        from vba_edit.excel_vba import ExcelVBAHandler
+
+        # Create a code file with inline headers
+        code_file = tmp_path / "Module1.bas"
+        code_file.write_text(
+            """VERSION 1.0 CLASS
+BEGIN
+END
+Attribute VB_Name = "Module1"
+
+Sub Test()
+    MsgBox "Hello"
+End Sub
+""",
+            encoding="utf-8",
+        )
+
+        # Create a separate header file (conflicting situation)
+        header_file = tmp_path / "Module1.bas.header"
+        header_file.write_text(
+            """VERSION 1.0 CLASS
+BEGIN
+END
+Attribute VB_Name = "Module1"
+""",
+            encoding="utf-8",
+        )
+
+        # Verify both exist
+        assert code_file.exists()
+        assert header_file.exists()
+        assert handler.has_inline_headers(code_file) is True
+
+        # Create test Excel file
+        excel_file = tmp_path / "test.xlsm"
+        excel_file.touch()
+
+        # Mock the Excel handler and test import_component
+        with patch("vba_edit.office_vba.OfficeVBAHandler._import_with_in_file_headers"):
+            with patch("vba_edit.office_vba.OfficeVBAHandler.save_document"):
+                with patch("vba_edit.excel_vba.ExcelVBAHandler._open_document_impl"):
+                    office_handler = ExcelVBAHandler(doc_path=str(excel_file), vba_dir=str(tmp_path))
+
+                    # Mock components collection
+                    mock_components = Mock()
+
+                    # Capture log messages
+                    with caplog.at_level(logging.WARNING):
+                        office_handler.import_component(code_file, mock_components)
+
+                    # Check that warning was logged
+                    warning_messages = [record.message for record in caplog.records if record.levelname == "WARNING"]
+                    assert len(warning_messages) > 0
+                    assert any("Both inline headers and separate header file found" in msg for msg in warning_messages)
+                    assert any("Using inline headers" in msg for msg in warning_messages)
+                    assert any(".header file will be ignored" in msg for msg in warning_messages)
+
+    def test_inline_headers_take_precedence(self, tmp_path, handler):
+        """Test that inline headers are used when both formats exist."""
+        from unittest.mock import Mock, patch
+        from vba_edit.excel_vba import ExcelVBAHandler
+
+        # Create a code file with inline headers
+        code_file = tmp_path / "TestModule.bas"
+        code_file.write_text(
+            """VERSION 1.0 CLASS
+BEGIN
+END
+Attribute VB_Name = "TestModule"
+
+Sub InlineTest()
+End Sub
+""",
+            encoding="utf-8",
+        )
+
+        # Create a separate header file (should be ignored)
+        header_file = tmp_path / "TestModule.bas.header"
+        header_file.write_text("VERSION 5.0 CLASS\n", encoding="utf-8")
+
+        # Verify setup
+        assert code_file.exists()
+        assert header_file.exists()
+
+        # Create test Excel file
+        excel_file = tmp_path / "test.xlsm"
+        excel_file.touch()
+
+        # Mock and test that inline header path is taken
+        with patch("vba_edit.office_vba.OfficeVBAHandler._import_with_in_file_headers") as mock_inline:
+            with patch("vba_edit.office_vba.OfficeVBAHandler._import_with_separate_headers") as mock_separate:
+                with patch("vba_edit.office_vba.OfficeVBAHandler.save_document"):
+                    with patch("vba_edit.excel_vba.ExcelVBAHandler._open_document_impl"):
+                        office_handler = ExcelVBAHandler(doc_path=str(excel_file), vba_dir=str(tmp_path))
+                        mock_components = Mock()
+
+                        office_handler.import_component(code_file, mock_components)
+
+                        # Verify inline import was called, separate was NOT called
+                        mock_inline.assert_called_once()
+                        mock_separate.assert_not_called()
+
+    def test_no_warning_with_only_inline_headers(self, tmp_path, handler, caplog):
+        """Test that no warning is logged when only inline headers exist."""
+        import logging
+        from unittest.mock import Mock, patch
+        from vba_edit.excel_vba import ExcelVBAHandler
+
+        # Create a code file with inline headers only
+        code_file = tmp_path / "Module1.bas"
+        code_file.write_text(
+            """VERSION 1.0 CLASS
+Attribute VB_Name = "Module1"
+
+Sub Test()
+End Sub
+""",
+            encoding="utf-8",
+        )
+
+        # Verify NO separate header file exists
+        header_file = tmp_path / "Module1.bas.header"
+        assert not header_file.exists()
+
+        # Create test Excel file
+        excel_file = tmp_path / "test.xlsm"
+        excel_file.touch()
+
+        with patch("vba_edit.office_vba.OfficeVBAHandler._import_with_in_file_headers"):
+            with patch("vba_edit.office_vba.OfficeVBAHandler.save_document"):
+                with patch("vba_edit.excel_vba.ExcelVBAHandler._open_document_impl"):
+                    office_handler = ExcelVBAHandler(doc_path=str(excel_file), vba_dir=str(tmp_path))
+                    mock_components = Mock()
+
+                    with caplog.at_level(logging.WARNING):
+                        office_handler.import_component(code_file, mock_components)
+
+                    # Check that NO warning about conflicting headers was logged
+                    warning_messages = [record.message for record in caplog.records if record.levelname == "WARNING"]
+                    assert not any(
+                        "Both inline headers and separate header file found" in msg for msg in warning_messages
+                    )
+
+    def test_no_warning_with_only_separate_headers(self, tmp_path, handler, caplog):
+        """Test that no warning is logged when only separate header file exists."""
+        import logging
+        from unittest.mock import Mock, patch
+        from vba_edit.excel_vba import ExcelVBAHandler
+
+        # Create a code file WITHOUT inline headers
+        code_file = tmp_path / "Module1.bas"
+        code_file.write_text(
+            """Sub Test()
+    MsgBox "Hello"
+End Sub
+""",
+            encoding="utf-8",
+        )
+
+        # Create separate header file
+        header_file = tmp_path / "Module1.bas.header"
+        header_file.write_text('Attribute VB_Name = "Module1"\n', encoding="utf-8")
+
+        # Verify setup
+        assert not handler.has_inline_headers(code_file)
+        assert header_file.exists()
+
+        # Create test Excel file
+        excel_file = tmp_path / "test.xlsm"
+        excel_file.touch()
+
+        with patch("vba_edit.office_vba.OfficeVBAHandler._import_with_separate_headers"):
+            with patch("vba_edit.office_vba.OfficeVBAHandler.save_document"):
+                with patch("vba_edit.excel_vba.ExcelVBAHandler._open_document_impl"):
+                    office_handler = ExcelVBAHandler(doc_path=str(excel_file), vba_dir=str(tmp_path))
+                    mock_components = Mock()
+
+                    with caplog.at_level(logging.WARNING):
+                        office_handler.import_component(code_file, mock_components)
+
+                    # Check that NO warning about conflicting headers was logged
+                    warning_messages = [record.message for record in caplog.records if record.levelname == "WARNING"]
+                    assert not any(
+                        "Both inline headers and separate header file found" in msg for msg in warning_messages
+                    )

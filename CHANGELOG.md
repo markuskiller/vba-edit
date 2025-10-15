@@ -54,6 +54,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Header Import Warning**: Import command now warns when both inline and separate header formats exist
+  - Prevents confusion about which header format is being used
+  - Clearly states that inline headers take precedence
+  - Helps identify conflicting header configurations
 - **Option Availability**: `--open-folder` now works with `edit`, `import`, and `export` commands
   - Previously only available on some commands
   - Improves workflow by opening results folder after operations
