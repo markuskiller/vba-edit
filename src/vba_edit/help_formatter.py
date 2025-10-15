@@ -59,22 +59,21 @@ class ColorizedArgumentParser(argparse.ArgumentParser):
     This subclass intercepts help printing and routes it through
     rich console if available and colors are enabled.
     
-    Also disables Python 3.13+ built-in argparse colors when --no-color is used.
+    Disables Python 3.14+ built-in argparse colors in favor of our Rich colors.
     """
 
     def __init__(self, *args, **kwargs):
         """Initialize parser with color support control.
         
-        In Python 3.13+, argparse has built-in color support via the 'color' parameter.
-        We need to disable it when our --no-color flag is used.
-        """
-        # Check if colors are disabled via our module-level flag
-        import vba_edit.console as console_module
+        Python 3.14+ added built-in color support to argparse with a 'color' parameter.
+        We always disable it (color=False) because we use Rich for superior colorization.
+        This ensures our custom color scheme (uv/ruff style) is used instead of argparse's
+        default colors.
         
-        # For Python 3.13+, disable built-in argparse colors if our flag is set
-        # For older Python, the 'color' parameter is ignored
-        if console_module._colors_disabled:
-            kwargs.setdefault('color', False)
+        For Python <3.14, the 'color' parameter is ignored (backward compatible).
+        """
+        # Always disable argparse's built-in colors - we use Rich instead
+        kwargs.setdefault('color', False)
         
         super().__init__(*args, **kwargs)
 
