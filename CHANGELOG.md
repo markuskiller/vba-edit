@@ -10,10 +10,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - **Support for Python 3.14**
+- **Windows Binaries**: Automated build workflow for Windows executables
+  - Built automatically when creating releases
+  - Includes SHA256 checksums for verification
+  - GitHub Attestations provide cryptographic proof of authenticity
+  - Software Bill of Materials (SBOM) included with each release
+  - See **[Issue #24](https://github.com/markuskiller/vba-edit/issues/24)** for more information on expected 'false positive' categorization of our unsigned binaries by some anti-malware tools 
 - **Automatic Header Detection**: Import command now works without manual header flags
   - Automatically finds VBA headers in your code files (VERSION/BEGIN/Attribute lines)
   - Falls back to separate `.header` files if you use those
   - Creates minimal headers if neither exists
+  - Import command now warns when both inline and separate header formats exist
+  - Prevents confusion about which header format is being used
+  - Clearly states that inline headers take precedence
+  - Helps identify conflicting header configurations
 - **Colorized Terminal Output**: Modern, professional CLI appearance with automatic color support
   - Success messages appear in green with checkmarks (✓)
   - Error messages appear in red with X marks (✗)
@@ -37,12 +47,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Use `{file.name}`, `{file.fullname}`, `{file.path}` instead of `{general.file.*}`
   - Use `{file.vbaproject}` instead of `{vbaproject}`
   - Old placeholders still work (will be removed in v0.5.0)
-- **Windows Binaries**: Automated build workflow for Windows executables
-  - Built automatically when creating releases
-  - Includes SHA256 checksums for verification
-  - GitHub Attestations provide cryptographic proof of authenticity
-  - Software Bill of Materials (SBOM) included with each release
-  - See **[Issue #24](https://github.com/markuskiller/vba-edit/issues/24)** for more information on expected 'false positive' categorization of our unsigned binaries by some anti-malware tools 
 - **Security Documentation**: Comprehensive security policy and verification guide
   - Clear vulnerability reporting process
   - Multiple verification methods for binaries

@@ -134,7 +134,7 @@ try:
                 elif in_important and len(line) >= 11 and line[:11] == " " * 11 and line[11] != " ":
                     # Continuation line (indented to column 12)
                     text.stylize("dim yellow", offset, offset + len(line))
-                elif in_important and (not line.strip() or not (len(line) >= 11 and line[:11] == " " * 11)):
+                elif in_important and (not line.strip() or len(line) < 11 or line[:11] != " " * 11):
                     in_important = False
 
                 offset += len(line) + 1
@@ -224,10 +224,7 @@ try:
             Returns:
                 True if range is already styled or dimmed
             """
-            for span_start, span_end, style in text.spans:
-                if not (end <= span_start or start >= span_end):
-                    return True  # Overlaps with existing style
-            return False
+            return any(end > span_start and start < span_end for span_start, span_end, style in text.spans)
 
         def highlight(self, text: Text) -> None:
             """Apply highlighting to text.

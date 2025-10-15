@@ -515,7 +515,7 @@ class VBAComponentHandler:
             return False
 
         except Exception as e:
-            logger.debug(f"Error checking for inline headers in {file_path}: {e}")
+            logger.debug(f"Error checking for inline headers in {file_path}: {e}", exc_info=True)
             return False
 
     def create_minimal_header(self, name: str, module_type: VBAModuleType) -> str:
@@ -1195,6 +1195,17 @@ class OfficeVBAHandler(ABC):
             # Auto-detect header format
             has_inline_headers = self.component_handler.has_inline_headers(file_path, encoding=self.encoding)
 
+            # Check for separate header file
+            header_file = file_path.with_suffix(f"{file_path.suffix}.header")
+            has_separate_header = header_file.exists()
+
+            # Warn if both formats exist (conflicting headers)
+            if has_inline_headers and has_separate_header:
+                logger.warning(
+                    f"Both inline headers and separate header file found for {file_path.name}. "
+                    f"Using inline headers (separate .header file will be ignored)."
+                )
+
             # Pass detected format to get_module_type
             module_type = self.component_handler.get_module_type(
                 file_path, in_file_headers=has_inline_headers, encoding=self.encoding
@@ -1203,6 +1214,7 @@ class OfficeVBAHandler(ABC):
             logger.debug(f"Processing module: {name} (Type: {module_type}, Inline headers: {has_inline_headers})")
 
             # Route to appropriate import handler based on detection
+            # Precedence: inline > separate > minimal
             if has_inline_headers:
                 self._import_with_in_file_headers(file_path, components, module_type)
             else:

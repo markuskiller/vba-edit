@@ -21,6 +21,7 @@ classifiers = [
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Programming Language :: Python :: Implementation :: CPython",
     "Operating System :: Microsoft :: Windows",
     "Topic :: Office/Business :: Office Suites",
@@ -28,7 +29,7 @@ classifiers = [
 dependencies = [
     "chardet",
     "pywin32 >= 224;platform_system=='Windows'",
-    "watchfiles",                                # replaced watchgod
+    "watchfiles>=1.1.1",                         # replaced watchgod; 1.1.1+ required for Python 3.14
     "tomli>=2.0.0; python_version < '3.11'",
     "rich>=13.0.0",                              # Modern terminal output with colors
 ]
