@@ -135,13 +135,18 @@ class EnhancedHelpFormatter(argparse.RawDescriptionHelpFormatter):
         """
         result = super()._format_usage(usage, actions, groups, prefix)
 
-        if self._use_colors:
-            # Colorize command names (prog name)
-            result = re.sub(r"\b(\w+-vba)\b", lambda m: self._colorize(m.group(1), "command"), result)
-            # Colorize optional arguments in square brackets
-            result = re.sub(r"(\[--?[\w-]+[^\]]*\])", lambda m: self._colorize(m.group(1), "dim"), result)
-            # Colorize required arguments in angle brackets
-            result = re.sub(r"(<[^>]+>)", lambda m: self._colorize(m.group(1), "metavar"), result)
+        # NOTE: Usage colorization disabled - causes ANSI escape code leakage
+        # The usage line is formatted by argparse before reaching Rich console,
+        # which causes raw escape codes (like '35m') to appear in output.
+        # The usage line is already clear without colorization.
+        
+        # if self._use_colors:
+        #     # Colorize command names (prog name)
+        #     result = re.sub(r"\b(\w+-vba)\b", lambda m: self._colorize(m.group(1), "command"), result)
+        #     # Colorize optional arguments in square brackets
+        #     result = re.sub(r"(\[--?[\w-]+[^\]]*\])", lambda m: self._colorize(m.group(1), "dim"), result)
+        #     # Colorize required arguments in angle brackets
+        #     result = re.sub(r"(<[^>]+>)", lambda m: self._colorize(m.group(1), "metavar"), result)
 
         return result
 
