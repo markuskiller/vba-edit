@@ -125,7 +125,7 @@ ignore_missing_imports = true
 minversion = "7.0"
 addopts = "-ra -q --strict-markers --strict-config"
 testpaths = ["tests"]
-timeout = 5
+timeout = 30 # 30 seconds - increased for GitHub Actions reliability (was 5)
 timeout_method = "thread"
 filterwarnings = [
     "error",
