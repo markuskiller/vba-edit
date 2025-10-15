@@ -1,7 +1,6 @@
 # [vba-edit](https://github.com/markuskiller/vba-edit) 
 
-**Edit VBA code in VS Code, Sublime, or any editor you love.** Real-time sync with MS Office apps (support for **Excel**, **Word**, **PowerPoint** & **Access**). Git-friendly. No more VBA editor pain.
-
+**Edit VBA code in VS Code, PyCharm, Wing IDE, or any editor you love.** Real-time sync with MS Office apps (support for **Excel**, **Word**, **PowerPoint** & **Access**). Git-friendly. No more VBA editor pain.
 
 [![CI](https://github.com/markuskiller/vba-edit/actions/workflows/test.yaml/badge.svg)](https://github.com/markuskiller/vba-edit/actions/workflows/test.yaml)
 [![PyPI - Version](https://img.shields.io/pypi/v/vba-edit.svg)](https://pypi.org/project/vba-edit)
@@ -9,8 +8,8 @@
 [![Platform](https://img.shields.io/badge/platform-windows-blue.svg)](https://github.com/markuskiller/vba-edit)
 [![PyPI - Downloads](https://img.shields.io/pypi/dm/vba-edit)](https://pypi.org/project/vba-edit)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
+[![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/markuskiller/vba-edit/badge)](https://securityscorecards.dev/viewer/?uri=github.com/markuskiller/vba-edit)
 [![License](https://img.shields.io/badge/License-BSD_3--Clause-blue.svg)](https://opensource.org/licenses/BSD-3-Clause)
-
 
 ## 30-Second Demo
 ```bash
@@ -52,7 +51,7 @@ PowerPoint / Access             v                       Editor
 
 ## Why vba-edit?
 
-- **Use YOUR editor** - VS Code, PyCharm, Wing IDE, Vim, etc. whatever you love 
+- **Use YOUR editor** - VS Code, PyCharm, Wing IDE, Sublime, Vim, etc. whatever you love 
 - **AI-ready** - Use Copilot, ChatGPT, or any coding assistant 
 - **Team-friendly** - Share code via Git, no COM add-ins needed 
 - **Real version control** - Diff, merge, and track changes properly 
