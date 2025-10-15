@@ -515,7 +515,7 @@ class VBAComponentHandler:
             return False
 
         except Exception as e:
-            logger.debug(f"Error checking for inline headers in {file_path}: {e}")
+            logger.debug(f"Error checking for inline headers in {file_path}: {e}", exc_info=True)
             return False
 
     def create_minimal_header(self, name: str, module_type: VBAModuleType) -> str:
