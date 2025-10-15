@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.4.1-rc1] - unreleased
+## [0.4.1] - 2025-10-15
 
 ### Added
 
@@ -36,7 +36,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Added subprocess timeouts to prevent intermittent hangs
   - Increased test timeouts for better reliability on slower CI runners
   - Prevents rare deadlocks when running help commands under load
-  - IMPORTANT warnings appear in yellow so you don't miss them
+- **Help Display**: Fixed ANSI escape code leakage in Windows binaries
+  - Removed raw color codes (like '35m') appearing in usage line
+  - Help text colorization now works correctly in all scenarios
+- **Colorized Output**: IMPORTANT warnings appear in yellow so you don't miss them
   - Colors match modern tools like uv and ruff for a familiar experience
   - Automatically disabled when output is piped or redirected
   - Use `--no-color` flag to disable if needed
