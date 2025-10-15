@@ -1196,7 +1196,7 @@ class OfficeVBAHandler(ABC):
             has_inline_headers = self.component_handler.has_inline_headers(file_path, encoding=self.encoding)
 
             # Check for separate header file
-            header_file = file_path.with_suffix(file_path.suffix + ".header")
+            header_file = file_path.with_suffix(f"{file_path.suffix}.header")
             has_separate_header = header_file.exists()
 
             # Warn if both formats exist (conflicting headers)
