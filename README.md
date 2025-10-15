@@ -8,7 +8,6 @@
 [![Platform](https://img.shields.io/badge/platform-windows-blue.svg)](https://github.com/markuskiller/vba-edit)
 [![PyPI - Downloads](https://img.shields.io/pypi/dm/vba-edit)](https://pypi.org/project/vba-edit)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
-[![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/markuskiller/vba-edit/badge)](https://securityscorecards.dev/viewer/?uri=github.com/markuskiller/vba-edit)
 [![License](https://img.shields.io/badge/License-BSD_3--Clause-blue.svg)](https://opensource.org/licenses/BSD-3-Clause)
 
 ## 30-Second Demo
