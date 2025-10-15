@@ -5,104 +5,84 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.4.1] - 2025-10-15
+## [0.4.1] - 2025-10-16
 
 ### Added
 
-- **Support for Python 3.14**
-- **Windows Binaries**: Automated build workflow for Windows executables
-  - Includes SHA256 checksums for verification
-  - GitHub Attestations provide cryptographic proof of authenticity
+- **Support for Python 3.14**: Full compatibility with the latest Python release
+- **Windows Binaries**: Pre-built executables for easy installation without Python
+  - Four separate tools: `excel-vba.exe`, `word-vba.exe`, `access-vba.exe`, `powerpoint-vba.exe`
+  - SHA256 checksums and GitHub Attestations for security verification
   - Software Bill of Materials (SBOM) included with each release
-  - See **[Issue #24](https://github.com/markuskiller/vba-edit/issues/24)** for more information on expected 'false positive' categorization of our unsigned binaries by some anti-malware tools 
+  - See **[Issue #24](https://github.com/markuskiller/vba-edit/issues/24)** about expected antivirus warnings for unsigned binaries
+- **Colorized Terminal Output**: Professional CLI appearance with uv/ruff-style colors
+  - Success messages in green with checkmarks (✓)
+  - Error messages in red with X marks (✗)
+  - Warning messages in yellow with warning symbols (⚠)
+  - Syntax highlighting in help text for better readability
+  - Technical terms (TOML, JSON, VBA) highlighted in cyan
+  - Example commands shown in dim gray for easy scanning
+  - Automatically disabled when piped or redirected
+  - Use `--no-color` flag to disable manually
 - **Automatic Header Detection**: Import command now works without manual header flags
-  - Automatically finds VBA headers in your code files (VERSION/BEGIN/Attribute lines)
-  - Falls back to separate `.header` files if you use those
-  - Creates minimal headers if neither exists
-  - Import command now warns when both inline and separate header formats exist
-  - Clearly states that inline headers take precedence
-  - Helps identify conflicting header configurations
-- **Colorized Terminal Output**: Modern, professional CLI appearance with automatic color support
-  - Success messages appear in green with checkmarks (✓)
-  - Error messages appear in red with X marks (✗)
-  - Warning messages appear in yellow with warning symbols (⚠)
-  - Help text uses syntax highlighting with different colors for options, file names, and section headings
-  - Technical terms (TOML, JSON, VBA, Module, Class) highlighted in cyan
-  - Example command lines shown in dim gray for easy scanning
-
-### Fixed
-
-- **CI/CD Reliability**: Improved test stability on GitHub Actions runners
-  - Added subprocess timeouts to prevent intermittent hangs
-  - Increased test timeouts for better reliability on slower CI runners
-  - Prevents rare deadlocks when running help commands under load
-- **Help Display**: Fixed ANSI escape code leakage in Windows binaries
-  - Removed raw color codes (like '35m') appearing in usage line
-  - Help text colorization now works correctly in all scenarios
-- **Color Control**: Fixed `--no-color` flag to work with Python 3.13+ argparse
-  - Python 3.13+ added built-in color support to argparse that wasn't being disabled
-  - `--no-color` now correctly disables both Rich colors and argparse colors
-  - Ensures completely plain text output when color is disabled
-- **Colorized Output**: IMPORTANT warnings appear in yellow so you don't miss them
-  - Colors match modern tools like uv and ruff for a familiar experience
-  - Automatically disabled when output is piped or redirected
-  - Use `--no-color` flag to disable if needed
-- **Improved Help Messages**: Completely redesigned help output for all commands
+  - Automatically detects VBA headers in code files (VERSION/BEGIN/Attribute lines)
+  - Falls back to separate `.header` files when needed
+  - Creates minimal headers automatically if neither format exists
+  - Warns about conflicting configurations when both formats present
+- **Improved Help Display**: Redesigned help output for better usability
   - Options organized into clear groups (File Options, Configuration, Encoding, etc.)
   - Main help shows concise overview with practical examples
-  - Command-specific help displays all available options with detailed descriptions
+  - Command-specific help displays only relevant options
   - Design by [@onderhold](https://github.com/onderhold)
-- **Metadata Saving**: New `-m/--save-metadata` option now available in both `edit` and `export` commands
-  - Preserve metadata when exporting in edit mode
-  - Makes workflows more consistent across commands
-- **Simpler Configuration Placeholders**: Streamlined placeholder names for config files
-  - Use `{file.name}`, `{file.fullname}`, `{file.path}` instead of `{general.file.*}`
-  - Use `{file.vbaproject}` instead of `{vbaproject}`
-  - Old placeholders still work (will be removed in v0.5.0)
-- **Security Documentation**: Comprehensive security policy and verification guide
-  - Clear vulnerability reporting process
-  - Multiple verification methods for binaries
-  - Best practices for secure usage
-- **Automated Dependency Updates**: Dependabot monitors for security updates
-  - Weekly checks for outdated dependencies
-  - Automatic pull requests for updates
-  - Reduces security risk from vulnerable dependencies
+- **Security Documentation**: Comprehensive guides for secure usage
+  - Binary verification instructions with multiple methods
+  - Vulnerability reporting process documented
+  - Best practices for secure usage included
 
 ### Changed
 
-- **Option Availability**: `--open-folder` now works with `edit`, `import`, and `export` commands
-  - Previously only available on some commands
-  - Improves workflow by opening results folder after operations
-- **Help Display**: Options now only appear where they're relevant
-  - Folder options (`--rubberduck-folders`, `--open-folder`) only show on commands that use them
-  - Less clutter in help output
-  - Easier to find the options you need
-
-### Deprecated
-
-- **Old placeholder format**: `{general.file.*}` and `{vbaproject}` 
-  - Still supported for backward compatibility
-  - Use new `{file.*}` format instead
-  - Will be removed in v0.5.0
+- **Metadata Saving**: `-m/--save-metadata` option now available in both `edit` and `export` commands
+  - Previously only available in `edit` mode
+  - Makes workflows more consistent across commands
+- **Configuration Placeholders**: Simplified placeholder names for config files
+  - Use `{file.name}`, `{file.fullname}`, `{file.path}` instead of `{general.file.*}`
+  - Use `{file.vbaproject}` instead of `{vbaproject}`
+  - Old placeholders still work (will be removed in v0.5.0)
+- **Option Visibility**: Options now only appear on commands where they're actually used
+  - Folder options (`--rubberduck-folders`, `--open-folder`) only show on relevant commands
+  - `--open-folder` now works with `edit`, `import`, and `export` commands
+  - Reduces clutter and confusion in help output
 
 ### Fixed
 
 - **[Issue #20](https://github.com/markuskiller/vba-edit/issues/20)**: Fixed crash when running `check` command
-  - All entry points (excel-vba, word-vba, access-vba, powerpoint-vba) now handle `check` correctly
+  - All entry points now handle `check` command correctly
 - **[Issue #21](https://github.com/markuskiller/vba-edit/issues/21)**: Commands no longer show irrelevant options
-  - Each command only displays options that actually work with it
-  - Prevents confusion about which options to use
+  - Each command displays only options that work with it
+- **CI/CD Reliability**: Improved test stability on GitHub Actions
+  - Added subprocess timeouts to prevent intermittent hangs
+  - Increased test timeouts for slower CI runners
+
+### Deprecated
+
+- **Old placeholder format**: `{general.file.*}` and `{vbaproject}`
+  - Still supported for backward compatibility
+  - Will be removed in v0.5.0
+  - Use new `{file.*}` format instead
 
 ### Security
 
-- **GitHub Actions permissions**: Workflows now use minimal required permissions
-  - Follows security best practice of least privilege
-  - Limits potential damage if workflow is compromised
-- **Binary verification**: Multiple methods to verify download authenticity
-  - SHA256 checksums included with all releases
-  - GitHub Attestations prove binaries were built by official workflow
-  - Build provenance cryptographically signed by GitHub
-- **Security policy**: Clear process for reporting vulnerabilities
+- **Automated Dependency Updates**: Dependabot monitors for security issues
+  - Weekly checks for outdated dependencies
+  - Automatic pull requests for security updates
+- **GitHub Actions Security**: Workflows use minimal required permissions
+  - Follows principle of least privilege
+  - Reduces risk if workflow is compromised
+- **Binary Verification**: Multiple methods to verify download authenticity
+  - SHA256 checksums included with releases
+  - GitHub Attestations prove binaries built by official workflow
+  - SBOM documents all included dependencies
+- **Vulnerability Reporting**: Clear process for security issues
   - Response within 48 hours
   - Private disclosure via GitHub Security Advisories
   - Documented timeline for fixes
