@@ -483,7 +483,7 @@ Attribute VB_Name = "Module1"
 
                     # Check that warning was logged
                     warning_messages = [record.message for record in caplog.records if record.levelname == "WARNING"]
-                    assert len(warning_messages) > 0
+                    assert warning_messages
                     assert any("Both inline headers and separate header file found" in msg for msg in warning_messages)
                     assert any("Using inline headers" in msg for msg in warning_messages)
                     assert any(".header file will be ignored" in msg for msg in warning_messages)
