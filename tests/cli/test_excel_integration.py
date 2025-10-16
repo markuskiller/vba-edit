@@ -812,6 +812,7 @@ class TestExcelDataFidelity:
                 str(vba_dir),
                 "--force-overwrite",
                 "--save-headers",  # Use separate header files (proven approach)
+                "--keep-open",  # Keep document open for subsequent operations
             ]
         )
 
@@ -928,6 +929,7 @@ class TestExcelDataFidelity:
                 str(vba_dir),
                 "--force-overwrite",
                 "--save-headers",  # Use separate header files (proven approach)
+                "--keep-open",  # Keep document open for subsequent operations
             ]
         )
 
@@ -1003,6 +1005,7 @@ class TestExcelDataFidelity:
                 str(vba_dir1),
                 "--force-overwrite",
                 "--save-headers",  # Use separate header files (proven approach)
+                "--keep-open",  # Keep document open for subsequent operations
             ]
         )
 
@@ -1026,6 +1029,7 @@ class TestExcelDataFidelity:
                 str(vba_dir2),
                 "--force-overwrite",
                 "--save-headers",  # Use separate header files (proven approach)
+                "--keep-open",  # Keep document open for subsequent operations
             ]
         )
 
@@ -1107,6 +1111,7 @@ End Sub
                 str(vba_dir),
                 "--force-overwrite",
                 "--in-file-headers",  # TEST THE FIX: Headers embedded in code file
+                "--keep-open",  # Keep document open for subsequent operations
             ]
         )
 
