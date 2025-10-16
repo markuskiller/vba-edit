@@ -437,6 +437,7 @@ EXPORT_EXAMPLES = [
     ("Export with metadata", "word-vba export -f doc.docm --save-metadata"),
     ("Export with inline headers", "word-vba export --file doc.docm --in-file-headers"),
     ("Force overwrite existing", "word-vba export --file doc.docm --force-overwrite"),
+    ("Keep document open after export", "word-vba export --file doc.docm --keep-open"),
 ]
 
 CHECK_EXAMPLES = [

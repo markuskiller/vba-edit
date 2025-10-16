@@ -455,6 +455,12 @@ Full control usage:
         help="Force overwrite of existing files without prompting",
     )
     export_options_group.add_argument(
+        "--keep-open",
+        dest="keep_open",
+        action="store_true",
+        help="Keep document open after export (default: close after export)",
+    )
+    export_options_group.add_argument(
         "--rubberduck-folders",
         dest="rubberduck_folders",
         action="store_true",
@@ -687,6 +693,7 @@ def handle_word_vba_command(args: argparse.Namespace) -> None:
                     overwrite=True,
                     interactive=True,
                     force_overwrite=getattr(args, "force_overwrite", False),
+                    keep_open=getattr(args, "keep_open", False),
                 )
         except (DocumentClosedError, RPCError) as e:
             logger.error(str(e))

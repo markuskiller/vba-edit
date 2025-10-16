@@ -984,6 +984,30 @@ class OfficeVBAHandler(ABC):
             except Exception as e:
                 raise VBAError("Failed to save document") from e
 
+    def close_document(self) -> None:
+        """Close the currently open document.
+
+        This method closes the document without saving and sets self.doc to None.
+        It's primarily used after export operations to clean up resources.
+        """
+        if self.doc is not None:
+            try:
+                logger.debug(f"Closing {self.document_type}: {self.doc_path}")
+                # Close without saving (SaveChanges=False / wdDoNotSaveChanges=0)
+                if self.app_name == "Access":
+                    # Access handles close differently
+                    self.app.CloseCurrentDatabase()
+                else:
+                    # Excel, Word, PowerPoint use Close method
+                    self.doc.Close(SaveChanges=False)
+                self.doc = None
+                logger.info(f"{self.document_type.capitalize()} closed successfully")
+            except Exception as e:
+                logger.warning(f"Failed to close {self.document_type}: {str(e)}")
+                # Don't raise exception - closing is not critical
+                # Set to None anyway to avoid stale references
+                self.doc = None
+
     def _check_header_mode_change(self) -> bool:
         """Check if the header storage mode has changed since last export.
 
@@ -1772,13 +1796,16 @@ class OfficeVBAHandler(ABC):
             logger.error(f"Failed to process {file_path.name}: {str(e)}")
             raise VBAError(f"Failed to import {file_path.name}") from e
 
-    def export_vba(self, save_metadata: bool = False, overwrite: bool = True, interactive: bool = True) -> None:
+    def export_vba(
+        self, save_metadata: bool = False, overwrite: bool = True, interactive: bool = True, keep_open: bool = False
+    ) -> None:
         """Export VBA modules to files.
 
         Args:
             save_metadata: Whether to save metadata file
             overwrite: Whether to overwrite existing files
             interactive: Whether to prompt for confirmation on warnings (set False to skip prompts)
+            keep_open: Whether to keep document open after export (default: False = close after export)
 
         Raises:
             VBAExportWarning: When user confirmation is needed (only if interactive=True)
@@ -1889,6 +1916,11 @@ class OfficeVBAHandler(ABC):
             #         subprocess.run(["open", str(self.vba_dir)])
             #     else:
             #         subprocess.run(["xdg-open", str(self.vba_dir)])
+
+            # Close document after export unless --keep-open flag is set
+            if not keep_open:
+                logger.debug("Closing document after export (use --keep-open to override)")
+                self.close_document()
 
         except VBAExportWarning:
             # Let warnings propagate to CLI layer for user interaction

@@ -29,6 +29,7 @@ def handle_export_with_warnings(
     overwrite: bool = True,
     interactive: bool = True,
     force_overwrite: bool = False,
+    keep_open: bool = False,
 ):
     """Handle VBA export with user confirmation for warnings.
 
@@ -42,6 +43,7 @@ def handle_export_with_warnings(
         overwrite: Whether to overwrite existing files
         interactive: Whether to show warnings and prompt for confirmation
         force_overwrite: If True, skip all confirmation prompts (use with caution)
+        keep_open: If True, keep document open after export (default: False = close)
 
     Returns:
         None
@@ -55,7 +57,9 @@ def handle_export_with_warnings(
         interactive = False
 
     try:
-        handler.export_vba(save_metadata=save_metadata, overwrite=overwrite, interactive=interactive)
+        handler.export_vba(
+            save_metadata=save_metadata, overwrite=overwrite, interactive=interactive, keep_open=keep_open
+        )
     except VBAExportWarning as warning_exc:
         if warning_exc.warning_type == "existing_files":
             file_count = warning_exc.context["file_count"]
@@ -67,7 +71,7 @@ def handle_export_with_warnings(
 
                 sys.exit(0)
             # User confirmed, retry with interactive=False to skip further prompts
-            handler.export_vba(save_metadata=save_metadata, overwrite=True, interactive=False)
+            handler.export_vba(save_metadata=save_metadata, overwrite=True, interactive=False, keep_open=keep_open)
 
         elif warning_exc.warning_type == "header_mode_changed":
             old_mode = warning_exc.context["old_mode"]
@@ -80,7 +84,7 @@ def handle_export_with_warnings(
 
                 sys.exit(0)
             # User confirmed, retry with overwrite=True and interactive=False
-            handler.export_vba(save_metadata=save_metadata, overwrite=True, interactive=False)
+            handler.export_vba(save_metadata=save_metadata, overwrite=True, interactive=False, keep_open=keep_open)
 
 
 # Placeholder constants for configuration file substitution
@@ -650,4 +654,10 @@ def add_export_arguments(parser: argparse.ArgumentParser) -> None:
         action="store_true",
         default=False,
         help="Force overwrite of existing files without prompting for confirmation (use with caution)",
+    )
+    parser.add_argument(
+        "--keep-open",
+        action="store_true",
+        default=False,
+        help="Keep document open after export (default: close document after export completes)",
     )

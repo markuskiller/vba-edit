@@ -85,9 +85,13 @@ As an exception, the developer may ask for a translation of terms and sentences 
    # Install/update dependencies
    uv sync --extra dev
    
-   # Run tests (ALWAYS use -v for verbose output)
+   # Run tests (ALWAYS use -v for verbose output, NEVER pipe to see progress)
    uv run pytest -v
    uv run pytest tests/test_cli_common.py -v
+   
+   # IMPORTANT: Never pipe pytest output - user wants to see test progress in real-time
+   # DON'T DO: uv run pytest -v | something
+   # DO: uv run pytest -v (shows progress as tests run)
    
    # Code quality
    uv run ruff check --fix

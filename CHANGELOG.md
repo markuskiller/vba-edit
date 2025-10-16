@@ -41,6 +41,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Export Behavior**: Documents now close automatically after export completes
+  - Prevents accumulation of open Office windows during batch operations
+  - Use `--keep-open` flag to keep document open for VBA editor inspection
+  - Only affects `export` command (edit/import commands keep documents open as before)
+  - Makes export workflow cleaner and more CI/CD friendly
 - **Metadata Saving**: `-m/--save-metadata` option now available in both `edit` and `export` commands
   - Previously only available in `edit` mode
   - Makes workflows more consistent across commands

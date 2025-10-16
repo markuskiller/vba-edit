@@ -61,7 +61,9 @@ class TestHandleExportWithWarnings:
         )
 
         # Should call export_vba once
-        mock_handler.export_vba.assert_called_once_with(save_metadata=True, overwrite=True, interactive=True)
+        mock_handler.export_vba.assert_called_once_with(
+            save_metadata=True, overwrite=True, interactive=True, keep_open=False
+        )
 
     def test_existing_files_warning_user_confirms(self):
         """Test handling of existing_files warning when user confirms."""
@@ -154,8 +156,10 @@ class TestHandleExportWithWarnings:
         # confirm_action should never be called
         mock_confirm.assert_not_called()
 
-        # export_vba should be called with interactive=False
-        mock_handler.export_vba.assert_called_once_with(save_metadata=True, overwrite=True, interactive=False)
+        # export_vba should be called with interactive=False and keep_open=False
+        mock_handler.export_vba.assert_called_once_with(
+            save_metadata=True, overwrite=True, interactive=False, keep_open=False
+        )
 
     def test_force_overwrite_logs_usage(self):
         """Test that using force_overwrite is logged."""
