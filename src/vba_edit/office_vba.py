@@ -35,6 +35,7 @@ from vba_edit.utils import (
     get_vba_error_details,
     is_vba_access_error,
 )
+from vba_edit.console import console
 
 
 def _filter_attributes(code: str) -> str:
@@ -116,6 +117,7 @@ logger = logging.getLogger(__name__)
 
 
 # Office app configuration
+# Primary macro-enabled extensions (used in examples/docs)
 OFFICE_MACRO_EXTENSIONS: Dict[str, str] = {
     "word": ".docm",
     "excel": ".xlsm",
@@ -125,6 +127,36 @@ OFFICE_MACRO_EXTENSIONS: Dict[str, str] = {
     # "outlook": ".otm",
     # "project": ".mpp",
     # "visio": ".vsdm",
+}
+
+# All file extensions that can contain VBA macros (for file type detection)
+# Maps file extension to Office application type
+ALL_VBA_EXTENSIONS: Dict[str, str] = {
+    # Word formats
+    ".docm": "word",  # Word macro-enabled document (2007+)
+    ".doc": "word",  # Word 97-2003 document (legacy, supports macros)
+    ".dotm": "word",  # Word macro-enabled template (2007+)
+    ".dot": "word",  # Word 97-2003 template (legacy, supports macros)
+    # Excel formats
+    ".xlsm": "excel",  # Excel macro-enabled workbook (2007+)
+    ".xlsb": "excel",  # Excel binary workbook (2007+, supports macros)
+    ".xls": "excel",  # Excel 97-2003 workbook (legacy, supports macros)
+    ".xltm": "excel",  # Excel macro-enabled template (2007+)
+    ".xlt": "excel",  # Excel 97-2003 template (legacy, supports macros)
+    ".xlam": "excel",  # Excel add-in (macro-enabled)
+    ".xla": "excel",  # Excel 97-2003 add-in (legacy, supports macros)
+    # PowerPoint formats
+    ".pptm": "powerpoint",  # PowerPoint macro-enabled presentation (2007+)
+    ".ppt": "powerpoint",  # PowerPoint 97-2003 presentation (legacy, supports macros)
+    ".potm": "powerpoint",  # PowerPoint macro-enabled template (2007+)
+    ".pot": "powerpoint",  # PowerPoint 97-2003 template (legacy, supports macros)
+    ".ppam": "powerpoint",  # PowerPoint add-in (macro-enabled)
+    ".ppa": "powerpoint",  # PowerPoint 97-2003 add-in (legacy, supports macros)
+    # Access formats
+    ".accdb": "access",  # Access database (2007+)
+    ".mdb": "access",  # Access 97-2003 database (legacy)
+    ".accde": "access",  # Access execute-only database (compiled)
+    ".mde": "access",  # Access 97-2003 execute-only database (legacy, compiled)
 }
 
 # Command-line entry points for different Office applications
@@ -958,10 +990,55 @@ class OfficeVBAHandler(ABC):
                 logger.error(error_msg)
                 sys.exit(1)
 
+    def _check_file_extension_mismatch(self) -> None:
+        """Check if the file extension matches the Office application type.
+
+        Raises:
+            VBAError: If the file extension doesn't match the expected type for this application.
+        """
+        file_ext = self.doc_path.suffix.lower()
+
+        # Check if this extension belongs to a different Office app
+        # Use ALL_VBA_EXTENSIONS for comprehensive coverage (includes legacy formats)
+        if file_ext in ALL_VBA_EXTENSIONS:
+            correct_app = ALL_VBA_EXTENSIONS[file_ext]
+
+            # Only raise error if it's a mismatch (not the current app)
+            if correct_app != self.app_name.lower():
+                correct_cli = OFFICE_CLI_NAMES[correct_app]
+                current_cli = OFFICE_CLI_NAMES[self.app_name.lower()]
+
+                # Use proper article (a/an) based on first letter
+                article = "an" if correct_app[0].lower() in "aeiou" else "a"
+
+                # Build colorized error message using Rich markup
+                error_lines = [
+                    "",
+                    f"File extension mismatch: '[option]{file_ext}[/option]' files cannot be opened with {self.app_name}.",
+                    f"The file '[path]{self.doc_path.name}[/path]' appears to be {article} [tech]{correct_app.capitalize()}[/tech] file.",
+                    "",
+                    "Please use the correct entry point:",
+                    f"  [error]✗[/error] Current:  [dim]{current_cli}.exe[/dim]",
+                    f"  [success]✓[/success] Correct:  [command]{correct_cli}.exe[/command]",
+                    "",
+                    "Example:",
+                    f'  [command]{correct_cli}.exe[/command] export -f [path]"{self.doc_path.name}"[/path] --vba-directory src',
+                ]
+
+                # Render the colorized message to a string
+                with console.capture() as capture:
+                    for line in error_lines:
+                        console.print(line, highlight=False)
+
+                raise VBAError(capture.get())
+
     def open_document(self) -> None:
         """Open the Office document."""
         try:
             if self.doc is None:
+                # Check for file extension mismatch before attempting to open
+                self._check_file_extension_mismatch()
+
                 self.initialize_app()
                 logger.debug(f"Opening document: {self.doc_path}")
                 self.doc = self._open_document_impl()
@@ -985,13 +1062,45 @@ class OfficeVBAHandler(ABC):
                 raise VBAError("Failed to save document") from e
 
     def close_document(self) -> None:
-        """Close the currently open document.
+        """Close the currently open document and application if no other documents are open.
 
         This method closes the document without saving and sets self.doc to None.
+        If there are no other open documents (besides the one being closed),
+        it also closes the application.
         It's primarily used after export operations to clean up resources.
         """
         if self.doc is not None:
             try:
+                # Check document count BEFORE closing to decide if we should close app
+                # We need to check if count will be 0 after closing this document
+                should_close_app = False
+                if self.app is not None:
+                    try:
+                        if self.app_name == "Access":
+                            # Access: will close app after closing database
+                            should_close_app = True  # Always close Access after closing database
+                        elif self.app_name == "Word":
+                            # Word: close app if this is the only document (count == 1)
+                            should_close_app = self.app.Documents.Count <= 1
+                        elif self.app_name == "Excel":
+                            # Excel: close app if this is the only workbook (count == 1)
+                            should_close_app = self.app.Workbooks.Count <= 1
+                        elif self.app_name == "PowerPoint":
+                            # PowerPoint: close app if this is the only presentation (count == 1)
+                            should_close_app = self.app.Presentations.Count <= 1
+
+                        # Log the document count
+                        if self.app_name == "Word":
+                            logger.debug(f"Document count before closing: {self.app.Documents.Count}")
+                        elif self.app_name == "Excel":
+                            logger.debug(f"Workbook count before closing: {self.app.Workbooks.Count}")
+                        elif self.app_name == "PowerPoint":
+                            logger.debug(f"Presentation count before closing: {self.app.Presentations.Count}")
+                    except Exception as e:
+                        logger.debug(f"Could not check document count: {str(e)}")
+                        # Default to not closing app if we can't determine count
+                        should_close_app = False
+
                 logger.debug(f"Closing {self.document_type}: {self.doc_path}")
                 # Close without saving (SaveChanges=False / wdDoNotSaveChanges=0)
                 if self.app_name == "Access":
@@ -1002,6 +1111,20 @@ class OfficeVBAHandler(ABC):
                     self.doc.Close(SaveChanges=False)
                 self.doc = None
                 logger.info(f"{self.document_type.capitalize()} closed successfully")
+
+                # Now close the application if appropriate
+                if should_close_app and self.app is not None:
+                    try:
+                        logger.debug(f"No other documents open, closing {self.app_name} application")
+                        self.app.Quit()
+                        self.app = None
+                        logger.info(f"{self.app_name} application closed successfully")
+                    except Exception as e:
+                        logger.warning(f"Failed to close {self.app_name} application: {str(e)}")
+                        # Don't raise - closing app is not critical
+                elif not should_close_app:
+                    logger.debug(f"Other documents are open, keeping {self.app_name} application running")
+
             except Exception as e:
                 logger.warning(f"Failed to close {self.document_type}: {str(e)}")
                 # Don't raise exception - closing is not critical
@@ -1521,14 +1644,30 @@ class OfficeVBAHandler(ABC):
             raise VBAError("Failed to update module content") from e
 
     def _handle_form_binary_export(self, name: str) -> None:
-        """Handle form binary (.frx) export."""
+        """Handle form binary (.frx) export.
+        
+        Sets exported .frx files as read-only to prevent accidental modification,
+        which would corrupt the UserForm and cause deletion from VBA project.
+        
+        On re-export, automatically removes read-only flag before overwriting.
+        """
         try:
             frx_source = resolve_path(f"{name}.frx", Path(self.doc.FullName).parent)
             if frx_source.exists():
                 frx_target = resolve_path(f"{name}.frx", self.vba_dir)
                 try:
+                    # If target exists and is read-only, make it writable before copying
+                    if frx_target.exists():
+                        target_was_readonly = not os.access(str(frx_target), os.W_OK)
+                        if target_was_readonly:
+                            frx_target.chmod(0o644)  # rw-r--r-- (make writable)
+                            logger.debug(f"Temporarily removed read-only flag from {frx_target.name}")
+                    
                     shutil.copy2(str(frx_source), str(frx_target))
-                    logger.debug(f"Exported form binary: {frx_target}")
+                    
+                    # Make the exported .frx file read-only to prevent accidental modification
+                    frx_target.chmod(0o444)  # r--r--r-- (read-only for all)
+                    logger.debug(f"Exported form binary (read-only): {frx_target}")
                 except (OSError, shutil.Error) as e:
                     logger.error(f"Failed to copy form binary {name}.frx: {e}")
                     raise VBAError(f"Failed to export form binary {name}.frx") from e
@@ -1536,12 +1675,22 @@ class OfficeVBAHandler(ABC):
             raise VBAError(f"Failed to handle form binary path: {str(e)}") from e
 
     def _handle_form_binary_import(self, name: str) -> None:
-        """Handle form binary (.frx) import."""
+        """Handle form binary (.frx) import.
+        
+        Temporarily removes read-only flag if needed to allow copying.
+        """
         try:
             frx_source = resolve_path(f"{name}.frx", self.vba_dir)
             if frx_source.exists():
                 frx_target = resolve_path(f"{name}.frx", Path(self.doc.FullName).parent)
                 try:
+                    # If target exists and is read-only, make it writable temporarily
+                    target_was_readonly = False
+                    if frx_target.exists():
+                        target_was_readonly = not os.access(str(frx_target), os.W_OK)
+                        if target_was_readonly:
+                            frx_target.chmod(0o644)  # rw-r--r--
+                    
                     shutil.copy2(str(frx_source), str(frx_target))
                     logger.debug(f"Imported form binary: {frx_target}")
                 except (OSError, shutil.Error) as e:
@@ -1890,6 +2039,12 @@ class OfficeVBAHandler(ABC):
             if not has_forms:
                 # Also check for existing .frm files in case they were skipped
                 has_forms = bool(list(self.vba_dir.glob("*.frm")))
+            
+            # Warn about .frx files if forms were exported
+            if has_forms:
+                logger.info("NOTE: UserForm binary files (.frx) are exported as read-only to prevent corruption.")
+                logger.info("      Modifying .frx files will corrupt the UserForm and cause deletion from VBA project.")
+                logger.info("      Only edit .frm files - .frx files are handled automatically.")
 
             # Save metadata if requested, or if we have forms (to track header mode)
             if save_metadata or has_forms:
