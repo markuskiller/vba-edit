@@ -1306,6 +1306,10 @@ class OfficeVBAHandler(ABC):
             self._write_component_files(name, header, code, info, target_directory)
             logger.debug(f"Component files written for {name} in {target_directory}")
 
+            # Handle form binaries if this is a UserForm
+            if info["type"] == VBAModuleType.FORM:
+                self._handle_form_binary_export(name)
+
             logger.info(f"Exported: {name}" + (f" (folder: {folder_path})" if folder_path else ""))
 
         except Exception as e:
@@ -1645,10 +1649,10 @@ class OfficeVBAHandler(ABC):
 
     def _handle_form_binary_export(self, name: str) -> None:
         """Handle form binary (.frx) export.
-        
+
         Sets exported .frx files as read-only to prevent accidental modification,
         which would corrupt the UserForm and cause deletion from VBA project.
-        
+
         On re-export, automatically removes read-only flag before overwriting.
         """
         try:
@@ -1662,9 +1666,9 @@ class OfficeVBAHandler(ABC):
                         if target_was_readonly:
                             frx_target.chmod(0o644)  # rw-r--r-- (make writable)
                             logger.debug(f"Temporarily removed read-only flag from {frx_target.name}")
-                    
+
                     shutil.copy2(str(frx_source), str(frx_target))
-                    
+
                     # Make the exported .frx file read-only to prevent accidental modification
                     frx_target.chmod(0o444)  # r--r--r-- (read-only for all)
                     logger.debug(f"Exported form binary (read-only): {frx_target}")
@@ -1676,7 +1680,7 @@ class OfficeVBAHandler(ABC):
 
     def _handle_form_binary_import(self, name: str) -> None:
         """Handle form binary (.frx) import.
-        
+
         Temporarily removes read-only flag if needed to allow copying.
         """
         try:
@@ -1690,7 +1694,7 @@ class OfficeVBAHandler(ABC):
                         target_was_readonly = not os.access(str(frx_target), os.W_OK)
                         if target_was_readonly:
                             frx_target.chmod(0o644)  # rw-r--r--
-                    
+
                     shutil.copy2(str(frx_source), str(frx_target))
                     logger.debug(f"Imported form binary: {frx_target}")
                 except (OSError, shutil.Error) as e:
@@ -2039,7 +2043,7 @@ class OfficeVBAHandler(ABC):
             if not has_forms:
                 # Also check for existing .frm files in case they were skipped
                 has_forms = bool(list(self.vba_dir.glob("*.frm")))
-            
+
             # Warn about .frx files if forms were exported
             if has_forms:
                 logger.info("NOTE: UserForm binary files (.frx) are exported as read-only to prevent corruption.")
