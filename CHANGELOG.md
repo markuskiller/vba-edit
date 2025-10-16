@@ -34,6 +34,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Design by [@onderhold](https://github.com/onderhold)
   - Main help shows concise overview with practical examples
   - Command-specific help displays only relevant options
+- **UserForm Protection**: Automatic safeguards prevent accidental corruption of UserForm binary files
+  - Exported `.frx` files are marked read-only to prevent accidental modification
+  - Clear warnings displayed when UserForms are exported
+  - Edit mode ignores `.frx` files during file watching
+  - Seamless re-export workflow when forms are modified in Office VBA editor
+  - Prevents permanent UserForm deletion caused by corrupted binary files
 
 - **Security Documentation**: Comprehensive guides for secure usage
   - Binary verification instructions with multiple methods
@@ -47,6 +53,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Use `--keep-open` flag to keep document open for VBA editor inspection
   - Only affects `export` command (edit/import commands keep documents open as before)
   - Makes export workflow cleaner and more CI/CD friendly
+- **Enhanced Terminal Output**: Improved message clarity and color consistency
+  - Success messages (passed, started, successfully) now consistently green
+  - Error and destructive operations (stopped, deleting, failed) consistently red
+  - Action verbs (opening, exported, imported, editing) highlighted in cyan
+  - NOTE and IMPORTANT messages properly colorized throughout
+  - More intuitive visual feedback during operations
 - **Metadata Saving**: `-m/--save-metadata` option now available in both `edit` and `export` commands
   - Previously only available in `edit` mode
   - Makes workflows more consistent across commands
