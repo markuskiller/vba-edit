@@ -79,6 +79,8 @@ excel-vba edit                    # Start with active workbook
 ### Quick Export with Folder View
 ```bash
 excel-vba export --open-folder    # Export and open in File Explorer
+excel-vba export --keep-open      # Export but keep document open for inspection
+excel-vba export --no-color       # Export without colorized output
 ```
 
 ### Team Project with Git
@@ -106,6 +108,8 @@ excel-vba edit --rubberduck-folders --in-file-headers
 | `--in-file-headers` | Embed headers in code files |
 | `--conf myconfig.toml` | Use config file |
 | `--force-overwrite` | Skip safety prompts (automation) |
+| `--keep-open` | Keep document open after export |
+| `--no-color` | Disable colorized terminal output |
 
 ## Troubleshooting
 
@@ -232,6 +236,8 @@ Found a bug? Have a feature idea? Questions about usage? Open an [Issue](https:/
 --open-folder                Open export directory in file explorer after export
 --save-metadata, -m          Save metadata file with encoding information
 --force-overwrite            Skip all confirmation prompts (for automation)
+--keep-open                  Keep document open after export (default: closes automatically)
+--no-color                   Disable colorized terminal output
 --version, -V                Show program's version number and exit
 ```
 
@@ -253,6 +259,29 @@ Public Sub DoSomething()
     ' Your code here
 End Sub
 ```
+
+## Colorized Output
+
+**NEW v0.4.1** Terminal output features professional color-coded messages for better readability:
+
+- ✓ **Success** messages in green
+- ✗ **Error** messages in red
+- ⚠ **Warning** messages in yellow
+- **Technical terms** (VBA, TOML, JSON) highlighted in cyan
+- **Code examples** shown in dim gray
+
+**Automatic Behavior:**
+- Colors automatically disabled when output is piped or redirected
+- Disabled in non-TTY environments (CI/CD pipelines)
+- Respects `NO_COLOR` environment variable
+
+**Manual Control:**
+```bash
+excel-vba export --no-color              # Disable colors
+export NO_COLOR=1; excel-vba export      # Via environment variable
+```
+
+> 💡 **Tip**: Use `--no-color` when saving output to log files or when terminal colors cause issues.
 
 ## Configuration Files
 
@@ -288,6 +317,8 @@ excel-vba export --conf vba-config.toml
 - `save_headers` - Save headers to separate .header files (true/false)
 - `in_file_headers` - Embed headers in code files (true/false)
 - `open_folder` - Open export directory after export (true/false)
+- `keep_open` - Keep document open after export (true/false)
+- `no_color` - Disable colorized terminal output (true/false)
 
 **Other sections (reserved for future use):**
 - `[office]` - Office-wide settings
