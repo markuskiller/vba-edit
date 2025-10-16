@@ -1663,6 +1663,7 @@ class OfficeVBAHandler(ABC):
                     # If target exists and is read-only, make it writable before copying
                     if frx_target.exists():
                         import stat
+
                         current_mode = os.stat(str(frx_target)).st_mode
                         if not (current_mode & stat.S_IWRITE):
                             # File is read-only, make it writable
@@ -1673,6 +1674,7 @@ class OfficeVBAHandler(ABC):
 
                     # Make the exported .frx file read-only to prevent accidental modification
                     import stat
+
                     current_mode = os.stat(str(frx_target)).st_mode
                     os.chmod(str(frx_target), current_mode & ~stat.S_IWRITE)
                     logger.debug(f"Exported form binary (read-only): {frx_target}")
@@ -1695,6 +1697,7 @@ class OfficeVBAHandler(ABC):
                     # If target exists and is read-only, make it writable temporarily
                     if frx_target.exists():
                         import stat
+
                         current_mode = os.stat(str(frx_target)).st_mode
                         if not (current_mode & stat.S_IWRITE):
                             # File is read-only, make it writable

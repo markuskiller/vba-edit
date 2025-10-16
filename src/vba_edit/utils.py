@@ -109,7 +109,7 @@ class SemanticLogFormatter(logging.Formatter):
         Handles paths with spaces by continuing until a known file extension or newline.
         Supports VBA file extensions (.bas, .cls, .frm, .frx) and Office formats
         (.xlsm, .docm, .accdb, .pptm, etc.).
-        
+
         IMPORTANT: Paths inside dictionary/repr strings (like vars(args) output) are NOT
         colorized to avoid markup tags appearing in the middle of dictionary values.
         Only standalone paths in regular log messages are colorized.
