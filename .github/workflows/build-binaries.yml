@@ -71,7 +71,7 @@ jobs:
         echo "Commit: ${{ github.sha }}" >> dist/SBOM.txt
     
     - name: Generate build attestations (cryptographic proof)
-      uses: actions/attest-build-provenance@v1
+      uses: actions/attest-build-provenance@v3
       with:
         subject-path: 'dist/*.exe'
     
