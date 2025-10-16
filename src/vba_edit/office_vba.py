@@ -1307,7 +1307,7 @@ class OfficeVBAHandler(ABC):
             logger.debug(f"Component files written for {name} in {target_directory}")
 
             # Handle form binaries if this is a UserForm
-            if info["type"] == VBAModuleType.FORM:
+            if info["type"] == VBATypes.VBEXT_CT_MSFORM:
                 self._handle_form_binary_export(name)
 
             logger.info(f"Exported: {name}" + (f" (folder: {folder_path})" if folder_path else ""))
@@ -1662,15 +1662,19 @@ class OfficeVBAHandler(ABC):
                 try:
                     # If target exists and is read-only, make it writable before copying
                     if frx_target.exists():
-                        target_was_readonly = not os.access(str(frx_target), os.W_OK)
-                        if target_was_readonly:
-                            frx_target.chmod(0o644)  # rw-r--r-- (make writable)
+                        import stat
+                        current_mode = os.stat(str(frx_target)).st_mode
+                        if not (current_mode & stat.S_IWRITE):
+                            # File is read-only, make it writable
+                            os.chmod(str(frx_target), current_mode | stat.S_IWRITE)
                             logger.debug(f"Temporarily removed read-only flag from {frx_target.name}")
 
                     shutil.copy2(str(frx_source), str(frx_target))
 
                     # Make the exported .frx file read-only to prevent accidental modification
-                    frx_target.chmod(0o444)  # r--r--r-- (read-only for all)
+                    import stat
+                    current_mode = os.stat(str(frx_target)).st_mode
+                    os.chmod(str(frx_target), current_mode & ~stat.S_IWRITE)
                     logger.debug(f"Exported form binary (read-only): {frx_target}")
                 except (OSError, shutil.Error) as e:
                     logger.error(f"Failed to copy form binary {name}.frx: {e}")
@@ -1689,11 +1693,12 @@ class OfficeVBAHandler(ABC):
                 frx_target = resolve_path(f"{name}.frx", Path(self.doc.FullName).parent)
                 try:
                     # If target exists and is read-only, make it writable temporarily
-                    target_was_readonly = False
                     if frx_target.exists():
-                        target_was_readonly = not os.access(str(frx_target), os.W_OK)
-                        if target_was_readonly:
-                            frx_target.chmod(0o644)  # rw-r--r--
+                        import stat
+                        current_mode = os.stat(str(frx_target)).st_mode
+                        if not (current_mode & stat.S_IWRITE):
+                            # File is read-only, make it writable
+                            os.chmod(str(frx_target), current_mode | stat.S_IWRITE)
 
                     shutil.copy2(str(frx_source), str(frx_target))
                     logger.debug(f"Imported form binary: {frx_target}")
