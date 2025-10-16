@@ -35,6 +35,7 @@ from vba_edit.utils import (
     get_vba_error_details,
     is_vba_access_error,
 )
+from vba_edit.console import console
 
 
 def _filter_attributes(code: str) -> str:
@@ -116,6 +117,7 @@ logger = logging.getLogger(__name__)
 
 
 # Office app configuration
+# Primary macro-enabled extensions (used in examples/docs)
 OFFICE_MACRO_EXTENSIONS: Dict[str, str] = {
     "word": ".docm",
     "excel": ".xlsm",
@@ -125,6 +127,36 @@ OFFICE_MACRO_EXTENSIONS: Dict[str, str] = {
     # "outlook": ".otm",
     # "project": ".mpp",
     # "visio": ".vsdm",
+}
+
+# All file extensions that can contain VBA macros (for file type detection)
+# Maps file extension to Office application type
+ALL_VBA_EXTENSIONS: Dict[str, str] = {
+    # Word formats
+    ".docm": "word",  # Word macro-enabled document (2007+)
+    ".doc": "word",  # Word 97-2003 document (legacy, supports macros)
+    ".dotm": "word",  # Word macro-enabled template (2007+)
+    ".dot": "word",  # Word 97-2003 template (legacy, supports macros)
+    # Excel formats
+    ".xlsm": "excel",  # Excel macro-enabled workbook (2007+)
+    ".xlsb": "excel",  # Excel binary workbook (2007+, supports macros)
+    ".xls": "excel",  # Excel 97-2003 workbook (legacy, supports macros)
+    ".xltm": "excel",  # Excel macro-enabled template (2007+)
+    ".xlt": "excel",  # Excel 97-2003 template (legacy, supports macros)
+    ".xlam": "excel",  # Excel add-in (macro-enabled)
+    ".xla": "excel",  # Excel 97-2003 add-in (legacy, supports macros)
+    # PowerPoint formats
+    ".pptm": "powerpoint",  # PowerPoint macro-enabled presentation (2007+)
+    ".ppt": "powerpoint",  # PowerPoint 97-2003 presentation (legacy, supports macros)
+    ".potm": "powerpoint",  # PowerPoint macro-enabled template (2007+)
+    ".pot": "powerpoint",  # PowerPoint 97-2003 template (legacy, supports macros)
+    ".ppam": "powerpoint",  # PowerPoint add-in (macro-enabled)
+    ".ppa": "powerpoint",  # PowerPoint 97-2003 add-in (legacy, supports macros)
+    # Access formats
+    ".accdb": "access",  # Access database (2007+)
+    ".mdb": "access",  # Access 97-2003 database (legacy)
+    ".accde": "access",  # Access execute-only database (compiled)
+    ".mde": "access",  # Access 97-2003 execute-only database (legacy, compiled)
 }
 
 # Command-line entry points for different Office applications
@@ -455,6 +487,68 @@ class VBAComponentHandler:
         code = "\n".join(lines[last_header_idx + 1 :])
 
         return header.strip(), code.strip()
+
+    def has_inline_headers(self, file_path: Path, encoding: str = "utf-8") -> bool:
+        """Detect if a code file contains embedded VBA headers.
+
+        Checks if the file starts with header markers like VERSION, BEGIN, or Attribute.
+        This allows automatic detection of header format during import.
+
+        The detection is strict to avoid false positives from comments:
+        - VERSION and BEGIN must be at start of non-comment, non-blank lines
+        - Attribute VB_ must be at line start (not in comments)
+        - Only checks first 10 lines for performance
+
+        Args:
+            file_path: Path to the code file to check
+            encoding: File encoding to use
+
+        Returns:
+            True if file contains inline headers, False otherwise
+        """
+        try:
+            with open(file_path, "r", encoding=encoding) as f:
+                # Read first few lines to check for header markers
+                first_lines = []
+                for i, line in enumerate(f):
+                    if i >= 10:  # Headers are always at the top
+                        break
+                    first_lines.append(line)  # Keep original line with whitespace
+
+            # Check for header markers - must be actual code, not comments
+            for line in first_lines:
+                stripped = line.strip()
+
+                # Skip blank lines
+                if not stripped:
+                    continue
+
+                # Skip comment lines (VBA comments start with ' or REM)
+                if stripped.startswith("'") or stripped.upper().startswith("REM "):
+                    continue
+
+                # Check for VERSION marker (case-insensitive, must have space or be exact)
+                if stripped.upper().startswith("VERSION "):
+                    logger.debug(f"Detected inline headers in {file_path.name} (found VERSION marker)")
+                    return True
+
+                # Check for BEGIN marker (case-insensitive)
+                # Matches: "BEGIN" or "Begin {GUID} FormName"
+                if stripped.upper() == "BEGIN" or stripped.upper().startswith("BEGIN "):
+                    logger.debug(f"Detected inline headers in {file_path.name} (found BEGIN marker)")
+                    return True
+
+                # Check for Attribute VB_ (case-sensitive for VB_, as per VBA convention)
+                if stripped.startswith("Attribute VB_"):
+                    logger.debug(f"Detected inline headers in {file_path.name} (found VB attribute)")
+                    return True
+
+            logger.debug(f"No inline headers detected in {file_path.name}")
+            return False
+
+        except Exception as e:
+            logger.debug(f"Error checking for inline headers in {file_path}: {e}", exc_info=True)
+            return False
 
     def create_minimal_header(self, name: str, module_type: VBAModuleType) -> str:
         """Create a minimal header for a VBA component.
@@ -896,10 +990,55 @@ class OfficeVBAHandler(ABC):
                 logger.error(error_msg)
                 sys.exit(1)
 
+    def _check_file_extension_mismatch(self) -> None:
+        """Check if the file extension matches the Office application type.
+
+        Raises:
+            VBAError: If the file extension doesn't match the expected type for this application.
+        """
+        file_ext = self.doc_path.suffix.lower()
+
+        # Check if this extension belongs to a different Office app
+        # Use ALL_VBA_EXTENSIONS for comprehensive coverage (includes legacy formats)
+        if file_ext in ALL_VBA_EXTENSIONS:
+            correct_app = ALL_VBA_EXTENSIONS[file_ext]
+
+            # Only raise error if it's a mismatch (not the current app)
+            if correct_app != self.app_name.lower():
+                correct_cli = OFFICE_CLI_NAMES[correct_app]
+                current_cli = OFFICE_CLI_NAMES[self.app_name.lower()]
+
+                # Use proper article (a/an) based on first letter
+                article = "an" if correct_app[0].lower() in "aeiou" else "a"
+
+                # Build colorized error message using Rich markup
+                error_lines = [
+                    "",
+                    f"File extension mismatch: '[option]{file_ext}[/option]' files cannot be opened with {self.app_name}.",
+                    f"The file '[path]{self.doc_path.name}[/path]' appears to be {article} [tech]{correct_app.capitalize()}[/tech] file.",
+                    "",
+                    "Please use the correct entry point:",
+                    f"  [error]✗[/error] Current:  [dim]{current_cli}.exe[/dim]",
+                    f"  [success]✓[/success] Correct:  [command]{correct_cli}.exe[/command]",
+                    "",
+                    "Example:",
+                    f'  [command]{correct_cli}.exe[/command] export -f [path]"{self.doc_path.name}"[/path] --vba-directory src',
+                ]
+
+                # Render the colorized message to a string
+                with console.capture() as capture:
+                    for line in error_lines:
+                        console.print(line, highlight=False)
+
+                raise VBAError(capture.get())
+
     def open_document(self) -> None:
         """Open the Office document."""
         try:
             if self.doc is None:
+                # Check for file extension mismatch before attempting to open
+                self._check_file_extension_mismatch()
+
                 self.initialize_app()
                 logger.debug(f"Opening document: {self.doc_path}")
                 self.doc = self._open_document_impl()
@@ -921,6 +1060,76 @@ class OfficeVBAHandler(ABC):
                 logger.info("Document has been saved and left open for further editing")
             except Exception as e:
                 raise VBAError("Failed to save document") from e
+
+    def close_document(self) -> None:
+        """Close the currently open document and application if no other documents are open.
+
+        This method closes the document without saving and sets self.doc to None.
+        If there are no other open documents (besides the one being closed),
+        it also closes the application.
+        It's primarily used after export operations to clean up resources.
+        """
+        if self.doc is not None:
+            try:
+                # Check document count BEFORE closing to decide if we should close app
+                # We need to check if count will be 0 after closing this document
+                should_close_app = False
+                if self.app is not None:
+                    try:
+                        if self.app_name == "Access":
+                            # Access: will close app after closing database
+                            should_close_app = True  # Always close Access after closing database
+                        elif self.app_name == "Word":
+                            # Word: close app if this is the only document (count == 1)
+                            should_close_app = self.app.Documents.Count <= 1
+                        elif self.app_name == "Excel":
+                            # Excel: close app if this is the only workbook (count == 1)
+                            should_close_app = self.app.Workbooks.Count <= 1
+                        elif self.app_name == "PowerPoint":
+                            # PowerPoint: close app if this is the only presentation (count == 1)
+                            should_close_app = self.app.Presentations.Count <= 1
+
+                        # Log the document count
+                        if self.app_name == "Word":
+                            logger.debug(f"Document count before closing: {self.app.Documents.Count}")
+                        elif self.app_name == "Excel":
+                            logger.debug(f"Workbook count before closing: {self.app.Workbooks.Count}")
+                        elif self.app_name == "PowerPoint":
+                            logger.debug(f"Presentation count before closing: {self.app.Presentations.Count}")
+                    except Exception as e:
+                        logger.debug(f"Could not check document count: {str(e)}")
+                        # Default to not closing app if we can't determine count
+                        should_close_app = False
+
+                logger.debug(f"Closing {self.document_type}: {self.doc_path}")
+                # Close without saving (SaveChanges=False / wdDoNotSaveChanges=0)
+                if self.app_name == "Access":
+                    # Access handles close differently
+                    self.app.CloseCurrentDatabase()
+                else:
+                    # Excel, Word, PowerPoint use Close method
+                    self.doc.Close(SaveChanges=False)
+                self.doc = None
+                logger.info(f"{self.document_type.capitalize()} closed successfully")
+
+                # Now close the application if appropriate
+                if should_close_app and self.app is not None:
+                    try:
+                        logger.debug(f"No other documents open, closing {self.app_name} application")
+                        self.app.Quit()
+                        self.app = None
+                        logger.info(f"{self.app_name} application closed successfully")
+                    except Exception as e:
+                        logger.warning(f"Failed to close {self.app_name} application: {str(e)}")
+                        # Don't raise - closing app is not critical
+                elif not should_close_app:
+                    logger.debug(f"Other documents are open, keeping {self.app_name} application running")
+
+            except Exception as e:
+                logger.warning(f"Failed to close {self.document_type}: {str(e)}")
+                # Don't raise exception - closing is not critical
+                # Set to None anyway to avoid stale references
+                self.doc = None
 
     def _check_header_mode_change(self) -> bool:
         """Check if the header storage mode has changed since last export.
@@ -1097,6 +1306,10 @@ class OfficeVBAHandler(ABC):
             self._write_component_files(name, header, code, info, target_directory)
             logger.debug(f"Component files written for {name} in {target_directory}")
 
+            # Handle form binaries if this is a UserForm
+            if info["type"] == VBATypes.VBEXT_CT_MSFORM:
+                self._handle_form_binary_export(name)
+
             logger.info(f"Exported: {name}" + (f" (folder: {folder_path})" if folder_path else ""))
 
         except Exception as e:
@@ -1110,11 +1323,15 @@ class OfficeVBAHandler(ABC):
                     pass
 
     def import_component(self, file_path: Path, components: Any) -> None:
-        """Import a VBA component with app-specific handling.
+        """Import a VBA component with automatic header format detection.
 
-        This method handles both new module creation and updates to existing modules.
-        For updates, it will prefer in-place content updates where possible, only doing
-        full imports when required by specific applications or module types.
+        This method automatically detects whether headers are embedded in the code file
+        or stored in separate .header files, eliminating the need for user flags.
+
+        Detection logic:
+        1. Check if file contains inline headers (VERSION/BEGIN/Attribute at start)
+        2. If not, look for separate .header file
+        3. If neither, create minimal headers as needed
 
         Args:
             file_path: Path to the code file
@@ -1125,18 +1342,34 @@ class OfficeVBAHandler(ABC):
         """
         try:
             name = file_path.stem
-            # Pass in_file_headers flag to get_module_type
+
+            # Auto-detect header format
+            has_inline_headers = self.component_handler.has_inline_headers(file_path, encoding=self.encoding)
+
+            # Check for separate header file
+            header_file = file_path.with_suffix(f"{file_path.suffix}.header")
+            has_separate_header = header_file.exists()
+
+            # Warn if both formats exist (conflicting headers)
+            if has_inline_headers and has_separate_header:
+                logger.warning(
+                    f"Both inline headers and separate header file found for {file_path.name}. "
+                    f"Using inline headers (separate .header file will be ignored)."
+                )
+
+            # Pass detected format to get_module_type
             module_type = self.component_handler.get_module_type(
-                file_path, in_file_headers=getattr(self, "in_file_headers", False), encoding=self.encoding
+                file_path, in_file_headers=has_inline_headers, encoding=self.encoding
             )
 
-            logger.debug(f"Processing module: {name} (Type: {module_type})")
+            logger.debug(f"Processing module: {name} (Type: {module_type}, Inline headers: {has_inline_headers})")
 
-            # For in-file headers, we need different logic
-            if getattr(self, "in_file_headers", False):
+            # Route to appropriate import handler based on detection
+            # Precedence: inline > separate > minimal
+            if has_inline_headers:
                 self._import_with_in_file_headers(file_path, components, module_type)
             else:
-                # Existing logic for separate header files
+                # Existing logic for separate header files (or no headers)
                 self._import_with_separate_headers(file_path, components, module_type)
 
             # Handle any form binaries if needed
@@ -1415,14 +1648,36 @@ class OfficeVBAHandler(ABC):
             raise VBAError("Failed to update module content") from e
 
     def _handle_form_binary_export(self, name: str) -> None:
-        """Handle form binary (.frx) export."""
+        """Handle form binary (.frx) export.
+
+        Sets exported .frx files as read-only to prevent accidental modification,
+        which would corrupt the UserForm and cause deletion from VBA project.
+
+        On re-export, automatically removes read-only flag before overwriting.
+        """
         try:
             frx_source = resolve_path(f"{name}.frx", Path(self.doc.FullName).parent)
             if frx_source.exists():
                 frx_target = resolve_path(f"{name}.frx", self.vba_dir)
                 try:
+                    # If target exists and is read-only, make it writable before copying
+                    if frx_target.exists():
+                        import stat
+
+                        current_mode = os.stat(str(frx_target)).st_mode
+                        if not (current_mode & stat.S_IWRITE):
+                            # File is read-only, make it writable
+                            os.chmod(str(frx_target), current_mode | stat.S_IWRITE)
+                            logger.debug(f"Temporarily removed read-only flag from {frx_target.name}")
+
                     shutil.copy2(str(frx_source), str(frx_target))
-                    logger.debug(f"Exported form binary: {frx_target}")
+
+                    # Make the exported .frx file read-only to prevent accidental modification
+                    import stat
+
+                    current_mode = os.stat(str(frx_target)).st_mode
+                    os.chmod(str(frx_target), current_mode & ~stat.S_IWRITE)
+                    logger.debug(f"Exported form binary (read-only): {frx_target}")
                 except (OSError, shutil.Error) as e:
                     logger.error(f"Failed to copy form binary {name}.frx: {e}")
                     raise VBAError(f"Failed to export form binary {name}.frx") from e
@@ -1430,12 +1685,24 @@ class OfficeVBAHandler(ABC):
             raise VBAError(f"Failed to handle form binary path: {str(e)}") from e
 
     def _handle_form_binary_import(self, name: str) -> None:
-        """Handle form binary (.frx) import."""
+        """Handle form binary (.frx) import.
+
+        Temporarily removes read-only flag if needed to allow copying.
+        """
         try:
             frx_source = resolve_path(f"{name}.frx", self.vba_dir)
             if frx_source.exists():
                 frx_target = resolve_path(f"{name}.frx", Path(self.doc.FullName).parent)
                 try:
+                    # If target exists and is read-only, make it writable temporarily
+                    if frx_target.exists():
+                        import stat
+
+                        current_mode = os.stat(str(frx_target)).st_mode
+                        if not (current_mode & stat.S_IWRITE):
+                            # File is read-only, make it writable
+                            os.chmod(str(frx_target), current_mode | stat.S_IWRITE)
+
                     shutil.copy2(str(frx_source), str(frx_target))
                     logger.debug(f"Imported form binary: {frx_target}")
                 except (OSError, shutil.Error) as e:
@@ -1690,13 +1957,16 @@ class OfficeVBAHandler(ABC):
             logger.error(f"Failed to process {file_path.name}: {str(e)}")
             raise VBAError(f"Failed to import {file_path.name}") from e
 
-    def export_vba(self, save_metadata: bool = False, overwrite: bool = True, interactive: bool = True) -> None:
+    def export_vba(
+        self, save_metadata: bool = False, overwrite: bool = True, interactive: bool = True, keep_open: bool = False
+    ) -> None:
         """Export VBA modules to files.
 
         Args:
             save_metadata: Whether to save metadata file
             overwrite: Whether to overwrite existing files
             interactive: Whether to prompt for confirmation on warnings (set False to skip prompts)
+            keep_open: Whether to keep document open after export (default: False = close after export)
 
         Raises:
             VBAExportWarning: When user confirmation is needed (only if interactive=True)
@@ -1782,6 +2052,12 @@ class OfficeVBAHandler(ABC):
                 # Also check for existing .frm files in case they were skipped
                 has_forms = bool(list(self.vba_dir.glob("*.frm")))
 
+            # Warn about .frx files if forms were exported
+            if has_forms:
+                logger.info("NOTE: UserForm binary files (.frx) are exported as read-only to prevent corruption.")
+                logger.info("      Modifying .frx files will corrupt the UserForm and cause deletion from VBA project.")
+                logger.info("      Only edit .frm files - .frx files are handled automatically.")
+
             # Save metadata if requested, or if we have forms (to track header mode)
             if save_metadata or has_forms:
                 logger.debug("Saving metadata...")
@@ -1807,6 +2083,11 @@ class OfficeVBAHandler(ABC):
             #         subprocess.run(["open", str(self.vba_dir)])
             #     else:
             #         subprocess.run(["xdg-open", str(self.vba_dir)])
+
+            # Close document after export unless --keep-open flag is set
+            if not keep_open:
+                logger.debug("Closing document after export (use --keep-open to override)")
+                self.close_document()
 
         except VBAExportWarning:
             # Let warnings propagate to CLI layer for user interaction

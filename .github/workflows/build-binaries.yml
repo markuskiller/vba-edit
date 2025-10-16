@@ -1,0 +1,106 @@
+name: Build and Attach Windows Binaries to Release
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+  # push:
+  #   branches: [dev]  # TEMPORARY: Commented out after workflow confirmed stable
+
+permissions:
+  contents: write      # Required to upload release assets
+  attestations: write  # Required to generate attestations
+  id-token: write      # Required for attestation signing
+
+jobs:
+  lint:
+    uses: ./.github/workflows/lint.yaml
+    permissions:
+      contents: read
+  
+  test:
+    uses: ./.github/workflows/test.yaml
+    permissions:
+      contents: read
+
+  build-binaries:
+    needs: [lint, test]  # Ensure binaries only built if tests pass
+    runs-on: windows-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.13'
+        
+    - name: Install uv
+      uses: astral-sh/setup-uv@v4
+      
+    - name: Install dependencies
+      run: |
+        uv sync --extra dev
+        
+    - name: Build binaries with PyInstaller
+      run: |
+        uv run python create_binaries.py
+        
+    - name: List built binaries
+      run: |
+        Get-ChildItem -Path dist -Recurse -File | Select-Object FullName, Length
+    
+    - name: Generate checksums
+      run: |
+        cd dist
+        Get-FileHash *.exe -Algorithm SHA256 | Format-List > checksums.txt
+        Get-FileHash *.exe -Algorithm SHA256 | ForEach-Object { "$($_.Hash.ToLower())  $($_.Path | Split-Path -Leaf)" } > SHA256SUMS
+        Get-Content SHA256SUMS
+        Get-Content checksums.txt
+    
+    - name: Generate SBOM (Software Bill of Materials)
+      run: |
+        uv export --format requirements-txt > dist/SBOM.txt
+        echo "Build Information:" >> dist/SBOM.txt
+        echo "Build Date: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss UTC')" >> dist/SBOM.txt
+        echo "Python Version: 3.13" >> dist/SBOM.txt
+        echo "Built by: GitHub Actions" >> dist/SBOM.txt
+        echo "Workflow: ${{ github.workflow }}" >> dist/SBOM.txt
+        echo "Run ID: ${{ github.run_id }}" >> dist/SBOM.txt
+        echo "Commit: ${{ github.sha }}" >> dist/SBOM.txt
+    
+    - name: Generate build attestations (cryptographic proof)
+      uses: actions/attest-build-provenance@v1
+      with:
+        subject-path: 'dist/*.exe'
+    
+    - name: Upload binaries as artifacts (for manual runs and push)
+      if: github.event_name == 'workflow_dispatch' || github.event_name == 'push'
+      uses: actions/upload-artifact@v4
+      with:
+        name: windows-binaries-unsigned
+        path: |
+          dist/excel-vba.exe
+          dist/word-vba.exe
+          dist/access-vba.exe
+          dist/powerpoint-vba.exe
+          dist/SHA256SUMS
+          dist/checksums.txt
+          dist/SBOM.txt
+        retention-days: 30
+
+    - name: Upload binaries to release (on release publish)
+      if: github.event_name == 'release'
+      uses: softprops/action-gh-release@v2
+      with:
+        files: |
+          dist/excel-vba.exe
+          dist/word-vba.exe
+          dist/access-vba.exe
+          dist/powerpoint-vba.exe
+          dist/SHA256SUMS
+          dist/checksums.txt
+          dist/SBOM.txt
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

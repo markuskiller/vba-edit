@@ -8,13 +8,16 @@ on:
   workflow_call:
   workflow_dispatch:
 
+permissions:
+  contents: read  # Required to checkout code
+
 jobs:
   testing:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
         os: [windows-latest]
-        python-version: ["3.9", "3.10", "3.11", "3.12", "3.13"]
+        python-version: ["3.9", "3.10", "3.11", "3.12", "3.13", "3.14"]
 
     steps:
       - uses: actions/checkout@v4
@@ -30,5 +33,6 @@ jobs:
           python -m pip install .[dev]
 
       - name: Run Pytest
+        timeout-minutes: 15  # Prevent runaway tests from blocking CI
         run: |
           pytest -m "not integration"

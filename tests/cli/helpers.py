@@ -162,7 +162,7 @@ def get_or_create_app(app_name: str):
     return _app_instances[app_type]
 
 
-def _wait_for_app_ready(app, app_type, timeout=10.0):
+def _wait_for_app_ready(app, app_type, timeout=15.0):
     """Wait for application to be ready for operations."""
     start_time = time.time()
 
@@ -450,7 +450,13 @@ class CLITester:
             CompletedProcess instance with command results
         """
         cmd = [self.command] + args
-        return subprocess.run(cmd, input=input_text.encode() if input_text else None, capture_output=True, text=True)
+        return subprocess.run(
+            cmd,
+            input=input_text.encode() if input_text else None,
+            capture_output=True,
+            text=True,
+            timeout=10,  # 10 second timeout to prevent CI/CD hangs
+        )
 
     def assert_success(self, args: List[str], expected_output: Optional[str] = None) -> None:
         """Assert command succeeds and optionally check output.
@@ -499,7 +505,7 @@ def _check_app_available(app_name: str) -> bool:
     """
     try:
         cmd = [f"{app_name}-vba", "--help"]
-        result = subprocess.run(cmd, capture_output=True, text=True)
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=10)
         return result.returncode == 0
     except Exception:
         return False

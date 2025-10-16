@@ -5,6 +5,100 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.1] - 2025-10-16
+
+### Added
+
+- **Support for Python 3.14**: Full compatibility with the latest Python release ([Issue #23](https://github.com/markuskiller/vba-edit/issues/23))
+- **Windows Binaries**: Pre-built executables for instant use without Python
+  - Four separate tools: `excel-vba.exe`, `word-vba.exe`, `access-vba.exe`, `powerpoint-vba.exe`
+  - SHA256 checksums and GitHub Attestations for security verification
+  - Software Bill of Materials (SBOM) included with each release
+  - See **[Issue #24](https://github.com/markuskiller/vba-edit/issues/24)** about expected antivirus warnings for unsigned binaries
+- **Colorized Terminal Output**: Professional CLI appearance with uv/ruff-style colors
+  - Success messages in green with checkmarks (✓)
+  - Error messages in red with X marks (✗)
+  - Warning messages in yellow with warning symbols (⚠)
+  - Syntax highlighting in help text for better readability
+  - Technical terms (TOML, JSON, VBA) highlighted in cyan
+  - Example commands shown in dim gray for easy scanning
+  - Automatically disabled when piped or redirected
+  - Use `--no-color` flag to disable manually
+  - Works reasonably well for `--help` texts but is still experimental for console logging output (`RichFormatter` presets interfere with custom color pattern)
+- **Automatic Header Detection**: Import command now works without manual header flags
+  - Automatically detects VBA headers in code files (VERSION/BEGIN/Attribute lines)
+  - Falls back to separate `.header` files when needed
+  - Creates minimal headers automatically if neither format exists
+  - Warns about conflicting configurations when both formats present
+- **Improved Help Display**: Redesigned help output for better usability
+  - Options organized into clear groups (File Options, Configuration, Encoding, etc.)
+  - Design by [@onderhold](https://github.com/onderhold)
+  - Main help shows concise overview with practical examples
+  - Command-specific help displays only relevant options
+- **UserForm Protection**: Automatic safeguards prevent accidental corruption of UserForm binary files
+  - Exported `.frx` files are marked read-only to prevent accidental modification
+  - Clear warnings displayed when UserForms are exported
+  - Edit mode ignores `.frx` files during file watching
+  - Seamless re-export workflow when forms are modified in Office VBA editor
+  - Prevents permanent UserForm deletion caused by corrupted binary files
+- **Security Documentation**: Comprehensive guides for secure usage
+  - Binary verification instructions with multiple methods
+  - Vulnerability reporting process documented
+  - Best practices for secure usage included
+
+### Changed
+
+- **Export Behavior**: Documents now close automatically after export completes
+  - Prevents accumulation of open Office windows during batch operations
+  - Use `--keep-open` flag to keep document open for VBA editor inspection
+  - Only affects `export` command (edit/import commands keep documents open as before)
+  - Makes export workflow cleaner and more CI/CD friendly
+- **Metadata Saving**: `-m/--save-metadata` option now available in both `edit` and `export` commands
+  - Previously only available in `edit` mode
+  - Makes workflows more consistent across commands
+- **Configuration Placeholders**: Simplified placeholder names for config files
+  - Use `{file.name}`, `{file.fullname}`, `{file.path}` instead of `{general.file.*}`
+  - Use `{file.vbaproject}` instead of `{vbaproject}`
+  - Old placeholders still work (will be removed in v0.5.0)
+- **Option Visibility**: Options now only appear on commands where they're actually used
+  - Folder options (`--rubberduck-folders`, `--open-folder`) only show on relevant commands
+  - `--open-folder` now works with `edit`, `import`, and `export` commands
+  - Reduces clutter and confusion in help output
+
+### Fixed
+
+- **[Issue #20](https://github.com/markuskiller/vba-edit/issues/20)**: Fixed crash when running `check` command
+  - All entry points now handle `check` command correctly
+- **[Issue #21](https://github.com/markuskiller/vba-edit/issues/21)**: Commands no longer show irrelevant options
+  - Each command displays only options that work with it
+- **CI/CD Reliability**: Improved test stability on GitHub Actions
+  - Added subprocess timeouts to prevent intermittent hangs
+  - Increased test timeouts for slower CI runners
+
+### Deprecated
+
+- **Old placeholder format**: `{general.file.*}` and `{vbaproject}`
+  - Still supported for backward compatibility
+  - Will be removed in v0.5.0
+  - Use new `{file.*}` format instead
+
+### Security
+
+- **Automated Dependency Updates**: Dependabot monitors for security issues
+  - Weekly checks for outdated dependencies
+  - Automatic pull requests for security updates
+- **GitHub Actions Security**: Workflows use minimal required permissions
+  - Follows principle of least privilege
+  - Reduces risk if workflow is compromised
+- **Binary Verification**: Multiple methods to verify download authenticity
+  - SHA256 checksums included with releases
+  - GitHub Attestations prove binaries built by official workflow
+  - SBOM documents all included dependencies
+- **Vulnerability Reporting**: Clear process for security issues
+  - Response within 48 hours
+  - Private disclosure via GitHub Security Advisories
+  - Documented timeline for fixes
+
 ## [0.4.0] - 2025-10-06
 
 ### Added
@@ -31,7 +125,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Refactored warning handling logic into centralized helper function (`handle_export_with_warnings()` in `cli_common.py`)
 - Core logic (`office_vba.py`) now raises `VBAExportWarning` exceptions instead of handling user interaction
 - CLI layer handles all user prompts via shared helper, eliminating code duplication across entry points
-- **[Issue #14](https://github.com/markuskiller/vba-edit/issues/14)**: The watchgod library is no longer actively developed and has been superseded by watchfiles. Consider The dependency has been replaced with watchfiles ([@onderhold](https://github.com/onderhold))
+- **[Issue #14](https://github.com/markuskiller/vba-edit/issues/14)**: The watchgod library is no longer actively developed and has been superseded by watchfiles. The dependency has been replaced with watchfiles ([@onderhold](https://github.com/onderhold))
 
 ### Fixed
 - **[Issue #16](https://github.com/markuskiller/vba-edit/issues/16)**: Hidden member attributes (VB_VarHelpID, VB_VarDescription, VB_UserMemId) no longer appear in VBA editor after import. These attributes are legal in exported VBA files but cause syntax errors when written directly into modules. Solution: filter all member-level Attribute lines from code sections before calling AddFromString(). (Reported by [@takutta](https://github.com/takutta), [@loehnertj](https://github.com/loehnertj))

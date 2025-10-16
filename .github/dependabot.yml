@@ -1,93 +1,48 @@
-# To get started with Dependabot version updates, you'll need to specify which# To get started with Dependabot version updates, you'll need to specify which
+# To get started with Dependabot version updates, you'll need to specify which
+# package ecosystems to update and where the package manifests are located.
+# Please see the documentation for all configuration options:
+# https://docs.github.com/github/administering-a-repository/configuration-options-for-dependency-updates
 
-# package ecosystems to update and where the package manifests are located.# package ecosystems to update and where the package manifests are located.
-
-# Please see the documentation for all configuration options:# Please see the documentation for all configuration options:
-
-# https://docs.github.com/github/administering-a-repository/configuration-options-for-dependency-updates# https://docs.github.com/github/administering-a-repository/configuration-options-for-dependency-updates
-
-
-
-version: 2version: 2
-
-updates:updates:
-
-  # Enable version updates for Python dependencies  # Enable version updates for Python dependencies
-
-  - package-ecosystem: "pip"  - package-ecosystem: "pip"
-
-    directory: "/"    directory: "/"
-
-    schedule:    schedule:
-
-      interval: "weekly"      interval: "weekly"
-
-      day: "monday"      day: "monday"
-
-      time: "09:00"      time: "09:00"
-
-    open-pull-requests-limit: 5    open-pull-requests-limit: 5
-
-    commit-message:    labels:
-
-      prefix: "deps"      - "dependencies"
-
-      include: "scope"      - "python"
-
-    # Group minor and patch updates together    commit-message:
-
-    groups:      prefix: "deps"
-
-      minor-and-patch:      include: "scope"
-
-        update-types:    # Group minor and patch updates together
-
-          - "minor"    groups:
-
-          - "patch"      minor-and-patch:
-
-    # Keep dependencies up-to-date        update-types:
-
-    reviewers:          - "minor"
-
-      - "markuskiller"          - "patch"
-
-    assignees:    # Keep dependencies up-to-date
-
-      - "markuskiller"    reviewers:
-
+version: 2
+updates:
+  # Enable version updates for Python dependencies
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+    open-pull-requests-limit: 5
+    # Labels removed - create them in GitHub repo settings first:
+    # - dependencies
+    # - python
+    commit-message:
+      prefix: "deps"
+      include: "scope"
+    # Group minor and patch updates together
+    groups:
+      minor-and-patch:
+        update-types:
+          - "minor"
+          - "patch"
+    # Keep dependencies up-to-date
+    reviewers:
+      - "markuskiller"
+    assignees:
       - "markuskiller"
 
-  # Enable version updates for GitHub Actions    assignees:
-
-  - package-ecosystem: "github-actions"      - "markuskiller"
-
+  # Enable version updates for GitHub Actions
+  - package-ecosystem: "github-actions"
     directory: "/"
-
-    schedule:  # Enable version updates for GitHub Actions
-
-      interval: "weekly"  - package-ecosystem: "github-actions"
-
-      day: "monday"    directory: "/"
-
-      time: "09:00"    schedule:
-
-    open-pull-requests-limit: 3      interval: "weekly"
-
-    commit-message:      day: "monday"
-
-      prefix: "ci"      time: "09:00"
-
-      include: "scope"    open-pull-requests-limit: 3
-
-    reviewers:    labels:
-
-      - "markuskiller"      - "dependencies"
-
-    assignees:      - "github-actions"
-
-      - "markuskiller"    commit-message:
-
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+    open-pull-requests-limit: 3
+    # Labels removed - create them in GitHub repo settings first:
+    # - dependencies
+    # - github-actions
+    commit-message:
       prefix: "ci"
       include: "scope"
     reviewers:

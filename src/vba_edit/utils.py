@@ -2,6 +2,7 @@ import ctypes
 import logging
 import logging.handlers
 import os
+import re
 import sys
 from functools import wraps
 from pathlib import Path
@@ -26,6 +27,211 @@ from vba_edit.path_utils import resolve_path
 
 # Configure module logger
 logger = logging.getLogger(__name__)
+
+
+class StripRichMarkupFormatter(logging.Formatter):
+    """Logging formatter that strips Rich markup tags from messages.
+
+    This formatter removes Rich console markup like [bold], [warning], [command], etc.
+    from log messages before writing them to file, while preserving the actual content.
+    This ensures log files contain clean, readable text without markup artifacts.
+    """
+
+    # Pattern to match Rich markup tags like [tag], [/tag], [tag attr]
+    RICH_MARKUP_PATTERN = re.compile(r"\[/?[a-z_]+(?:\s+[^\]]+)?\]", re.IGNORECASE)
+
+    def format(self, record: logging.LogRecord) -> str:
+        """Format the log record, stripping Rich markup from the message.
+
+        Args:
+            record: The log record to format
+
+        Returns:
+            Formatted log string with Rich markup removed
+        """
+        # Get the formatted message first (applies % formatting if needed)
+        formatted_msg = super().format(record)
+
+        # Strip Rich markup from the formatted message
+        formatted_msg = self.RICH_MARKUP_PATTERN.sub("", formatted_msg)
+
+        return formatted_msg
+
+
+class SemanticLogFormatter(logging.Formatter):
+    """Logging formatter that adds semantic colorization to log messages.
+
+    This formatter intelligently colorizes log output based on content:
+    - File paths (containing backslash or /): bold blue
+    - Success keywords: green
+    - Warning keywords (IMPORTANT, NOTE, WARNING): bold yellow
+    - Error keywords: bold red
+    - Commands (export, import, edit, check): bold cyan
+    - Technical terms (VBA, JSON, Excel, etc.): cyan (reused from help highlighter)
+    - Keys/labels (before : or =): dimmed
+
+    Designed to work with RichHandler's markup mode for clean, readable logs.
+    """
+
+    def format(self, record: logging.LogRecord) -> str:
+        """Format log message with semantic colorization.
+
+        Args:
+            record: The log record to format
+
+        Returns:
+            Formatted log string with Rich markup for colorization
+        """
+        # CRITICAL: Get the formatted message FIRST (this applies % formatting if needed)
+        # This ensures we work with the final message text, not the template
+        formatted_msg = super().format(record)
+
+        # Strip any existing [warning], [command] tags from exception messages
+        # These come from exceptions.py and should be replaced with semantic colors
+        formatted_msg = formatted_msg.replace("[warning]", "").replace("[/warning]", "")
+        formatted_msg = formatted_msg.replace("[command]", "").replace("[/command]", "")
+
+        # Apply semantic colorization patterns in order:
+        # 1. Paths FIRST (so keywords inside paths won't be matched)
+        # 2. Then keywords and commands (which will skip already-colored paths)
+        # 3. Technical terms LAST (after paths/keywords to avoid double-coloring)
+        formatted_msg = self._colorize_paths(formatted_msg)
+        formatted_msg = self._colorize_keywords(formatted_msg)
+        formatted_msg = self._colorize_commands(formatted_msg)
+        formatted_msg = self._colorize_technical_terms(formatted_msg)
+
+        # Return the colorized message (don't modify record)
+        return formatted_msg
+
+    def _colorize_paths(self, msg: str) -> str:
+        """Colorize file paths (strings containing backslashes or forward slashes).
+
+        Handles paths with spaces by continuing until a known file extension or newline.
+        Supports VBA file extensions (.bas, .cls, .frm, .frx) and Office formats
+        (.xlsm, .docm, .accdb, .pptm, etc.).
+
+        IMPORTANT: Paths inside dictionary/repr strings (like vars(args) output) are NOT
+        colorized to avoid markup tags appearing in the middle of dictionary values.
+        Only standalone paths in regular log messages are colorized.
+        """
+
+        # Skip colorization if message looks like a dictionary representation
+        # This prevents markup tags from appearing inside dict values like:
+        # "Command arguments: {'file': 'C:\path\file.xlsm[/bold blue]', ...}"
+        if msg.strip().startswith("Command arguments:") or "': '" in msg:
+            return msg
+
+        # Known file extensions for VBA and Office files
+        vba_extensions = (
+            r"(?:\.(?:bas|cls|frm|frx|xlsm|xlsb|xlsx|docm|docx|dotm|accdb|accde|pptm|pptx|potm|log|txt|toml|json|xml))"
+        )
+
+        # Match Windows paths with spaces, stopping at known extension or newline
+        # Pattern: C:\path\with spaces\file.ext or .\relative\path with spaces\file.ext
+        path_pattern = rf"([A-Za-z]:\\(?:[^\\:\n]+\\)*[^\n:]+?{vba_extensions}|\.\\(?:[^\\:\n]+\\)*[^\n:]+?{vba_extensions}|\.\.\\(?:[^\\:\n]+\\)*[^\n:]+?{vba_extensions})"
+        msg = self._color_outside_markup(msg, path_pattern, r"[bold blue]\1[/bold blue]")
+
+        # Also match simple paths without spaces (backward compatibility)
+        simple_path_pattern = r"([A-Za-z]:\\[^\s:]+|\.\\[^\s:]+|\.\.\\[^\s:]+|/[^\s:]+)"
+        msg = self._color_outside_markup(msg, simple_path_pattern, r"[bold blue]\1[/bold blue]")
+
+        return msg
+
+    def _colorize_keywords(self, msg: str) -> str:
+        """Colorize important keywords (avoiding already-colored paths).
+
+        These are semantic keywords that indicate status or importance, separate from
+        technical terms which are handled by _colorize_technical_terms().
+        """
+
+        # Split message by markup tags to avoid coloring inside them
+        # Success keywords (green) - positive status indicators
+        success_words = r"\b(Successfully|successfully|success|completed|accessed|enabled|Exported|Imported|Saved|Created|passed|Starting|started)\b"
+        msg = self._color_outside_markup(msg, success_words, r"[green]\1[/green]")
+
+        # Warning keywords (bold yellow) - important notices
+        warning_words = r"\b(IMPORTANT|NOTE|WARNING|Skipping|Watching)\b"
+        msg = self._color_outside_markup(msg, warning_words, r"[bold yellow]\1[/bold yellow]")
+
+        # Error keywords (bold red) - failures and destructive operations
+        error_words = r"\b(Error|Failed|Cannot|closed|terminated|Stopping|stopped|Deleting|deleting|Delete|delete)\b"
+        msg = self._color_outside_markup(msg, error_words, r"[bold red]\1[/bold red]")
+
+        return msg
+
+    def _colorize_commands(self, msg: str) -> str:
+        """Colorize quoted command patterns like 'word-vba import'.
+
+        These are special command patterns in quotes, separate from individual command
+        words (export, import, edit) which are handled as technical terms.
+        """
+        import re
+
+        # Colorize quoted commands like '*-vba import' or 'excel-vba export'
+        msg = re.sub(r"'([*\w-]+vba\s+\w+)'", r"'[bold cyan]\1[/bold cyan]'", msg)
+
+        return msg
+
+    def _colorize_technical_terms(self, msg: str) -> str:
+        """Colorize technical terms (VBA, JSON, Excel, etc.) using terms from help highlighter.
+
+        Reuses TECH_TERMS defined in console.py's HelpTextHighlighter for consistency.
+        Terms are colorized in cyan unless already inside markup tags.
+        """
+        import re
+
+        # Import TECH_TERMS from console module
+        try:
+            from vba_edit.console import HelpTextHighlighter
+
+            tech_terms = HelpTextHighlighter.TECH_TERMS
+        except (ImportError, AttributeError):
+            # Fallback if console module unavailable (shouldn't happen)
+            return msg
+
+        # Build regex pattern for all technical terms
+        # Escape special characters and handle word boundaries
+        for term in tech_terms:
+            escaped_term = re.escape(term)
+
+            # Build pattern with word boundaries for alphanumeric terms
+            if term[0].isalnum() and term[-1].isalnum():
+                pattern = rf"\b({escaped_term})\b"
+            else:
+                pattern = rf"({escaped_term})"
+
+            # Apply coloring outside existing markup
+            msg = self._color_outside_markup(msg, pattern, r"[cyan]\1[/cyan]")
+
+        return msg
+
+    def _color_outside_markup(self, msg: str, pattern: str, replacement: str) -> str:
+        """Apply color pattern only to text outside existing markup tags.
+
+        Args:
+            msg: Message to colorize
+            pattern: Regex pattern to match
+            replacement: Replacement string with Rich markup
+
+        Returns:
+            Message with pattern colorized only outside markup tags
+        """
+        import re
+
+        # Split by existing markup tags [tag]...[/tag]
+        # Matches: [bold blue]...[/bold blue], [green]...[/green], [bold yellow]...[/bold yellow], etc.
+        # This regex captures any Rich markup boundaries
+        parts = re.split(r"(\[[^\]]+\].*?\[/[^\]]+\])", msg)
+
+        # Apply coloring only to parts that are NOT inside markup
+        result = []
+        for i, part in enumerate(parts):
+            if i % 2 == 0:  # Even indices are outside markup
+                result.append(re.sub(pattern, replacement, part))
+            else:  # Odd indices are inside markup - keep as is
+                result.append(part)
+
+        return "".join(result)
 
 
 def confirm_action(message: str, default: bool = False) -> bool:
@@ -61,12 +267,26 @@ def confirm_action(message: str, default: bool = False) -> bool:
 
 
 def setup_logging(verbose: bool = False, logfile: Optional[str] = None) -> None:
-    """Configure root logger.
+    """Configure root logger with Rich console output and optional file logging.
 
     Args:
         verbose: Enable verbose (DEBUG) logging if True
         logfile: Path to log file. If None, only console logging is enabled.
+
+    Notes:
+        - Console: Uses RichHandler with semantic colorization (paths, success, warnings)
+        - File: Uses StripRichMarkupFormatter to remove markup tags (clean text)
+        - Both respect --no-color flag via console._colors_disabled check
+
+    REVERT INSTRUCTIONS (if needed):
+        Replace RichHandler section with:
+            console_handler = logging.StreamHandler(sys.stdout)
+            console_handler.setFormatter(logging.Formatter("%(message)s"))
+            console_handler.setLevel(logging.DEBUG if verbose else logging.INFO)
+            root_logger.addHandler(console_handler)
     """
+    from vba_edit.console import console, _colors_disabled
+
     root_logger = logging.getLogger()
     root_logger.setLevel(logging.DEBUG if verbose else logging.INFO)
 
@@ -74,13 +294,37 @@ def setup_logging(verbose: bool = False, logfile: Optional[str] = None) -> None:
     for handler in root_logger.handlers[:]:
         root_logger.removeHandler(handler)
 
-    # Console handler
-    console_handler = logging.StreamHandler(sys.stdout)
-    console_handler.setFormatter(logging.Formatter("%(message)s"))
-    console_handler.setLevel(logging.DEBUG if verbose else logging.INFO)
-    root_logger.addHandler(console_handler)
+    # Console handler: Use plain StreamHandler if colors are disabled
+    if _colors_disabled:
+        # Plain handler with markup stripping for --no-color mode
+        console_handler = logging.StreamHandler(sys.stdout)
+        console_handler.setFormatter(StripRichMarkupFormatter("%(message)s"))
+        console_handler.setLevel(logging.DEBUG if verbose else logging.INFO)
+        root_logger.addHandler(console_handler)
+    else:
+        # RichHandler with markup but NO Python syntax highlighting
+        # This gives us semantic colorization (paths, warnings) without repr() noise
+        from rich.logging import RichHandler
+
+        console_handler = RichHandler(
+            console=console,
+            markup=True,  # Enable Rich markup rendering ([warning], [path], etc.)
+            show_time=False,  # Don't show timestamp (we only want message)
+            show_path=False,  # Don't show file path
+            show_level=False,  # Don't show log level (messages speak for themselves)
+            rich_tracebacks=True,  # Keep nice tracebacks for errors
+            tracebacks_show_locals=verbose,  # Show locals only in verbose mode
+            enable_link_path=False,  # Disable file path links (reduces visual noise)
+            keywords=[],  # Disable keyword highlighting (empty list = no keywords)
+            highlighter=None,  # Disable all automatic syntax highlighting
+        )
+        # Apply custom formatter that adds semantic colorization
+        console_handler.setFormatter(SemanticLogFormatter())
+        console_handler.setLevel(logging.DEBUG if verbose else logging.INFO)
+        root_logger.addHandler(console_handler)
 
     # File handler with rotation (only if logfile is specified)
+    # Uses StripRichMarkupFormatter to remove markup tags from file output
     if logfile:
         try:
             logfile_path = Path(logfile).resolve()
@@ -90,7 +334,8 @@ def setup_logging(verbose: bool = False, logfile: Optional[str] = None) -> None:
                 backupCount=3,
                 encoding="utf-8",
             )
-            file_handler.setFormatter(logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s"))
+            # Use custom formatter that strips Rich markup tags for clean log files
+            file_handler.setFormatter(StripRichMarkupFormatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s"))
             file_handler.setLevel(logging.DEBUG)
             root_logger.addHandler(file_handler)
         except Exception as e:
@@ -272,7 +517,7 @@ class VBAFileChangeHandler:
                     if check_rpc_error(e):
                         raise RPCError(
                             "\nWord application is not available. Please ensure Word is running and "
-                            "try again with 'word-vba import' to import your changes."
+                            "try again with [command]'word-vba import'[/command] to import your changes."
                         ) from e
                     raise
 
@@ -282,8 +527,8 @@ class VBAFileChangeHandler:
                 if check_rpc_error(e):
                     raise DocumentClosedError(
                         "\nThe Word document has been closed. The edit session will be terminated.\n"
-                        "IMPORTANT: Any changes made after closing the document must be imported using\n"
-                        "'word-vba import' before starting a new edit session, otherwise they will be lost."
+                        "[warning]IMPORTANT:[/warning] Any changes made after closing the document must be imported using\n"
+                        "[command]'word-vba import'[/command] before starting a new edit session, otherwise they will be lost."
                     ) from e
                 raise VBAAccessError(
                     "Cannot access VBA project. Please ensure 'Trust access to the VBA "
@@ -764,6 +1009,47 @@ def check_vba_trust_access(app_name: Optional[str] = None) -> None:
     for app in apps:
         check_office_app(app)
         logger.info("\n")
+
+
+def show_workflow_diagram() -> None:
+    """Display the vba-edit workflow diagram (easter egg feature).
+
+    This function prints the ASCII diagram showing how vba-edit integrates
+    with Office applications and external editors.
+    """
+    from vba_edit.console import console
+
+    diagram = """
+[bold bright_cyan]vba-edit Workflow[/bold bright_cyan]
+
+[dim]                        <--- vba-edit --->[/dim]
+
+[bold]Excel / Word[/bold]                 [bold bright_cyan]COMMANDS[/bold bright_cyan]              [bold]Your favourite[/bold]
+[bold]PowerPoint / Access[/bold]             [dim]v[/dim]                      [bold]Editor[/bold]
+
+[dim]+------------------+                            +------------------+[/dim]
+[dim]|                  |                            |                  |[/dim]
+[dim]|[/dim]   [bold]VBA Project[/bold]    [dim]|[/dim]   [bold bright_cyan]<---   EDIT*[/bold bright_cyan]   [dim](once ->) |[/dim]  [bold](e.g. VS CODE)[/bold]  [dim]|[/dim] 
+[dim]|                  |                            |                  |[/dim]     [cyan]latest[/cyan]
+[dim]|[/dim]  [dim](Office VBA-[/dim]    [dim]|[/dim]          [bold bright_cyan]EXPORT[/bold bright_cyan]      [dim]--->  |[/dim]   [cyan].bas[/cyan]           [dim]|[/dim]  [dim]<-[/dim] [cyan]AI coding-[/cyan]  
+[dim]|[/dim]    [dim]Editor)[/dim]       [dim]|                            |[/dim]   [cyan].cls[/cyan]           [dim]|[/dim]     [cyan]assistants[/cyan]
+[dim]|                  |[/dim]   [bold bright_cyan]<---   IMPORT[/bold bright_cyan]            [dim]|[/dim]   [cyan].frm[/cyan]           [dim]|[/dim]   
+[dim]|                  |                            |[/dim]  [dim](.frx binary)[/dim]   [dim]|[/dim] 
+[dim]|                  |                            |                  |[/dim] 
+[dim]+------------------+                            +------------------+[/dim]
+                                                         [dim]v[/dim]
+                                                [dim]+------------------+[/dim]
+                                                [dim]|                  |[/dim]
+ [bold]*[/bold] [dim]watches & syncs[/dim]                              [dim]|[/dim]    [bold](e.g. Git)[/bold]    [dim]|[/dim]
+   [dim]back to Office[/dim]                               [dim]|[/dim]  [bold]version control[/bold] [dim]|[/dim]
+   [dim]VBA-Editor live[/dim]                              [dim]|                  |[/dim]
+   [dim]on save[/dim] [cyan][CTRL+S][/cyan]                             [dim]|                  |[/dim]
+                                                [dim]+------------------+[/dim]
+
+[dim]Tip: Use[/dim] [bold bright_cyan]--diagram[/bold bright_cyan] [dim]or[/dim] [bold bright_cyan]--how-it-works[/bold bright_cyan] [dim]anytime to see this workflow[/dim]
+"""
+    console.print(diagram)
+    sys.exit(0)
 
 
 if __name__ == "__main__":
