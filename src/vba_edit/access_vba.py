@@ -352,6 +352,7 @@ Full control usage:
 
     export_usage = """access-vba export
     [--file FILE | -f FILE]
+    [--keep-open]
     [--vba-directory DIR]
     [--open-folder]
     [--conf FILE | --config FILE]

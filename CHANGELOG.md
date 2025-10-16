@@ -9,8 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **Support for Python 3.14**: Full compatibility with the latest Python release
-- **Windows Binaries**: Pre-built executables for easy installation without Python
+- **Support for Python 3.14**: Full compatibility with the latest Python release ([Issue #23](https://github.com/markuskiller/vba-edit/issues/23))
+- **Windows Binaries**: Pre-built executables for instant use without Python
   - Four separate tools: `excel-vba.exe`, `word-vba.exe`, `access-vba.exe`, `powerpoint-vba.exe`
   - SHA256 checksums and GitHub Attestations for security verification
   - Software Bill of Materials (SBOM) included with each release
@@ -31,9 +31,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Warns about conflicting configurations when both formats present
 - **Improved Help Display**: Redesigned help output for better usability
   - Options organized into clear groups (File Options, Configuration, Encoding, etc.)
+  - Design by [@onderhold](https://github.com/onderhold)
   - Main help shows concise overview with practical examples
   - Command-specific help displays only relevant options
-  - Design by [@onderhold](https://github.com/onderhold)
+
 - **Security Documentation**: Comprehensive guides for secure usage
   - Binary verification instructions with multiple methods
   - Vulnerability reporting process documented

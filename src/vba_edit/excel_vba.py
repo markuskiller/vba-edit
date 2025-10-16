@@ -379,6 +379,7 @@ Full control usage:
 
     export_usage = """excel-vba export
     [--file FILE | -f FILE]
+    [--keep-open]
     [--vba-directory DIR]
     [--open-folder]
     [--conf FILE | --config FILE]

@@ -228,15 +228,21 @@ class EnhancedHelpFormatter(argparse.RawDescriptionHelpFormatter):
             # Matches options at start of line or after comma/whitespace
             # Avoids matching options inside help text (after 2+ spaces)
             result = re.sub(
-                r"(^|\s)(--?[\w-]+)(?=\s*(?:,|[A-Z_]|\s{2,}|$))",
+                r"(^|\s)(--?[\w-]+)(?=\s*(?:,|\[|[A-Z_]|\s{2,}|$))",
                 lambda m: m.group(1) + self._colorize(m.group(2), "option"),
                 result,
                 flags=re.MULTILINE,
             )
 
-            # Pass 2: Colorize metavars (FILE, DIR, ENCODING)
-            # Matches uppercase words of 2+ chars that appear before help text (2+ spaces)
-            # or at end of line
+            # Pass 2: Colorize metavars (FILE, DIR, ENCODING, [LOGFILE])
+            # First, colorize metavars in square brackets (e.g., [LOGFILE])
+            result = re.sub(
+                r"(\[[A-Z_]{2,}\])",
+                lambda m: self._colorize(m.group(1), "metavar"),
+                result,
+                flags=re.MULTILINE,
+            )
+            # Then, colorize regular metavars (uppercase words before help text or at end of line)
             result = re.sub(
                 r"\b([A-Z_]{2,})\b(?=\s{2,}|$)",
                 lambda m: self._colorize(m.group(1), "metavar"),
