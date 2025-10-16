@@ -105,10 +105,8 @@ class DocumentClosedError(VBAError):
     def __init__(self, doc_type: str = "document"):
         super().__init__(
             f"\nThe Office {doc_type} has been closed. The edit session will be terminated.\n"
-            f"IMPORTANT: Any changes made after closing the {doc_type} must be imported using\n"
-            f"'*-vba import' or by saving the file again in the next edit session.\n"
-            f"As of version 0.2.1, the '*-vba edit' command will no longer overwrite files\n"
-            f"already present in the VBA directory."
+            f"[warning]IMPORTANT:[/warning] Any changes made after closing the {doc_type} must be imported using\n"
+            f"[command]`*-vba import`[/command] or by saving the file again in the next edit session.\n"
         )
 
 
@@ -125,7 +123,7 @@ class DocumentIsReadOnlyError(VBAError):
     def __init__(self, doc_type: str = "document"):
         super().__init__(
             f"\nThe Office {doc_type} is in read-only mode. Changes cannot be saved.\n"
-            f"IMPORTANT: To save changes, ensure the {doc_type} is not read-only and try again.\n"
+            f"[warning]IMPORTANT:[/warning] To save changes, ensure the {doc_type} is not read-only and try again.\n"
             f"\nThis usually happens when:"
             f"\n- Multiple instances of the same presentation are open"
             f"\n- The presentation is opened from a network location"
@@ -147,10 +145,8 @@ class RPCError(VBAError):
     def __init__(self, app_name: str = "Office application"):
         super().__init__(
             f"\nLost connection to {app_name}. The edit session will be terminated.\n"
-            f"IMPORTANT: Any changes made after closing {app_name} must be imported using\n"
-            f"'*-vba import' or by saving the file again in the next edit session.\n"
-            f"As of version 0.2.1, the '*-vba edit' command will no longer overwrite files\n"
-            f"already present in the VBA directory."
+            f"[warning]IMPORTANT:[/warning] Any changes made after closing {app_name} must be imported using\n"
+            f"[command]`*-vba import`[/command] or by saving the file again in the next edit session.\n"
         )
 
 

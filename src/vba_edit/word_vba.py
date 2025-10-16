@@ -672,12 +672,13 @@ def handle_word_vba_command(args: argparse.Namespace) -> None:
         logger.info(f"Executing command: {args.command}")
         try:
             if args.command == "edit":
-                print("NOTE: Deleting a VBA module file will also delete it in the VBA editor!")
+                logger.info("NOTE: Deleting a VBA module file will also delete it in the VBA editor!")
                 handle_export_with_warnings(
                     handler,
                     save_metadata=getattr(args, "save_metadata", False),
                     overwrite=False,
                     interactive=True,
+                    keep_open=True,  # CRITICAL: Must keep document open for edit mode
                 )
                 try:
                     handler.watch_changes()

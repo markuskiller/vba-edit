@@ -42,6 +42,7 @@ try:
         """
 
         # Technical terms/formats we want to highlight
+        # Used by both help formatter AND semantic log formatter for consistency
         TECH_TERMS = {
             # File formats and data standards
             "TOML",
@@ -85,12 +86,31 @@ try:
             "Outlook",
             "Project",
             "Visio",
-            # File extensions and filenames
+            # VBA file extensions
             ".bas",
             ".cls",
             ".frm",
+            ".frx",
+            # Office file extensions
+            ".xlsm",
+            ".xlsb",
+            ".xlsx",
+            ".docm",
+            ".docx",
+            ".dotm",
+            ".accdb",
+            ".accde",
+            ".pptm",
+            ".pptx",
+            ".potm",
+            # Other file extensions
+            ".log",
+            ".txt",
+            ".toml",
+            ".json",
+            ".xml",
+            # Filenames
             "vba_edit.log",
-            # ".xlsm", ".docm", ".accdb", ".pptm",
             # Dev tools and libraries
             "RubberduckVBA",
             "@Folder",
@@ -98,19 +118,27 @@ try:
             "xlwings vba",
             "VS Code",
             "Git",
-            # Operations (lowercase for command descriptions)
+            # Commands and operations (used in both help and logging)
             "export",
             "import",
             "sync",
             "watch",
             "watches",
             "edit",
+            "check",
             # Command verbs (capitalized for emphasis in sentences)
             "Edit",
             "Export",
             "Import",
             "Check",
             "Sync",
+            "Starting",  # Used in "Starting edit session" messages
+            # Action verbs (lowercase - used in progress messages)
+            "Opening",
+            "opening",
+            "exported",
+            "imported",
+            "editing",
             # Keyboard shortcuts
             "[CTRL+S]",
             "[SHIFT]",
@@ -409,6 +437,29 @@ def print_path(path: str, **kwargs):
         # Output: src/vba_edit/Module1.bas (in blue)
     """
     console.print(f"[path]{path}[/path]", **kwargs)
+
+
+def print_exception(exc: Exception, **kwargs):
+    """Print exception message with Rich markup rendering.
+
+    This function properly renders Rich markup tags in exception messages,
+    making IMPORTANT warnings, commands, and paths colorized.
+    Use this instead of logger.error(str(e)) for exceptions that contain
+    Rich markup tags like [warning], [command], [path], etc.
+
+    Args:
+        exc: The exception to print
+        **kwargs: Additional arguments passed to console.print()
+
+    Example:
+        try:
+            raise DocumentClosedError()
+        except DocumentClosedError as e:
+            print_exception(e)
+            # Output: Colorized message with yellow IMPORTANT, cyan commands, etc.
+    """
+    # Print the exception message with markup rendering enabled
+    error_console.print(str(exc), **kwargs)
 
 
 def print_action(action: str, **kwargs):
