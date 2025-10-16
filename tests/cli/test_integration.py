@@ -19,7 +19,7 @@ class TestCLIIntegration:
         vba_dir = tmp_path / "vba_files"
 
         # Test export
-        cli.assert_success(["export", "-f", str(temp_office_doc), "--vba-directory", str(vba_dir)])
+        cli.assert_success(["export", "-f", str(temp_office_doc), "--vba-directory", str(vba_dir), "--keep-open"])
         assert vba_dir.exists()
         assert any(vba_dir.glob("*.bas"))  # Should have at least one module
 
@@ -36,7 +36,15 @@ class TestCLIIntegration:
 
         # Test export with Rubberduck folders enabled
         cli.assert_success(
-            ["export", "-f", str(temp_office_doc), "--vba-directory", str(vba_dir), "--rubberduck-folders"]
+            [
+                "export",
+                "-f",
+                str(temp_office_doc),
+                "--vba-directory",
+                str(vba_dir),
+                "--rubberduck-folders",
+                "--keep-open",
+            ]
         )
 
         assert vba_dir.exists()
@@ -88,7 +96,15 @@ class TestCLIIntegration:
 
         # First export with Rubberduck folders
         cli.assert_success(
-            ["export", "-f", str(temp_office_doc), "--vba-directory", str(vba_dir), "--rubberduck-folders"]
+            [
+                "export",
+                "-f",
+                str(temp_office_doc),
+                "--vba-directory",
+                str(vba_dir),
+                "--rubberduck-folders",
+                "--keep-open",
+            ]
         )
 
         # Modify the class file to test round-trip
@@ -132,11 +148,13 @@ class TestSafetyFeaturesIntegration:
         vba_dir = tmp_path / "vba_files"
 
         # First export to create files
-        cli.assert_success(["export", "-f", str(temp_office_doc), "--vba-directory", str(vba_dir)])
+        cli.assert_success(["export", "-f", str(temp_office_doc), "--vba-directory", str(vba_dir), "--keep-open"])
         assert vba_dir.exists()
 
         # Second export with --force-overwrite should succeed without prompts
-        result = cli.run(["export", "-f", str(temp_office_doc), "--vba-directory", str(vba_dir), "--force-overwrite"])
+        result = cli.run(
+            ["export", "-f", str(temp_office_doc), "--vba-directory", str(vba_dir), "--force-overwrite", "--keep-open"]
+        )
 
         # Should succeed without user interaction
         assert result.returncode == 0 or "No VBA components found" in (result.stdout + result.stderr)
@@ -150,7 +168,9 @@ class TestSafetyFeaturesIntegration:
         vba_dir = tmp_path / "vba_files"
 
         # Export with separate headers
-        cli.assert_success(["export", "-f", str(temp_office_doc), "--vba-directory", str(vba_dir), "--save-headers"])
+        cli.assert_success(
+            ["export", "-f", str(temp_office_doc), "--vba-directory", str(vba_dir), "--save-headers", "--keep-open"]
+        )
 
         # Check for .header files (may or may not exist depending on components)
         # The test just verifies the option doesn't cause errors
@@ -166,7 +186,9 @@ class TestSafetyFeaturesIntegration:
         vba_dir = tmp_path / "vba_files"
 
         # Export with inline headers
-        cli.assert_success(["export", "-f", str(temp_office_doc), "--vba-directory", str(vba_dir), "--in-file-headers"])
+        cli.assert_success(
+            ["export", "-f", str(temp_office_doc), "--vba-directory", str(vba_dir), "--in-file-headers", "--keep-open"]
+        )
 
         assert vba_dir.exists()
 
@@ -293,4 +315,8 @@ class TestSafetyFeaturesIntegration:
         # Should fail with error message
         assert result.returncode != 0
         full_output = result.stdout + result.stderr
-        assert "mutually exclusive" in full_output.lower() or "conflicting" in full_output.lower()
+        assert (
+            "mutually exclusive" in full_output.lower()
+            or "conflicting" in full_output.lower()
+            or "not allowed with" in full_output.lower()
+        )

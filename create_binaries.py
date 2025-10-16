@@ -56,9 +56,23 @@ def get_version():
 def create_version_file(exe_name: str, app_description: str, output_dir: str = "."):
     """Create a version file for PyInstaller to embed Windows properties."""
     version = get_version()
-    # Convert version string to numeric format (e.g., "0.4.0-rc2" -> "0.4.0.0")
+    # Convert version string to numeric format (e.g., "0.4.1a1" -> "0.4.1.0")
+    # Split by '-' for rc/beta style, then clean each part of alpha suffixes
     version_numeric = version.split("-")[0]  # Remove any suffix like -rc2
-    parts = version_numeric.split(".")
+
+    # Clean each part of alpha/beta suffixes (e.g., "1a1" -> "1")
+    parts = []
+    for part in version_numeric.split("."):
+        # Extract only the numeric prefix from each part
+        numeric_part = ""
+        for char in part:
+            if char.isdigit():
+                numeric_part += char
+            else:
+                break  # Stop at first non-digit character
+        parts.append(numeric_part if numeric_part else "0")
+
+    # Ensure we have exactly 4 parts
     while len(parts) < 4:
         parts.append("0")
     file_version = ".".join(parts[:4])
@@ -146,7 +160,7 @@ def build_executable(app_name: str, config: dict, src_dir: str, additional_args:
 
     try:
         run(args)
-        print(f"✓ Successfully built {exe_name}.exe")
+        print(f"[OK] Successfully built {exe_name}.exe")
 
         # Clean up version file
         try:
@@ -156,7 +170,7 @@ def build_executable(app_name: str, config: dict, src_dir: str, additional_args:
 
         return True
     except Exception as e:
-        print(f"✗ Failed to build {exe_name}.exe: {e}")
+        print(f"[FAIL] Failed to build {exe_name}.exe: {e}")
         return False
 
 
@@ -246,9 +260,9 @@ Examples:
     print("=" * 50)
     print("Build Summary:")
     if successful_builds:
-        print(f"✓ Successfully built: {', '.join(successful_builds)}")
+        print(f"[OK] Successfully built: {', '.join(successful_builds)}")
     if failed_builds:
-        print(f"✗ Failed to build: {', '.join(failed_builds)}")
+        print(f"[FAIL] Failed to build: {', '.join(failed_builds)}")
         sys.exit(1)
 
     print("All requested executables built successfully!")

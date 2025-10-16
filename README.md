@@ -1,14 +1,14 @@
 # [vba-edit](https://github.com/markuskiller/vba-edit) 
 
-**Edit VBA code in VS Code, Sublime, or any editor you love.** Real-time sync with MS Office apps (support for **Excel**, **Word**, **PowerPoint** & **Access**). Git-friendly. No more VBA editor pain.
-
+**Edit VBA code in VS Code, PyCharm, Wing IDE, or any editor you love.** Real-time sync with MS Office apps (support for **Excel**, **Word**, **PowerPoint** & **Access**). Git-friendly. No more VBA editor pain.
 
 [![CI](https://github.com/markuskiller/vba-edit/actions/workflows/test.yaml/badge.svg)](https://github.com/markuskiller/vba-edit/actions/workflows/test.yaml)
 [![PyPI - Version](https://img.shields.io/pypi/v/vba-edit.svg)](https://pypi.org/project/vba-edit)
 [![PyPI - Python Version](https://img.shields.io/pypi/pyversions/vba-edit.svg)](https://pypi.org/project/vba-edit)
+[![Platform](https://img.shields.io/badge/platform-windows-blue.svg)](https://github.com/markuskiller/vba-edit)
 [![PyPI - Downloads](https://img.shields.io/pypi/dm/vba-edit)](https://pypi.org/project/vba-edit)
+[![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 [![License](https://img.shields.io/badge/License-BSD_3--Clause-blue.svg)](https://opensource.org/licenses/BSD-3-Clause)
-
 
 ## 30-Second Demo
 ```bash
@@ -22,36 +22,35 @@ excel-vba edit    # or word-vba edit
 ```
 
 ## How It Works
-
 <pre>
-                         ←── vba-edit ──→
+                        <--- vba-edit --->
 
-Excel / Word                 COMMANDS            Your favourite
-PowerPoint / Access              ↓                   Editor
+Excel / Word                 COMMANDS              Your favourite
+PowerPoint / Access             v                       Editor
 
-┌──────────────────┐                          ┌──────────────────┐
-│                  │                          │                  │
-│   VBA Project    │    ←──    EDIT* (once →) │  (e.g. VS CODE)  │ 
-│                  │                          │                  │     latest
-│  (Office VBA-    │           EXPORT ──→     │   .bas           │   ← AI coding-  
-│    Editor)       │                          │   .cls           │     assistants
-│                  │       ←── IMPORT         │   .frm           │   
-│                  │                          │  (.frx binary)   │ 
-│                  │                          │                  │ 
-└──────────────────┘                          └──────────────────┘
-                                                       ↓
-                                              ┌──────────────────┐
-                                              │                  │
- * watches & syncs                            │    (e.g. Git)    │
-   back to Office                             │  version control │
-   VBA-Editor live                            │                  │
-   on save [CTRL+S]                           │                  │
-                                              └──────────────────┘
++------------------+                            +------------------+
+|                  |                            |                  |
+|   VBA Project    |   <---   EDIT*   (once ->) |  (e.g. VS CODE)  | 
+|                  |                            |                  |     latest
+|  (Office VBA-    |          EXPORT      --->  |   .bas           |  <- AI coding-  
+|    Editor)       |                            |   .cls           |     assistants
+|                  |   <---   IMPORT            |   .frm           |   
+|                  |                            |  (.frx binary)   | 
+|                  |                            |                  | 
++------------------+                            +------------------+
+                                                         v
+                                                +------------------+
+                                                |                  |
+ * watches & syncs                              |    (e.g. Git)    |
+   back to Office                               |  version control |
+   VBA-Editor live                              |                  |
+   on save [CTRL+S]                             |                  |
+                                                +------------------+
 </pre>
 
 ## Why vba-edit?
 
-- **Use YOUR editor** - VS Code, PyCharm, Wing IDE, Vim, etc. whatever you love 
+- **Use YOUR editor** - VS Code, PyCharm, Wing IDE, Sublime, Vim, etc. whatever you love 
 - **AI-ready** - Use Copilot, ChatGPT, or any coding assistant 
 - **Team-friendly** - Share code via Git, no COM add-ins needed 
 - **Real version control** - Diff, merge, and track changes properly 
@@ -154,6 +153,53 @@ excel-vba export --vba-directory ./src --force-overwrite
 - Class modules with custom attributes
 
 
+## Roadmap
+
+### 🎯 Current Focus (v0.4.x)
+- 🔄 Stable VBA editing for Excel, Word, PowerPoint, Access
+- 🔄 Enhanced CLI with organized help and grouped options
+- 🔄 Refining RubberduckVBA integration (`@Folder` annotations)
+- 🔄 Optimizing configuration file support (TOML)
+- 🔄 Safety features and data loss prevention
+- 🔄 Colorized output for better readability (coming in v0.4.1)
+- 🔄 Windows binaries with security verification (SHA256, SBOM, Attestations)
+
+### 🚀 Next release (v0.5.0)
+
+**Manual Bi-Directional Sync**
+- Export Office VBA changes back to files during `edit` mode
+- Keyboard shortcut in terminal (e.g., press `E` to export)
+- Safety warnings for unsaved files
+- Automatic backups before overwrite
+- _No automatic polling - explicit user control_
+
+**PowerQuery Support** (Excel)
+- Export/Import PowerQuery queries (M language)
+- Similar workflow to VBA editing
+- `.pq` or `.m` file format support
+
+**CLI Enhancements**
+- Progress indicators
+- Improved error messages
+
+### 🔮 Future (v0.6.0+)
+
+**Advanced Features**
+- Multi-document support (watch multiple Office files)
+- Dependency tracking and visualization
+- Git workflow automation
+
+**Code Signing** (if feasible)
+- Signed Windows executables via SignPath.io
+- No more SmartScreen warnings
+- Enhanced trust and security
+
+### 💡 Feedback & Contributions
+
+Found a bug? Have a feature idea? Questions about usage? Open an [Issue](https://github.com/markuskiller/vba-edit/issues) - we use labels to organize different types of feedback.
+
+---
+
 ## Command Line Tools
 
 ### App-specific tools
@@ -252,21 +298,27 @@ excel-vba export --conf vba-config.toml
 
 ### Configuration Placeholders
 
-Configuration values support dynamic placeholders for flexible path management:
+Configuration values support dynamic placeholders for flexible path management.
 
-**Available placeholders:**
+**Available placeholders (v0.4.1+):**
 - `{config.path}` - Directory containing the config file
-- `{general.file.name}` - Document filename without extension
-- `{general.file.fullname}` - Document filename with extension
-- `{general.file.path}` - Directory containing the document
-- `{vbaproject}` - VBA project name (resolved at runtime)
+- `{file.name}` - Document filename without extension
+- `{file.fullname}` - Document filename with extension
+- `{file.path}` - Directory containing the document
+- `{file.vbaproject}` - VBA project name (resolved at runtime)
+
+**Legacy placeholders (deprecated in v0.4.1, removed in v0.5.0):**
+- `{general.file.name}` → use `{file.name}`
+- `{general.file.fullname}` → use `{file.fullname}`
+- `{general.file.path}` → use `{file.path}`
+- `{vbaproject}` → use `{file.vbaproject}`
 
 **Example with placeholders:**
 
 ```toml
 [general]
 file = "C:/Projects/MyApp/MyWorkbook.xlsm"
-vba_directory = "{general.file.path}/{general.file.name}-vba"
+vba_directory = "{file.path}/{file.name}-vba"
 # This resolves to: C:/Projects/MyApp/MyWorkbook-vba
 ```
 

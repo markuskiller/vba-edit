@@ -1,2 +1,5 @@
 include LICENSE
+include AUTHORS.md
+include SECURITY.md
+include CHANGELOG.md
 recursive-include LICENSES *.txt

@@ -7,6 +7,7 @@ import re
 from pathlib import Path
 from typing import Any, Dict, Optional
 
+from vba_edit.console import error, info, warning
 from vba_edit.exceptions import VBAExportWarning
 from vba_edit.utils import confirm_action, get_windows_ansi_codepage
 
@@ -28,6 +29,7 @@ def handle_export_with_warnings(
     overwrite: bool = True,
     interactive: bool = True,
     force_overwrite: bool = False,
+    keep_open: bool = False,
 ):
     """Handle VBA export with user confirmation for warnings.
 
@@ -41,6 +43,7 @@ def handle_export_with_warnings(
         overwrite: Whether to overwrite existing files
         interactive: Whether to show warnings and prompt for confirmation
         force_overwrite: If True, skip all confirmation prompts (use with caution)
+        keep_open: If True, keep document open after export (default: False = close)
 
     Returns:
         None
@@ -54,40 +57,50 @@ def handle_export_with_warnings(
         interactive = False
 
     try:
-        handler.export_vba(save_metadata=save_metadata, overwrite=overwrite, interactive=interactive)
-    except VBAExportWarning as warning:
-        if warning.warning_type == "existing_files":
-            file_count = warning.context["file_count"]
-            print(f"\nWARNING: Found {file_count} existing VBA file(s) in the VBA directory.")
-            print("Continuing will overwrite these files with content from the document.")
+        handler.export_vba(
+            save_metadata=save_metadata, overwrite=overwrite, interactive=interactive, keep_open=keep_open
+        )
+    except VBAExportWarning as warning_exc:
+        if warning_exc.warning_type == "existing_files":
+            file_count = warning_exc.context["file_count"]
+            warning(f"Found {file_count} existing VBA file(s) in the VBA directory.")
+            info("Continuing will overwrite these files with content from the document.")
             if not confirm_action("Do you want to continue?", default=False):
-                print("Export cancelled by user.")
+                info("Export cancelled by user.")
                 import sys
 
                 sys.exit(0)
             # User confirmed, retry with interactive=False to skip further prompts
-            handler.export_vba(save_metadata=save_metadata, overwrite=True, interactive=False)
+            handler.export_vba(save_metadata=save_metadata, overwrite=True, interactive=False, keep_open=keep_open)
 
-        elif warning.warning_type == "header_mode_changed":
-            old_mode = warning.context["old_mode"]
-            new_mode = warning.context["new_mode"]
-            print(f"\nWARNING: Header storage mode has changed from {old_mode} to {new_mode}.")
-            print("Continuing will re-export all forms and clean up old .header files if needed.")
+        elif warning_exc.warning_type == "header_mode_changed":
+            old_mode = warning_exc.context["old_mode"]
+            new_mode = warning_exc.context["new_mode"]
+            warning(f"Header storage mode has changed from {old_mode} to {new_mode}.")
+            info("Continuing will re-export all forms and clean up old .header files if needed.")
             if not confirm_action("Do you want to continue?", default=True):
-                print("Export cancelled by user.")
+                info("Export cancelled by user.")
                 import sys
 
                 sys.exit(0)
             # User confirmed, retry with overwrite=True and interactive=False
-            handler.export_vba(save_metadata=save_metadata, overwrite=True, interactive=False)
+            handler.export_vba(save_metadata=save_metadata, overwrite=True, interactive=False, keep_open=keep_open)
 
 
-# Placeholder constants
+# Placeholder constants for configuration file substitution
+# New simplified format (v0.4.1+)
 PLACEHOLDER_CONFIG_PATH = "{config.path}"
-PLACEHOLDER_FILE_NAME = "{general.file.name}"
-PLACEHOLDER_FILE_FULLNAME = "{general.file.fullname}"
-PLACEHOLDER_FILE_PATH = "{general.file.path}"
-PLACEHOLDER_VBA_PROJECT = "{vbaproject}"
+PLACEHOLDER_FILE_NAME = "{file.name}"
+PLACEHOLDER_FILE_FULLNAME = "{file.fullname}"
+PLACEHOLDER_FILE_PATH = "{file.path}"
+PLACEHOLDER_FILE_VBAPROJECT = "{file.vbaproject}"
+# Legacy placeholders for backward compatibility (deprecated in v0.4.1, will be removed in v0.5.0)
+PLACEHOLDER_FILE_NAME_LEGACY = "{general.file.name}"
+PLACEHOLDER_FILE_FULLNAME_LEGACY = "{general.file.fullname}"
+PLACEHOLDER_FILE_PATH_LEGACY = "{general.file.path}"
+PLACEHOLDER_VBA_PROJECT_LEGACY = "{vbaproject}"
+# Aliases for test compatibility (deprecated, use new names above)
+PLACEHOLDER_VBA_PROJECT = PLACEHOLDER_VBA_PROJECT_LEGACY  # For backward compatibility in tests
 
 # TOML configuration section constants
 CONFIG_SECTION_GENERAL = "general"
@@ -137,6 +150,9 @@ def resolve_placeholders_in_value(value: str, placeholders: Dict[str, str]) -> s
 def get_placeholder_values(config_file_path: Optional[str] = None, file_path: Optional[str] = None) -> Dict[str, str]:
     """Get placeholder values based on config file and file paths.
 
+    Supports both new simplified placeholders ({file.name}) and legacy ones ({general.file.name})
+    for backward compatibility.
+
     Args:
         config_file_path: Path to the TOML config file (optional)
         file_path: Path to the Office document (optional)
@@ -145,11 +161,17 @@ def get_placeholder_values(config_file_path: Optional[str] = None, file_path: Op
         Dictionary mapping placeholder names to their values
     """
     placeholders = {
+        # New format (v0.4.1+)
         PLACEHOLDER_CONFIG_PATH: "",
         PLACEHOLDER_FILE_NAME: "",
         PLACEHOLDER_FILE_FULLNAME: "",
         PLACEHOLDER_FILE_PATH: "",
-        # {vbaproject} will be resolved later when we have access to the Office file
+        PLACEHOLDER_FILE_VBAPROJECT: "",  # Resolved later
+        # Legacy format (deprecated)
+        PLACEHOLDER_FILE_NAME_LEGACY: "",
+        PLACEHOLDER_FILE_FULLNAME_LEGACY: "",
+        PLACEHOLDER_FILE_PATH_LEGACY: "",
+        PLACEHOLDER_VBA_PROJECT_LEGACY: "",  # Resolved later
     }
 
     # Get config file directory for relative path resolution
@@ -168,9 +190,18 @@ def get_placeholder_values(config_file_path: Optional[str] = None, file_path: Op
                 config_dir = Path(config_file_path).parent
                 resolved_file_path = config_dir / file_path
 
-            placeholders[PLACEHOLDER_FILE_NAME] = resolved_file_path.stem  # filename without extension
-            placeholders[PLACEHOLDER_FILE_FULLNAME] = resolved_file_path.name  # filename with extension
-            placeholders[PLACEHOLDER_FILE_PATH] = str(resolved_file_path.parent)
+            file_name = resolved_file_path.stem  # filename without extension
+            file_fullname = resolved_file_path.name  # filename with extension
+            file_path_str = str(resolved_file_path.parent)
+
+            # New format
+            placeholders[PLACEHOLDER_FILE_NAME] = file_name
+            placeholders[PLACEHOLDER_FILE_FULLNAME] = file_fullname
+            placeholders[PLACEHOLDER_FILE_PATH] = file_path_str
+            # Legacy format (same values)
+            placeholders[PLACEHOLDER_FILE_NAME_LEGACY] = file_name
+            placeholders[PLACEHOLDER_FILE_FULLNAME_LEGACY] = file_fullname
+            placeholders[PLACEHOLDER_FILE_PATH_LEGACY] = file_path_str
 
     return placeholders
 
@@ -206,21 +237,28 @@ def resolve_all_placeholders(args: argparse.Namespace, config_file_path: Optiona
 
 
 def resolve_vbaproject_placeholder_in_args(args: argparse.Namespace, vba_project_name: str) -> argparse.Namespace:
-    """Resolve the {vbaproject} placeholder in arguments after VBA project name is known.
+    """Resolve the {file.vbaproject} and legacy {vbaproject} placeholders after VBA project name is known.
+
+    Supports both new simplified placeholder ({file.vbaproject}) and legacy one ({vbaproject})
+    for backward compatibility.
 
     Args:
         args: Command-line arguments
         vba_project_name: Name of the VBA project
 
     Returns:
-        Arguments with {vbaproject} placeholder resolved
+        Arguments with vbaproject placeholders resolved
     """
     args_dict = vars(args).copy()
 
-    # Resolve {vbaproject} placeholder in all string arguments
+    # Resolve both new and legacy placeholders in all string arguments
     for key, value in args_dict.items():
         if isinstance(value, str):
-            args_dict[key] = value.replace(PLACEHOLDER_VBA_PROJECT, vba_project_name)
+            # New format
+            value = value.replace(PLACEHOLDER_FILE_VBAPROJECT, vba_project_name)
+            # Legacy format
+            value = value.replace(PLACEHOLDER_VBA_PROJECT_LEGACY, vba_project_name)
+            args_dict[key] = value
 
     return argparse.Namespace(**args_dict)
 
@@ -246,20 +284,26 @@ def resolve_config_placeholders_recursive(value, placeholders: Dict[str, str]):
 
 
 def resolve_vbaproject_placeholder(config: Dict[str, Any], vba_project_name: str) -> Dict[str, Any]:
-    """Resolve the {vbaproject} placeholder after VBA project name is known.
+    """Resolve the {file.vbaproject} and legacy {vbaproject} placeholders after VBA project name is known.
+
+    Supports both new simplified placeholder ({file.vbaproject}) and legacy one ({vbaproject})
+    for backward compatibility.
 
     Args:
         config: Configuration dictionary
         vba_project_name: Name of the VBA project
 
     Returns:
-        Configuration with {vbaproject} placeholder resolved
+        Configuration with vbaproject placeholders resolved
     """
     import copy
 
     resolved_config = copy.deepcopy(config)
 
-    placeholders = {PLACEHOLDER_VBA_PROJECT: vba_project_name}
+    placeholders = {
+        PLACEHOLDER_FILE_VBAPROJECT: vba_project_name,  # New format
+        PLACEHOLDER_VBA_PROJECT_LEGACY: vba_project_name,  # Legacy format
+    }
 
     return resolve_config_placeholders_recursive(resolved_config, placeholders)
 
@@ -379,7 +423,7 @@ def process_config_file(args: argparse.Namespace) -> argparse.Namespace:
             config = load_config_file(config_file_path)
             args = merge_config_with_args(args, config)
         except Exception as e:
-            print(f"Error loading configuration file: {e}")
+            error(f"Error loading configuration file: {e}")
             return args
 
     # Resolve all placeholders once after merging (except {vbaproject})
@@ -407,6 +451,9 @@ def add_config_arguments(parser: argparse.ArgumentParser) -> None:
 def add_common_arguments(parser: argparse.ArgumentParser) -> None:
     """Add common arguments to a parser.
 
+    These are arguments common to edit/import/export commands.
+    Global options (--version, --help) are added at the main parser level.
+
     Args:
         parser: The argument parser to add arguments to
     """
@@ -431,6 +478,74 @@ def add_common_arguments(parser: argparse.ArgumentParser) -> None:
         help="Enable logging to file. Optional path can be specified (default: vba_edit.log)"
         "Supports placeholders: {general.file.name}, {general.file.fullname}, {general.file.path}, {vbaproject}",
     )
+    parser.add_argument(
+        "--no-color",
+        "--no-colour",
+        action="store_true",
+        help="Disable colored output (useful for CI/CD, piping, or personal preference)",
+    )
+
+
+def add_common_option_group(parser: argparse.ArgumentParser) -> argparse._ArgumentGroup:
+    """Add common CLI options to a parser as an organized group.
+
+    This helper reduces boilerplate by providing a consistent way to add
+    common options (verbose, logfile, no-color, help) across all commands.
+
+    Use this in subparser setup to avoid repeating the same argument definitions.
+    This creates a "Common Options" group with the standard set of options.
+
+    Args:
+        parser: The argument parser to add the group to
+
+    Returns:
+        The argument group that was created (for further customization if needed)
+
+    Example:
+        >>> import_parser = subparsers.add_parser("import")
+        >>> add_common_option_group(import_parser)
+    """
+    common_group = parser.add_argument_group("Common Options")
+    common_group.add_argument(
+        "--verbose",
+        "-v",
+        dest="verbose",
+        action="store_true",
+        help="Enable verbose logging output",
+    )
+    common_group.add_argument(
+        "--logfile",
+        "-l",
+        dest="logfile",
+        nargs="?",
+        const="vba_edit.log",
+        help="Enable logging to file (default: vba_edit.log)",
+    )
+    common_group.add_argument(
+        "--no-color",
+        "--no-colour",
+        dest="no_color",
+        action="store_true",
+        help="Disable colored output",
+    )
+    common_group.add_argument(
+        "--help",
+        "-h",
+        action="help",
+        help="Show this help message and exit",
+    )
+    return common_group
+
+
+def add_folder_organization_arguments(parser: argparse.ArgumentParser) -> None:
+    """Add folder organization arguments to a parser.
+
+    These arguments only make sense for commands that export VBA code
+    (edit, export, import) and should not be available globally.
+
+    Args:
+        parser: The argument parser to add arguments to
+    """
     parser.add_argument(
         "--rubberduck-folders",
         action="store_true",
@@ -539,4 +654,10 @@ def add_export_arguments(parser: argparse.ArgumentParser) -> None:
         action="store_true",
         default=False,
         help="Force overwrite of existing files without prompting for confirmation (use with caution)",
+    )
+    parser.add_argument(
+        "--keep-open",
+        action="store_true",
+        default=False,
+        help="Keep document open after export (default: close document after export completes)",
     )

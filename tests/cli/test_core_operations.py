@@ -70,7 +70,9 @@ class TestCorePathResolution:
             os.chdir(docs_dir)
 
             # Export with relative path
-            cli.assert_success(["export", "-f", str(test_doc), "--vba-directory", "../vba", "--force-overwrite"])
+            cli.assert_success(
+                ["export", "-f", str(test_doc), "--vba-directory", "../vba", "--force-overwrite", "--keep-open"]
+            )
 
             # Verify VBA dir is at correct location (not doubled)
             assert vba_dir.exists(), "VBA directory should exist at tmp_path/vba"
@@ -122,7 +124,9 @@ class TestCorePathResolution:
         try:
             os.chdir(subdir)
 
-            cli.assert_success(["export", "-f", str(test_doc), "--vba-directory", "../vba", "--force-overwrite"])
+            cli.assert_success(
+                ["export", "-f", str(test_doc), "--vba-directory", "../vba", "--force-overwrite", "--keep-open"]
+            )
 
             # Verify correct location
             assert vba_dir.exists()
@@ -246,7 +250,16 @@ class TestCoreUserFormHandling:
         # === PHASE 2: Export and modify (no COM required) ===
         # Export with in-file headers (triggers the bug this test catches)
         cli.assert_success(
-            ["export", "-f", str(test_file), "--vba-directory", str(vba_dir), "--in-file-headers", "--force-overwrite"]
+            [
+                "export",
+                "-f",
+                str(test_file),
+                "--vba-directory",
+                str(vba_dir),
+                "--in-file-headers",
+                "--force-overwrite",
+                "--keep-open",
+            ]
         )
 
         # Verify UserForm was exported
@@ -388,7 +401,9 @@ class TestAppSpecificOperations:
         vba_dir = tmp_path / "vba"
 
         # Test export
-        cli.assert_success(["export", "-f", str(temp_office_doc), "--vba-directory", str(vba_dir), "--force-overwrite"])
+        cli.assert_success(
+            ["export", "-f", str(temp_office_doc), "--vba-directory", str(vba_dir), "--force-overwrite", "--keep-open"]
+        )
 
         # Test import
         cli.assert_success(["import", "-f", str(temp_office_doc), "--vba-directory", str(vba_dir)])
@@ -407,7 +422,9 @@ class TestAppSpecificOperations:
         vba_dir = tmp_path / "vba"
 
         # Test export
-        cli.assert_success(["export", "-f", str(temp_office_doc), "--vba-directory", str(vba_dir), "--force-overwrite"])
+        cli.assert_success(
+            ["export", "-f", str(temp_office_doc), "--vba-directory", str(vba_dir), "--force-overwrite", "--keep-open"]
+        )
 
         # Test import
         cli.assert_success(["import", "-f", str(temp_office_doc), "--vba-directory", str(vba_dir)])

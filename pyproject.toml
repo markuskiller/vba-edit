@@ -4,13 +4,13 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "vba_edit"
-version = "0.4.0"
+version = "0.4.1"
 description = "Enable seamless MS Office VBA code editing in preferred editor or IDE (facilitating the use of coding assistants and version control workflows)"
 authors = [{ name = "Markus Killer", email = "m.killer@langui.ch" }]
 readme = "README.md"
 requires-python = ">=3.9" # Minimum Python version
 license = "BSD-3-Clause"
-license-files = ["LICENSE", "LICENSES/*.txt", "AUTHORS.md"]
+license-files = ["LICENSE", "LICENSES/*.txt", "AUTHORS.md", "SECURITY.md"]
 keywords = ["vba", "excel", "word", "office", "automation", "macro", "PyPI"]
 classifiers = [
     "Development Status :: 3 - Alpha",
@@ -21,6 +21,7 @@ classifiers = [
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Programming Language :: Python :: Implementation :: CPython",
     "Operating System :: Microsoft :: Windows",
     "Topic :: Office/Business :: Office Suites",
@@ -28,8 +29,9 @@ classifiers = [
 dependencies = [
     "chardet",
     "pywin32 >= 224;platform_system=='Windows'",
-    "watchfiles",                                # replaced watchgod
+    "watchfiles>=1.1.1",                         # replaced watchgod; 1.1.1+ required for Python 3.14
     "tomli>=2.0.0; python_version < '3.11'",
+    "rich>=13.0.0",                              # Modern terminal output with colors
 ]
 
 [project.optional-dependencies]
@@ -123,7 +125,7 @@ ignore_missing_imports = true
 minversion = "7.0"
 addopts = "-ra -q --strict-markers --strict-config"
 testpaths = ["tests"]
-timeout = 5
+timeout = 30 # 30 seconds - increased for GitHub Actions reliability (was 5)
 timeout_method = "thread"
 filterwarnings = [
     "error",
