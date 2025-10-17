@@ -203,31 +203,34 @@ Found a bug? Have a feature idea? Questions about usage? Open an [Issue](https:/
 
 ### Commands
 
-- `edit`: Live sync between editor and Office
-- `export`: Export VBA modules to files
-- `import`: Import VBA modules from files
-- `check {all}`: Check if 'Trust Access to the VBA project object model' is enabled
+| Command overview | Description |
+|---------|-------------|
+| `edit` | Edit VBA content in Office document |
+| `import` | Import VBA content into Office document |
+| `export` | Export VBA content from Office document |
+| `check` | Check if 'Trust Access to the Office VBA project object model' is enabled |
 
 ### Options
 
-```text
---file, -f                   Path to Office document
---conf, --config, -c         Supply config file (TOML format)
---vba-directory              Directory for VBA files
---rubberduck-folders         Use RubberduckVBA folder annotations
---save-headers               Save module headers separately
---in-file-headers            Include VBA headers directly in code files
---encoding, -e               Specify character encoding
---detect-encoding, -d        Auto-detect encoding
---verbose, -v                Enable detailed logging
---logfile, -l                Enable file logging
---open-folder                Open export directory in file explorer after export
---save-metadata, -m          Save metadata file with encoding information
---force-overwrite            Skip all confirmation prompts (for automation)
---keep-open                  Keep document open after export (default: closes automatically)
---no-color                   Disable colorized terminal output
---version, -V                Show program's version number and exit
-```
+| Option Overview | Description |
+|--------|-------------|
+| `--help`, `-h` | Show help message and exit |
+| `--file`, `-f` | Path to Office document |
+| `--keep-open` | Keep document open after export |
+| `--conf`, `--config`, `-c` | Supply config file (TOML format) |
+| `--vba-directory` | Directory for VBA files |
+| `--rubberduck-folders` | Use RubberduckVBA folder annotations |
+| `--save-headers` | Save module headers separately |
+| `--in-file-headers` | Include VBA headers directly in code files |
+| `--encoding`, `-e` | Specify character encoding |
+| `--detect-encoding`, `-d` | Auto-detect encoding |
+| `--verbose`, `-v` | Enable detailed logging |
+| `--logfile`, `-l` | Enable file logging |
+| `--open-folder` | Open export directory in file explorer after export |
+| `--save-metadata`, `-m` | Save metadata file with encoding information |
+| `--force-overwrite` | Skip all confirmation prompts (for automation) |
+| `--no-color`, `--no-colour` | Disable colorized terminal output |
+| `--version`, `-V` | Show program's version number and exit |
 
 ### Example of `--in-file-headers --rubberduck-folders` (v0.4.0+)
 
