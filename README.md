@@ -217,7 +217,7 @@ Found a bug? Have a feature idea? Questions about usage? Open an [Issue](https:/
 | `--help`, `-h` | Show help message and exit |
 | `--file`, `-f` | Path to Office document |
 | `--keep-open` | Keep document open after export |
-| `--conf`, `--config`, `-c` | Supply config file (TOML format) |
+| `--conf`, `--config` | Supply config file (TOML format) |
 | `--vba-directory` | Directory for VBA files |
 | `--rubberduck-folders` | Use RubberduckVBA folder annotations |
 | `--save-headers` | Save module headers separately |
