@@ -159,44 +159,12 @@ excel-vba export --vba-directory ./src --force-overwrite
 
 ## Roadmap
 
-### 🎯 Current Focus (v0.4.x)
-- 🔄 Stable VBA editing for Excel, Word, PowerPoint, Access
-- 🔄 Enhanced CLI with organized help and grouped options
-- 🔄 Refining RubberduckVBA integration (`@Folder` annotations)
-- 🔄 Optimizing configuration file support (TOML)
-- 🔄 Safety features and data loss prevention
-- 🔄 Colorized output for better readability (coming in v0.4.1)
-- 🔄 Windows binaries with security verification (SHA256, SBOM, Attestations)
+Development priorities evolve based on user feedback and real-world needs. 
 
-### 🚀 Next release (v0.5.0)
+� **See active planning**: [GitHub Milestones](https://github.com/markuskiller/vba-edit/milestones)  
+� **Request features**: [Open an Issue](https://github.com/markuskiller/vba-edit/issues)  
+📝 **Current focus**: v0.5.0 - Batch operations for processing multiple Office documents
 
-**Manual Bi-Directional Sync**
-- Export Office VBA changes back to files during `edit` mode
-- Keyboard shortcut in terminal (e.g., press `E` to export)
-- Safety warnings for unsaved files
-- Automatic backups before overwrite
-- _No automatic polling - explicit user control_
-
-**PowerQuery Support** (Excel)
-- Export/Import PowerQuery queries (M language)
-- Similar workflow to VBA editing
-- `.pq` or `.m` file format support
-
-**CLI Enhancements**
-- Progress indicators
-- Improved error messages
-
-### 🔮 Future (v0.6.0+)
-
-**Advanced Features**
-- Multi-document support (watch multiple Office files)
-- Dependency tracking and visualization
-- Git workflow automation
-
-**Code Signing** (if feasible)
-- Signed Windows executables via SignPath.io
-- No more SmartScreen warnings
-- Enhanced trust and security
 
 ### 💡 Feedback & Contributions
 
