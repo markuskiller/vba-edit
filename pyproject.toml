@@ -64,6 +64,7 @@ powerpoint-vba = "vba_edit.powerpoint_vba:main"
 Homepage = "https://langui.ch/current-projects/vba-edit/"
 Documentation = "https://github.com/markuskiller/vba-edit/blob/main/README.md"
 Source = "https://github.com/markuskiller/vba-edit"
+"Bug Tracker" = "https://github.com/markuskiller/vba-edit/issues"
 Changelog = "https://github.com/markuskiller/vba-edit/blob/main/CHANGELOG.md"
 
 [tool.black]
