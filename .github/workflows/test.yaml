@@ -2,13 +2,13 @@ name: Run Tests
 
 on:
   push:
-    branches: [dev, main]
+    branches: [dev]
     paths-ignore:
       - '**.md'
       - 'LICENSE'
       - 'docs/**'
   pull_request:
-    branches: [dev, main]
+    branches: [dev]
     paths-ignore:
       - '**.md'
       - 'LICENSE'
