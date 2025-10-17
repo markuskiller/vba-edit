@@ -5,24 +5,14 @@ on:
       branches: [dev]
       paths-ignore:
         - '**.md'
-        - 'CHANGELOG.md'
-        - 'README.md'
-        - 'AUTHORS.md'
         - 'LICENSE'
         - 'docs/**'
-        - '.github/**'
-        - '!.github/workflows/**'
     pull_request:
       branches: [dev]
       paths-ignore:
         - '**.md'
-        - 'CHANGELOG.md'
-        - 'README.md'
-        - 'AUTHORS.md'
         - 'LICENSE'
         - 'docs/**'
-        - '.github/**'
-        - '!.github/workflows/**'
     workflow_call:
     workflow_dispatch:
 
