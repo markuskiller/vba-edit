@@ -5,16 +5,36 @@
 [![CI](https://github.com/markuskiller/vba-edit/actions/workflows/test.yaml/badge.svg)](https://github.com/markuskiller/vba-edit/actions/workflows/test.yaml)
 [![PyPI - Version](https://img.shields.io/pypi/v/vba-edit.svg)](https://pypi.org/project/vba-edit)
 [![PyPI - Python Version](https://img.shields.io/pypi/pyversions/vba-edit.svg)](https://pypi.org/project/vba-edit)
-[![Platform](https://img.shields.io/badge/platform-windows-blue.svg)](https://pypi.org/search/?c=Operating+System+%3A%3A+Microsoft+%3A%3A+Windows)
+[![Platform](https://img.shields.io/badge/platform-windows-blue.svg)](https://pypi.org/search/?q=vba-edit&o=&c=Operating+System+%3A%3A+Microsoft+%3A%3A+Windows)
 [![PyPI - Downloads](https://img.shields.io/pypi/dm/vba-edit)](https://www.pypiplus.com/project/vba-edit/)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 [![License](https://img.shields.io/badge/License-BSD_3--Clause-blue.svg)](https://opensource.org/licenses/BSD-3-Clause)
 
+## Installation
+
+### Python Package (Recommended)
+```bash
+pip install -U vba-edit
+```
+
+### Windows Binaries (No Python Required)
+
+**NEW v0.4.1+** Standalone executables available - no Python installation needed!
+
+📦 **Download**: [Latest Release](https://github.com/markuskiller/vba-edit/releases/latest) (scroll all the way down to **Assets** section)
+
+Available binaries:
+- `excel-vba.exe` - For Excel workbooks
+- `word-vba.exe` - For Word documents
+- `access-vba.exe` - For Access databases
+- `powerpoint-vba.exe` - For PowerPoint presentations
+
+🔒 **Security**: See [Security Verification Guide](SECURITY_VERIFICATION.md) for SHA256 checksums and attestation validation.
+
+> ⚠️ **Windows SmartScreen & VirusTotal Warnings**: Binaries are currently unsigned. You may see warning messages - this is expected. See [Issue #24](https://github.com/markuskiller/vba-edit/issues/24) and [Security Info](SECURITY.md) for details.
+
 ## 30-Second Demo
 ```bash
-# Install
-pip install -U vba-edit
-
 # Start editing (uses active Excel/Word document)
 excel-vba edit    # or word-vba edit
 
