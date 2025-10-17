@@ -5,16 +5,36 @@
 [![CI](https://github.com/markuskiller/vba-edit/actions/workflows/test.yaml/badge.svg)](https://github.com/markuskiller/vba-edit/actions/workflows/test.yaml)
 [![PyPI - Version](https://img.shields.io/pypi/v/vba-edit.svg)](https://pypi.org/project/vba-edit)
 [![PyPI - Python Version](https://img.shields.io/pypi/pyversions/vba-edit.svg)](https://pypi.org/project/vba-edit)
-[![Platform](https://img.shields.io/badge/platform-windows-blue.svg)](https://github.com/markuskiller/vba-edit)
-[![PyPI - Downloads](https://img.shields.io/pypi/dm/vba-edit)](https://pypi.org/project/vba-edit)
+[![Platform](https://img.shields.io/badge/platform-windows-blue.svg)](https://pypi.org/search/?q=vba-edit&o=&c=Operating+System+%3A%3A+Microsoft+%3A%3A+Windows)
+[![PyPI - Downloads](https://img.shields.io/pypi/dm/vba-edit)](https://www.pypiplus.com/project/vba-edit/)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 [![License](https://img.shields.io/badge/License-BSD_3--Clause-blue.svg)](https://opensource.org/licenses/BSD-3-Clause)
 
+## Installation
+
+### Python Package (Recommended)
+```bash
+pip install -U vba-edit
+```
+
+### Windows Binaries (No Python Required)
+
+**NEW v0.4.1+** Standalone executables available - no Python installation needed!
+
+📦 **Download**: [Latest Release](https://github.com/markuskiller/vba-edit/releases/latest) (scroll all the way down to **Assets** section)
+
+Available binaries:
+- `excel-vba.exe` - For Excel workbooks
+- `word-vba.exe` - For Word documents
+- `access-vba.exe` - For Access databases
+- `powerpoint-vba.exe` - For PowerPoint presentations
+
+🔒 **Security**: See [Security Verification Guide](SECURITY_VERIFICATION.md) for SHA256 checksums and attestation validation.
+
+> ⚠️ **Windows SmartScreen & VirusTotal Warnings**: Binaries are currently unsigned. You may see warning messages - this is expected. See [Issue #24](https://github.com/markuskiller/vba-edit/issues/24) and [Security Info](SECURITY.md) for details.
+
 ## 30-Second Demo
 ```bash
-# Install
-pip install -U vba-edit
-
 # Start editing (uses active Excel/Word document)
 excel-vba edit    # or word-vba edit
 
@@ -79,6 +99,8 @@ excel-vba edit                    # Start with active workbook
 ### Quick Export with Folder View
 ```bash
 excel-vba export --open-folder    # Export and open in File Explorer
+excel-vba export --keep-open      # Export but keep document open for inspection
+excel-vba export --no-color       # Export without colorized output
 ```
 
 ### Team Project with Git
@@ -106,6 +128,8 @@ excel-vba edit --rubberduck-folders --in-file-headers
 | `--in-file-headers` | Embed headers in code files |
 | `--conf myconfig.toml` | Use config file |
 | `--force-overwrite` | Skip safety prompts (automation) |
+| `--keep-open` | Keep document open after export |
+| `--no-color` | Disable colorized terminal output |
 
 ## Troubleshooting
 
@@ -155,44 +179,12 @@ excel-vba export --vba-directory ./src --force-overwrite
 
 ## Roadmap
 
-### 🎯 Current Focus (v0.4.x)
-- 🔄 Stable VBA editing for Excel, Word, PowerPoint, Access
-- 🔄 Enhanced CLI with organized help and grouped options
-- 🔄 Refining RubberduckVBA integration (`@Folder` annotations)
-- 🔄 Optimizing configuration file support (TOML)
-- 🔄 Safety features and data loss prevention
-- 🔄 Colorized output for better readability (coming in v0.4.1)
-- 🔄 Windows binaries with security verification (SHA256, SBOM, Attestations)
+Development priorities evolve based on user feedback and real-world needs. 
 
-### 🚀 Next release (v0.5.0)
++👀 **See active planning**: [GitHub Milestones](https://github.com/markuskiller/vba-edit/milestones)  
++💡 **Request features**: [Open an Issue](https://github.com/markuskiller/vba-edit/issues)  
++📝 **Current focus**: v0.5.0 - Batch operations for processing multiple Office documents
 
-**Manual Bi-Directional Sync**
-- Export Office VBA changes back to files during `edit` mode
-- Keyboard shortcut in terminal (e.g., press `E` to export)
-- Safety warnings for unsaved files
-- Automatic backups before overwrite
-- _No automatic polling - explicit user control_
-
-**PowerQuery Support** (Excel)
-- Export/Import PowerQuery queries (M language)
-- Similar workflow to VBA editing
-- `.pq` or `.m` file format support
-
-**CLI Enhancements**
-- Progress indicators
-- Improved error messages
-
-### 🔮 Future (v0.6.0+)
-
-**Advanced Features**
-- Multi-document support (watch multiple Office files)
-- Dependency tracking and visualization
-- Git workflow automation
-
-**Code Signing** (if feasible)
-- Signed Windows executables via SignPath.io
-- No more SmartScreen warnings
-- Enhanced trust and security
 
 ### 💡 Feedback & Contributions
 
@@ -211,29 +203,34 @@ Found a bug? Have a feature idea? Questions about usage? Open an [Issue](https:/
 
 ### Commands
 
-- `edit`: Live sync between editor and Office
-- `export`: Export VBA modules to files
-- `import`: Import VBA modules from files
-- `check {all}`: Check if 'Trust Access to the VBA project object model' is enabled
+| Command overview | Description |
+|---------|-------------|
+| `edit` | Edit VBA content in Office document |
+| `import` | Import VBA content into Office document |
+| `export` | Export VBA content from Office document |
+| `check` | Check if 'Trust Access to the Office VBA project object model' is enabled |
 
 ### Options
 
-```text
---file, -f                   Path to Office document
---conf, --config, -c         Supply config file (TOML format)
---vba-directory              Directory for VBA files
---rubberduck-folders         Use RubberduckVBA folder annotations
---save-headers               Save module headers separately
---in-file-headers            Include VBA headers directly in code files
---encoding, -e               Specify character encoding
---detect-encoding, -d        Auto-detect encoding
---verbose, -v                Enable detailed logging
---logfile, -l                Enable file logging
---open-folder                Open export directory in file explorer after export
---save-metadata, -m          Save metadata file with encoding information
---force-overwrite            Skip all confirmation prompts (for automation)
---version, -V                Show program's version number and exit
-```
+| Option Overview | Description |
+|--------|-------------|
+| `--help`, `-h` | Show help message and exit |
+| `--file`, `-f` | Path to Office document |
+| `--keep-open` | Keep document open after export |
+| `--conf`, `--config` | Supply config file (TOML format) |
+| `--vba-directory` | Directory for VBA files |
+| `--rubberduck-folders` | Use RubberduckVBA folder annotations |
+| `--save-headers` | Save module headers separately |
+| `--in-file-headers` | Include VBA headers directly in code files |
+| `--encoding`, `-e` | Specify character encoding |
+| `--detect-encoding`, `-d` | Auto-detect encoding |
+| `--verbose`, `-v` | Enable detailed logging |
+| `--logfile`, `-l` | Enable file logging |
+| `--open-folder` | Open export directory in file explorer after export |
+| `--save-metadata`, `-m` | Save metadata file with encoding information |
+| `--force-overwrite` | Skip all confirmation prompts (for automation) |
+| `--no-color`, `--no-colour` | Disable colorized terminal output |
+| `--version`, `-V` | Show program's version number and exit |
 
 ### Example of `--in-file-headers --rubberduck-folders` (v0.4.0+)
 
@@ -253,6 +250,29 @@ Public Sub DoSomething()
     ' Your code here
 End Sub
 ```
+
+## Colorized Output
+
+**NEW v0.4.1** Terminal output features professional color-coded messages for better readability:
+
+- ✓ **Success** messages in green
+- ✗ **Error** messages in red
+- ⚠ **Warning** messages in yellow
+- **Technical terms** (VBA, TOML, JSON) highlighted in cyan
+- **Code examples** shown in dim gray
+
+**Automatic Behavior:**
+- Colors automatically disabled when output is piped or redirected
+- Disabled in non-TTY environments (CI/CD pipelines)
+- Respects `NO_COLOR` environment variable
+
+**Manual Control:**
+```bash
+excel-vba export --no-color              # Disable colors
+export NO_COLOR=1; excel-vba export      # Via environment variable
+```
+
+> 💡 **Tip**: Use `--no-color` when terminal colors cause issues.
 
 ## Configuration Files
 
@@ -288,6 +308,8 @@ excel-vba export --conf vba-config.toml
 - `save_headers` - Save headers to separate .header files (true/false)
 - `in_file_headers` - Embed headers in code files (true/false)
 - `open_folder` - Open export directory after export (true/false)
+- `keep_open` - Keep document open after export (true/false)
+- `no_color` - Disable colorized terminal output (true/false)
 
 **Other sections (reserved for future use):**
 - `[office]` - Office-wide settings
@@ -346,8 +368,8 @@ excel-vba export --conf vba-config.toml --vba-directory build/vba
 
 ### Known Limitations
 
-- UserForms require `--save-headers` option (`edit` process is aborted if this is not the case)
-- If `*.header` files are modified on their own, the corresponding `*.cls`, `*.bas` or `*.frm` file needs to be saved in order to sync the complete module back into the VBA project model
+- UserForms require `--save-headers` or newer `--in-file-headers` option (`edit` process is aborted if this is not the case)
+- If separate `*.header` files are modified on their own, the corresponding `*.cls`, `*.bas` or `*.frm` file needs to be saved in order to sync the complete module back into the VBA project model
 
 ## Links
 

@@ -29,10 +29,10 @@ jobs:
     
     steps:
     - name: Checkout code
-      uses: actions/checkout@v4
+      uses: actions/checkout@v5
       
     - name: Set up Python
-      uses: actions/setup-python@v5
+      uses: actions/setup-python@v6
       with:
         python-version: '3.13'
         
@@ -71,7 +71,7 @@ jobs:
         echo "Commit: ${{ github.sha }}" >> dist/SBOM.txt
     
     - name: Generate build attestations (cryptographic proof)
-      uses: actions/attest-build-provenance@v1
+      uses: actions/attest-build-provenance@v3
       with:
         subject-path: 'dist/*.exe'
     
