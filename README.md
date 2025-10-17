@@ -5,7 +5,7 @@
 [![CI](https://github.com/markuskiller/vba-edit/actions/workflows/test.yaml/badge.svg)](https://github.com/markuskiller/vba-edit/actions/workflows/test.yaml)
 [![PyPI - Version](https://img.shields.io/pypi/v/vba-edit.svg)](https://pypi.org/project/vba-edit)
 [![PyPI - Python Version](https://img.shields.io/pypi/pyversions/vba-edit.svg)](https://pypi.org/project/vba-edit)
-[![Platform](https://img.shields.io/badge/platform-windows-blue.svg)](https://github.com/markuskiller/vba-edit)
+[![Platform](https://img.shields.io/badge/platform-windows-blue.svg)](https://pypi.org/search/?c=Operating+System+%3A%3A+Microsoft+%3A%3A+Windows)
 [![PyPI - Downloads](https://img.shields.io/pypi/dm/vba-edit)](https://pypi.org/project/vba-edit)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 [![License](https://img.shields.io/badge/License-BSD_3--Clause-blue.svg)](https://opensource.org/licenses/BSD-3-Clause)
@@ -249,7 +249,7 @@ excel-vba export --no-color              # Disable colors
 export NO_COLOR=1; excel-vba export      # Via environment variable
 ```
 
-> 💡 **Tip**: Use `--no-color` when saving output to log files or when terminal colors cause issues.
+> 💡 **Tip**: Use `--no-color` when terminal colors cause issues.
 
 ## Configuration Files
 
@@ -345,8 +345,8 @@ excel-vba export --conf vba-config.toml --vba-directory build/vba
 
 ### Known Limitations
 
-- UserForms require `--save-headers` option (`edit` process is aborted if this is not the case)
-- If `*.header` files are modified on their own, the corresponding `*.cls`, `*.bas` or `*.frm` file needs to be saved in order to sync the complete module back into the VBA project model
+- UserForms require `--save-headers` or newer `--in-file-headers` option (`edit` process is aborted if this is not the case)
+- If separate `*.header` files are modified on their own, the corresponding `*.cls`, `*.bas` or `*.frm` file needs to be saved in order to sync the complete module back into the VBA project model
 
 ## Links
 
