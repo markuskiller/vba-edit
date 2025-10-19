@@ -116,20 +116,37 @@ excel-vba edit --rubberduck-folders --in-file-headers
 
 ## Quick Reference
 
+### App-specific tools
+
+| CLI Tool | Description |
+|---------|-------------|
+| `excel-vba.exe` | For Excel Workbooks |
+| `word-vba.exe` | For Word documents |
+| `access-vba.exe` | For Access databases |
+| `powerpoint-vba.exe` | For PowerPoint presentations |
+
+### Commands
+
+| Command overview | Description |
+|---------|-------------|
+| `edit` | Edit VBA content in Office document |
+| `import` | Import VBA content into Office document |
+| `export` | Export VBA content from Office document |
+| `check` | Check if 'Trust Access to the Office VBA project object model' is enabled |
+
+> 💡 Use **`*-vba.exe <command> --help`** in your terminal for a detailed option overview.
+
+### Examples of options
 | Command | What it does |
 |---------|-------------|
 | `excel-vba edit` | Start live editing |
 | `excel-vba export` | One-time export |
-| `excel-vba export --open-folder` | Export and open folder in explorer |
+| `excel-vba import` | One-time import |
+| `excel-vba export --open-folder --keep-open` | Export and open folder in explorer, keep document open for inspection |
 | `excel-vba export --force-overwrite` | Export without confirmation prompts |
 | `excel-vba check` | Verify status of *Trust access* to the VBA project object model |
-| `--vba-directory ./src` | Custom folder |
-| `--rubberduck-folders` | Organize by @Folder |
-| `--in-file-headers` | Embed headers in code files |
-| `--conf myconfig.toml` | Use config file |
-| `--force-overwrite` | Skip safety prompts (automation) |
-| `--keep-open` | Keep document open after export |
-| `--no-color` | Disable colorized terminal output |
+
+> 💡 **Complete Option Matrix**: available **[here](https://langui.ch/current-projects/vba-edit/#OptionMatrix)**
 
 ## Troubleshooting
 
@@ -194,43 +211,7 @@ Found a bug? Have a feature idea? Questions about usage? Open an [Issue](https:/
 
 ## Command Line Tools
 
-### App-specific tools
-
-- `word-vba`
-- `excel-vba`
-- `access-vba`
-- `powerpoint-vba`
-
-### Commands
-
-| Command overview | Description |
-|---------|-------------|
-| `edit` | Edit VBA content in Office document |
-| `import` | Import VBA content into Office document |
-| `export` | Export VBA content from Office document |
-| `check` | Check if 'Trust Access to the Office VBA project object model' is enabled |
-
-### Options
-
-| Option Overview | Description |
-|--------|-------------|
-| `--help`, `-h` | Show help message and exit |
-| `--file`, `-f` | Path to Office document |
-| `--keep-open` | Keep document open after export |
-| `--conf`, `--config` | Supply config file (TOML format) |
-| `--vba-directory` | Directory for VBA files |
-| `--rubberduck-folders` | Use RubberduckVBA folder annotations |
-| `--save-headers` | Save module headers separately |
-| `--in-file-headers` | Include VBA headers directly in code files |
-| `--encoding`, `-e` | Specify character encoding |
-| `--detect-encoding`, `-d` | Auto-detect encoding |
-| `--verbose`, `-v` | Enable detailed logging |
-| `--logfile`, `-l` | Enable file logging |
-| `--open-folder` | Open export directory in file explorer after export |
-| `--save-metadata`, `-m` | Save metadata file with encoding information |
-| `--force-overwrite` | Skip all confirmation prompts (for automation) |
-| `--no-color`, `--no-colour` | Disable colorized terminal output |
-| `--version`, `-V` | Show program's version number and exit |
+> 💡 **Complete CLI Overview**: available **[here](https://langui.ch/current-projects/vba-edit/#CLI)**
 
 ### Example of `--in-file-headers --rubberduck-folders` (v0.4.0+)
 
