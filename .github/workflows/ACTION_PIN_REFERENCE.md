@@ -1,6 +1,7 @@
 # GitHub Actions SHA Pinning Reference
 
 **Last Updated**: 2025-10-20  
+**Branch**: dev (synced with main)
 **Reason**: Security best practice - pinning actions to commit SHAs prevents supply chain attacks
 
 ## Why Pin to Commit SHAs?
@@ -16,25 +17,28 @@ Pinning third-party GitHub Actions to full commit SHAs is currently the **only w
 ## Pinned Actions Reference
 
 ### actions/checkout
-- **Current Pin**: `11bd71901bbe5b1630ceea73d27597364c9af683`
-- **Version**: v4.2.2 (pinned from @v5)
-- **Release Date**: October 23, 2024
-- **Release URL**: https://github.com/actions/checkout/releases/tag/v4.2.2
+- **Current Pin**: `08c6903cd8c0fde910a37f88322edcfb5dd907a8`
+- **Version**: v5.0.0
+- **Release Date**: August 11, 2024
+- **Release URL**: https://github.com/actions/checkout/releases/tag/v5.0.0
 - **Used in**: All workflows (build-binaries.yml, test.yaml, lint.yaml, publish.yaml)
+- **Breaking Change**: Requires runner v2.327.1+ (uses node24)
 
 ### actions/setup-python
-- **Current Pin**: `0b93645e9fea7318ecaed2b359559ac225c90a2b`
-- **Version**: v5.3.0 (pinned from @v6)
-- **Release Date**: October 24, 2024
-- **Release URL**: https://github.com/actions/setup-python/releases/tag/v5.3.0
+- **Current Pin**: `e797f83bcb11b83ae66e0230d6156d7c80228e7c`
+- **Version**: v6.0.0
+- **Release Date**: September 4, 2024
+- **Release URL**: https://github.com/actions/setup-python/releases/tag/v6.0.0
 - **Used in**: All workflows (build-binaries.yml, test.yaml, lint.yaml, publish.yaml)
+- **Breaking Change**: Requires runner v2.327.1+ (uses node24)
 
 ### astral-sh/setup-uv
-- **Current Pin**: `d8db0a86d3d88f3017a4e6b8a1e2b234e7a0a1b5`
-- **Version**: v4.0.0
-- **Release Date**: November 23, 2024
-- **Release URL**: https://github.com/astral-sh/setup-uv/releases/tag/v4.0.0
+- **Current Pin**: `eb1897b8dc4b5d5bfe39a428a8f2304605e0983c`
+- **Version**: v7.0.0
+- **Release Date**: October 2025 (2 weeks ago as of 2025-10-20)
+- **Release URL**: https://github.com/astral-sh/setup-uv/releases/tag/v7.0.0
 - **Used in**: build-binaries.yml only
+- **Breaking Change**: Uses node24 instead of node20, removed deprecated `server-url` input
 
 ### actions/attest-build-provenance
 - **Current Pin**: `977bb373ede98d70efdf65b84cb5f73e068dcc2a`
@@ -81,14 +85,12 @@ uses: actions/checkout@NEW_COMMIT_SHA_HERE # v5 (v4.3.0)
 We use the following comment format for clarity:
 
 ```yaml
-uses: owner/action@COMMIT_SHA # @vX (vX.Y.Z)
+uses: owner/action@COMMIT_SHA # vX.Y.Z
 ```
 
-Where:
-- `@vX` = The major version tag we're tracking (e.g., @v5, @v6)
-- `vX.Y.Z` = The specific release version the SHA points to
+Where `vX.Y.Z` is the actual release version the SHA points to (e.g., `v5.0.0`, `v6.0.0`).
 
-This helps maintainers quickly identify both the tracking version and the specific release.
+This makes it clear exactly which version is pinned.
 
 ## Automated Dependency Updates
 
