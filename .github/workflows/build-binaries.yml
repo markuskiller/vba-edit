@@ -29,15 +29,15 @@ jobs:
     
     steps:
     - name: Checkout code
-      uses: actions/checkout@v5
+      uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v5.2.2
       
     - name: Set up Python
-      uses: actions/setup-python@v6
+      uses: actions/setup-python@0b93645e9fea7318ecaed2b359559ac225c90a2b # v6.3.0
       with:
         python-version: '3.13'
         
     - name: Install uv
-      uses: astral-sh/setup-uv@v4
+      uses: astral-sh/setup-uv@d8db0a86d3d88f3017a4e6b8a1e2b234e7a0a1b5 # v4.0.0
       
     - name: Install dependencies
       run: |
@@ -71,13 +71,13 @@ jobs:
         echo "Commit: ${{ github.sha }}" >> dist/SBOM.txt
     
     - name: Generate build attestations (cryptographic proof)
-      uses: actions/attest-build-provenance@v3
+      uses: actions/attest-build-provenance@977bb373ede98d70efdf65b84cb5f73e068dcc2a # v3.0.0
       with:
         subject-path: 'dist/*.exe'
     
     - name: Upload binaries as artifacts (for manual runs and push)
       if: github.event_name == 'workflow_dispatch' || github.event_name == 'push'
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@c7d193f32edcb7bfad88892161225aeda64e9392 # v4.0.0
       with:
         name: windows-binaries-unsigned
         path: |
@@ -92,7 +92,7 @@ jobs:
 
     - name: Upload binaries to release (on release publish)
       if: github.event_name == 'release'
-      uses: softprops/action-gh-release@v2
+      uses: softprops/action-gh-release@a6c7483a42ee9d5daced968f6c217562cd680f7f # v2.0.0
       with:
         files: |
           dist/excel-vba.exe
