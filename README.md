@@ -132,6 +132,7 @@ excel-vba edit --rubberduck-folders --in-file-headers
 | `edit` | Edit VBA content in Office document |
 | `import` | Import VBA content into Office document |
 | `export` | Export VBA content from Office document |
+| `references` | Manage VBA library references (list, export, import) |
 | `check` | Check if 'Trust Access to the Office VBA project object model' is enabled |
 
 > 💡 Use **`*-vba.exe <command> --help`** in your terminal for a detailed option overview.
@@ -142,11 +143,69 @@ excel-vba edit --rubberduck-folders --in-file-headers
 | `excel-vba edit` | Start live editing |
 | `excel-vba export` | One-time export |
 | `excel-vba import` | One-time import |
+| `word-vba references list -f template.dotm` | List all VBA references in document |
+| `word-vba references export -f doc.docx -r refs.toml` | Export references to TOML config |
+| `word-vba references import -f doc.docx -r refs.toml` | Import references from TOML config |
 | `excel-vba export --open-folder --keep-open` | Export and open folder in explorer, keep document open for inspection |
 | `excel-vba export --force-overwrite` | Export without confirmation prompts |
 | `excel-vba check` | Verify status of *Trust access* to the VBA project object model |
 
 > 💡 **Complete Option Matrix**: available **[here](https://langui.ch/current-projects/vba-edit/#OptionMatrix)**
+
+## VBA Reference Management
+
+**NEW in v0.5.0+** Manage VBA library references across your Office documents with version control support.
+
+### Why Manage References?
+
+- **Team consistency**: Share library configurations via Git
+- **Document templates**: Export reference configs from master templates
+- **Dependency tracking**: Know which libraries your VBA code needs
+- **Path updates**: Update references when shared libraries move or are renamed
+
+### Reference Commands
+
+```bash
+# List all references in a document
+word-vba references list -f template.dotm
+
+# Export references to TOML config
+word-vba references export -f template.dotm -r template-refs.toml
+
+# Import references into a new document
+word-vba references import -f new-doc.docx -r template-refs.toml
+```
+
+### What Gets Exported?
+
+Reference exports create TOML files with:
+- Library name, GUID, and version (for COM references)
+- File paths (critical for document-based references like `.dotm` templates)
+- Built-in references (VBA, Office) are excluded automatically
+
+**Example TOML:**
+```toml
+[[references]]
+name = "ADODB"
+guid = "{B691E011-1797-432E-907A-4D8C69339129}"
+major = 6
+minor = 1
+description = "Microsoft ActiveX Data Objects 6.1 Library"
+path = "C:\\Program Files\\Common Files\\System\\ado\\msado15.dll"
+
+[[references]]
+name = "SharedTemplates"
+guid = ""
+path = "\\\\server\\shared\\templates\\SharedCode.dotm"
+```
+
+### Supported Applications
+
+Reference management works with:
+- ✅ **Word** - Full support (modules, classes, forms, document references)
+- ✅ **Excel** - Full support (modules, classes, forms, workbook references)
+- ✅ **PowerPoint** - Full support (modules, classes, forms)
+- ✅ **Access** - Modules and classes only (Access forms work differently)
 
 ## Troubleshooting
 
@@ -155,6 +214,7 @@ excel-vba edit --rubberduck-folders --in-file-headers
 | "Trust access" error | Run `excel-vba check` for diagnostics |
 | Changes not syncing | Save the file in your editor |
 | Forms not working | Add `--in-file-headers` flag |
+| Reference import fails | Check that library files exist at specified paths |
 
 
 ## Safety Features
@@ -188,7 +248,14 @@ excel-vba export --vba-directory ./src --force-overwrite
 - **NEW v0.4.0+** Smart file organization with `@Folder` annotations
 - **NEW v0.4.0+** TOML config files for team standards
 
-**🔧 Advanced**
+**� Reference Management** *(NEW v0.5.0+)*
+- List, export, and import VBA library references
+- Track COM libraries (ADODB, MSForms, etc.)
+- Manage document-based references (.dotm, .xlam templates)
+- Path tracking for shared template libraries
+- Version control friendly TOML format
+
+**�🔧 Advanced**
 - Unicode & encoding support
 - **IMPROVED v0.4.0+** UserForms with layout preservation  
 - Class modules with custom attributes
