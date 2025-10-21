@@ -916,30 +916,39 @@ def validate_paths(args: argparse.Namespace) -> None:
 
 def handle_references_command(args: argparse.Namespace, doc_path: Path) -> None:
     """Handle the references command and its subcommands."""
-    from vba_edit.console import error, info, success, warning
+    import win32com.client
+    from vba_edit.console import error, info, warning
     from vba_edit.reference_manager import ReferenceManager
 
     logger.debug(f"Handling references subcommand: {args.refs_subcommand}")
 
+    word = None
+    doc = None
     try:
-        # Create ReferenceManager instance
-        manager = ReferenceManager(str(doc_path))
+        # Open Word and the document
+        word = win32com.client.Dispatch("Word.Application")
+        word.Visible = False
+        logger.debug(f"Opening document: {doc_path}")
+        doc = word.Documents.Open(str(doc_path))
+
+        # Create ReferenceManager instance with the document object
+        manager = ReferenceManager(doc)
         logger.debug(f"Created ReferenceManager for: {doc_path}")
 
         if args.refs_subcommand == "list":
             # List all references
-            info(f"📋 Listing references in: {doc_path.name}")
+            info(f"Listing references in: {doc_path.name}")
             refs = manager.list_references()
 
             if not refs:
                 warning("No references found in document")
                 return
 
-            success(f"Found {len(refs)} reference(s):\n")
+            info(f"Found {len(refs)} reference(s):")
 
-            # Display each reference with colorization
+            # Display each reference with simple formatting (avoid Unicode issues)
             for i, ref in enumerate(refs, 1):
-                print(f"\n[bold cyan]{i}. {ref['name']}[/bold cyan]")
+                print(f"\n{i}. {ref['name']}")
                 if ref.get("description"):
                     print(f"   Description: {ref['description']}")
                 if ref.get("guid"):
@@ -947,7 +956,7 @@ def handle_references_command(args: argparse.Namespace, doc_path: Path) -> None:
                 if ref.get("version"):
                     print(f"   Version: {ref['version']}")
                 if ref.get("path"):
-                    print(f"   Path: [bold blue]{ref['path']}[/bold blue]")
+                    print(f"   Path: {ref['path']}")
                 print(f"   Built-in: {ref.get('builtin', False)}")
                 print(f"   Broken: {ref.get('isbroken', False)}")
 
@@ -960,15 +969,9 @@ def handle_references_command(args: argparse.Namespace, doc_path: Path) -> None:
             else:
                 refs_file = Path(refs_file)
 
-            info(f"📤 Exporting references from: {doc_path.name}")
-            result = manager.export_to_toml(refs_file, overwrite=True)
-
-            if result["exported"] == 0:
-                warning("No exportable references found (built-in refs are excluded)")
-            else:
-                success(f"✓ Exported {result['exported']} reference(s) to: {refs_file}")
-                if result["skipped"] > 0:
-                    info(f"  Skipped {result['skipped']} built-in reference(s)")
+            info(f"Exporting references from: {doc_path.name}")
+            manager.export_to_toml(refs_file)
+            info(f"Exported to: {refs_file}")
 
         elif args.refs_subcommand == "import":
             # Import references from TOML
@@ -978,18 +981,18 @@ def handle_references_command(args: argparse.Namespace, doc_path: Path) -> None:
                 error(f"Reference file not found: {refs_file}")
                 sys.exit(1)
 
-            info(f"📥 Importing references to: {doc_path.name}")
+            info(f"Importing references to: {doc_path.name}")
             info(f"   From file: {refs_file}")
 
             result = manager.import_from_toml(refs_file)
 
             # Report results
             if result["added"] > 0:
-                success(f"✓ Added {result['added']} reference(s)")
+                info(f"Added {result['added']} reference(s)")
             if result["skipped"] > 0:
-                info(f"  Skipped {result['skipped']} (already present)")
+                info(f"Skipped {result['skipped']} (already present)")
             if result["failed"] > 0:
-                warning(f"⚠ Failed {result['failed']} reference(s)")
+                warning(f"Failed {result['failed']} reference(s)")
 
             if result["added"] == 0 and result["failed"] == 0:
                 info("All references were already present")
@@ -999,11 +1002,20 @@ def handle_references_command(args: argparse.Namespace, doc_path: Path) -> None:
         logger.exception("Reference operation error")
         sys.exit(1)
     finally:
-        # Cleanup
+        # Cleanup - close document and Word
         try:
-            manager.close()
-        except Exception:
-            pass
+            if doc:
+                doc.Close(SaveChanges=False)
+                logger.debug("Closed document")
+        except Exception as e:
+            logger.debug(f"Error closing document: {e}")
+
+        try:
+            if word:
+                word.Quit()
+                logger.debug("Closed Word application")
+        except Exception as e:
+            logger.debug(f"Error closing Word: {e}")
 
 
 def handle_word_vba_command(args: argparse.Namespace) -> None:
@@ -1056,9 +1068,7 @@ def handle_word_vba_command(args: argparse.Namespace) -> None:
         # Execute requested command
         logger.info(f"Executing command: {args.command}")
         try:
-            if args.command == "references":
-                handle_references_command(args, doc_path)
-            elif args.command == "edit":
+            if args.command == "edit":
                 logger.info("NOTE: Deleting a VBA module file will also delete it in the VBA editor!")
                 handle_export_with_warnings(
                     handler,
@@ -1153,6 +1163,35 @@ def main() -> None:
             except Exception as e:
                 logger.error(f"Failed to check Trust Access to VBA project object model: {str(e)}")
             sys.exit(0)
+        elif args.command == "references":
+            # Handle references command separately (doesn't need vba_directory)
+            active_doc = None
+            if not args.file:
+                try:
+                    from vba_edit.utils import get_active_office_document
+
+                    active_doc = get_active_office_document("word")
+                except ApplicationError:
+                    pass
+
+            # Get document path (references command only needs document, not vba_dir)
+            if args.file:
+                doc_path = Path(args.file)
+                if not doc_path.exists():
+                    from vba_edit.console import error
+
+                    error(f"Document not found: {doc_path}")
+                    sys.exit(1)
+            elif active_doc:
+                doc_path = Path(active_doc)
+            else:
+                from vba_edit.console import error
+
+                error("No document specified and no active Word document found")
+                error("Use --file/-f to specify a document or open a document in Word")
+                sys.exit(1)
+
+            handle_references_command(args, doc_path)
         else:
             handle_word_vba_command(args)
 
