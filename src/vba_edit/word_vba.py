@@ -598,6 +598,299 @@ Simple usage:
         help="Show this help message and exit",
     )
 
+    # References command
+    references_description = """Manage VBA references in Word documents
+
+VBA references are links to external type libraries (COM objects, DLLs, other Office documents)
+that provide additional functionality to your VBA code.
+
+Simple usage:
+  word-vba references list                    # List refs in active document
+  word-vba references export                  # Export to {document}_refs.toml
+  word-vba references import -r refs.toml     # Import from TOML file"""
+
+    references_usage = """word-vba references <command> [options]"""
+
+    references_parser = subparsers.add_parser(
+        "references",
+        usage=references_usage,
+        help="Manage VBA references (list/export/import)",
+        description=references_description,
+        formatter_class=EnhancedHelpFormatter,
+        add_help=False,
+    )
+
+    # Subparsers for references subcommands (must come before common options for proper display order)
+    references_subparsers = references_parser.add_subparsers(
+        dest="refs_subcommand",
+        required=True,
+        title="Commands",
+        metavar="<command>",
+    )
+
+    # References list subcommand
+    list_refs_description = """List all VBA references in a Word document
+
+Shows reference details including:
+  • Name and description
+  • GUID and version
+  • File path (for file-based references)
+  • Status (built-in, broken, etc.)
+
+Examples:
+  word-vba references list              # List refs in active document
+  word-vba references list -f file.docm # List refs in specific file"""
+
+    list_refs_usage = """word-vba references list
+    [--file FILE | -f FILE]
+    [--verbose | -v]
+    [--logfile | -l]
+    [--no-color | --no-colour]
+    [--help | -h]"""
+
+    list_refs_parser = references_subparsers.add_parser(
+        "list",
+        usage=list_refs_usage,
+        help="List all references in document",
+        description=list_refs_description,
+        formatter_class=EnhancedHelpFormatter,
+        add_help=False,
+    )
+
+    # File Options group for list
+    list_file_group = list_refs_parser.add_argument_group("File Options")
+    list_file_group.add_argument(
+        "--file",
+        "-f",
+        dest="file",
+        help="Path to Word document (default: active document)",
+    )
+
+    # Common Options group for list
+    list_common = list_refs_parser.add_argument_group("Common Options")
+    list_common.add_argument(
+        "--verbose",
+        "-v",
+        dest="verbose",
+        action="store_true",
+        help="Enable verbose logging output",
+    )
+    list_common.add_argument(
+        "--logfile",
+        "-l",
+        dest="logfile",
+        nargs="?",
+        const="vba_edit.log",
+        help="Enable logging to file (default: vba_edit.log)",
+    )
+    list_common.add_argument(
+        "--no-color",
+        "--no-colour",
+        dest="no_color",
+        action="store_true",
+        help="Disable colored output",
+    )
+    list_common.add_argument(
+        "--help",
+        "-h",
+        action="help",
+        help="Show this help message and exit",
+    )
+
+    # References export subcommand
+    export_refs_description = """Export VBA references to TOML configuration file
+
+Saves all references (except built-in ones) to a TOML file that can be:
+  • Shared with team members
+  • Version controlled
+  • Used to replicate reference setup in other documents
+
+The TOML file contains reference details (name, GUID, version, path) and can
+be edited manually if needed.
+
+Examples:
+  word-vba references export                        # Export to {document}_refs.toml
+  word-vba references export -r custom_refs.toml    # Export to custom file
+  word-vba references export -f template.dotm -r refs.toml"""
+
+    export_refs_usage = """word-vba references export
+    [--file FILE | -f FILE]
+    [--refs-file FILE | -r FILE]
+    [--verbose | -v]
+    [--logfile | -l]
+    [--no-color | --no-colour]
+    [--help | -h]"""
+
+    export_refs_parser = references_subparsers.add_parser(
+        "export",
+        usage=export_refs_usage,
+        help="Export references to TOML file",
+        description=export_refs_description,
+        formatter_class=EnhancedHelpFormatter,
+        add_help=False,
+    )
+
+    # File Options group for export
+    export_refs_file_group = export_refs_parser.add_argument_group("File Options")
+    export_refs_file_group.add_argument(
+        "--file",
+        "-f",
+        dest="file",
+        help="Path to Word document (default: active document)",
+    )
+    export_refs_file_group.add_argument(
+        "--refs-file",
+        "-r",
+        dest="refs_file",
+        metavar="FILE",
+        help="Output TOML file path (default: {document}_refs.toml)",
+    )
+
+    # Common Options group for export
+    export_refs_common = export_refs_parser.add_argument_group("Common Options")
+    export_refs_common.add_argument(
+        "--verbose",
+        "-v",
+        dest="verbose",
+        action="store_true",
+        help="Enable verbose logging output",
+    )
+    export_refs_common.add_argument(
+        "--logfile",
+        "-l",
+        dest="logfile",
+        nargs="?",
+        const="vba_edit.log",
+        help="Enable logging to file (default: vba_edit.log)",
+    )
+    export_refs_common.add_argument(
+        "--no-color",
+        "--no-colour",
+        dest="no_color",
+        action="store_true",
+        help="Disable colored output",
+    )
+    export_refs_common.add_argument(
+        "--help",
+        "-h",
+        action="help",
+        help="Show this help message and exit",
+    )
+
+    # References import subcommand
+    import_refs_description = """Import VBA references from TOML configuration file
+
+Reads reference definitions from a TOML file and adds them to a Word document.
+Handles:
+  • Duplicate detection (skips already present references)
+  • Path validation (for file-based references)
+  • Error reporting (missing files, invalid GUIDs, etc.)
+
+Use this to:
+  • Set up references in new documents
+  • Replicate reference configuration across team
+  • Restore references after document recreation
+
+Examples:
+  word-vba references import -r refs.toml           # Import to active document
+  word-vba references import -r refs.toml -f new.docm"""
+
+    import_refs_usage = """word-vba references import
+    --refs-file FILE | -r FILE
+    [--file FILE | -f FILE]
+    [--verbose | -v]
+    [--logfile | -l]
+    [--no-color | --no-colour]
+    [--help | -h]"""
+
+    import_refs_parser = references_subparsers.add_parser(
+        "import",
+        usage=import_refs_usage,
+        help="Import references from TOML file",
+        description=import_refs_description,
+        formatter_class=EnhancedHelpFormatter,
+        add_help=False,
+    )
+
+    # File Options group for import
+    import_refs_file_group = import_refs_parser.add_argument_group("File Options")
+    import_refs_file_group.add_argument(
+        "--file",
+        "-f",
+        dest="file",
+        help="Path to Word document (default: active document)",
+    )
+    import_refs_file_group.add_argument(
+        "--refs-file",
+        "-r",
+        dest="refs_file",
+        metavar="FILE",
+        required=True,
+        help="Input TOML file with reference definitions",
+    )
+
+    # Common Options group for import
+    import_refs_common = import_refs_parser.add_argument_group("Common Options")
+    import_refs_common.add_argument(
+        "--verbose",
+        "-v",
+        dest="verbose",
+        action="store_true",
+        help="Enable verbose logging output",
+    )
+    import_refs_common.add_argument(
+        "--logfile",
+        "-l",
+        dest="logfile",
+        nargs="?",
+        const="vba_edit.log",
+        help="Enable logging to file (default: vba_edit.log)",
+    )
+    import_refs_common.add_argument(
+        "--no-color",
+        "--no-colour",
+        dest="no_color",
+        action="store_true",
+        help="Disable colored output",
+    )
+    import_refs_common.add_argument(
+        "--help",
+        "-h",
+        action="help",
+        help="Show this help message and exit",
+    )
+
+    # Common Options group for references command (added after subcommands for proper display order)
+    references_common = references_parser.add_argument_group("Common Options")
+    references_common.add_argument(
+        "--verbose",
+        "-v",
+        dest="verbose",
+        action="store_true",
+        help="Enable verbose logging output",
+    )
+    references_common.add_argument(
+        "--logfile",
+        "-l",
+        dest="logfile",
+        nargs="?",
+        const="vba_edit.log",
+        help="Enable logging to file (default: vba_edit.log)",
+    )
+    references_common.add_argument(
+        "--no-color",
+        "--no-colour",
+        dest="no_color",
+        action="store_true",
+        help="Disable colored output",
+    )
+    references_common.add_argument(
+        "--help",
+        "-h",
+        action="help",
+        help="Show this help message and exit",
+    )
+
     return parser
 
 
@@ -619,6 +912,98 @@ def validate_paths(args: argparse.Namespace) -> None:
         if not vba_dir.exists():
             logger.info(f"Creating VBA directory: {vba_dir}")
             vba_dir.mkdir(parents=True, exist_ok=True)
+
+
+def handle_references_command(args: argparse.Namespace, doc_path: Path) -> None:
+    """Handle the references command and its subcommands."""
+    from vba_edit.console import error, info, success, warning
+    from vba_edit.reference_manager import ReferenceManager
+
+    logger.debug(f"Handling references subcommand: {args.refs_subcommand}")
+
+    try:
+        # Create ReferenceManager instance
+        manager = ReferenceManager(str(doc_path))
+        logger.debug(f"Created ReferenceManager for: {doc_path}")
+
+        if args.refs_subcommand == "list":
+            # List all references
+            info(f"📋 Listing references in: {doc_path.name}")
+            refs = manager.list_references()
+
+            if not refs:
+                warning("No references found in document")
+                return
+
+            success(f"Found {len(refs)} reference(s):\n")
+
+            # Display each reference with colorization
+            for i, ref in enumerate(refs, 1):
+                print(f"\n[bold cyan]{i}. {ref['name']}[/bold cyan]")
+                if ref.get("description"):
+                    print(f"   Description: {ref['description']}")
+                if ref.get("guid"):
+                    print(f"   GUID: {ref['guid']}")
+                if ref.get("version"):
+                    print(f"   Version: {ref['version']}")
+                if ref.get("path"):
+                    print(f"   Path: [bold blue]{ref['path']}[/bold blue]")
+                print(f"   Built-in: {ref.get('builtin', False)}")
+                print(f"   Broken: {ref.get('isbroken', False)}")
+
+        elif args.refs_subcommand == "export":
+            # Export references to TOML
+            refs_file = args.refs_file
+            if not refs_file:
+                # Default: {document_name}_refs.toml in same directory
+                refs_file = doc_path.parent / f"{doc_path.stem}_refs.toml"
+            else:
+                refs_file = Path(refs_file)
+
+            info(f"📤 Exporting references from: {doc_path.name}")
+            result = manager.export_to_toml(refs_file, overwrite=True)
+
+            if result["exported"] == 0:
+                warning("No exportable references found (built-in refs are excluded)")
+            else:
+                success(f"✓ Exported {result['exported']} reference(s) to: {refs_file}")
+                if result["skipped"] > 0:
+                    info(f"  Skipped {result['skipped']} built-in reference(s)")
+
+        elif args.refs_subcommand == "import":
+            # Import references from TOML
+            refs_file = Path(args.refs_file)
+
+            if not refs_file.exists():
+                error(f"Reference file not found: {refs_file}")
+                sys.exit(1)
+
+            info(f"📥 Importing references to: {doc_path.name}")
+            info(f"   From file: {refs_file}")
+
+            result = manager.import_from_toml(refs_file)
+
+            # Report results
+            if result["added"] > 0:
+                success(f"✓ Added {result['added']} reference(s)")
+            if result["skipped"] > 0:
+                info(f"  Skipped {result['skipped']} (already present)")
+            if result["failed"] > 0:
+                warning(f"⚠ Failed {result['failed']} reference(s)")
+
+            if result["added"] == 0 and result["failed"] == 0:
+                info("All references were already present")
+
+    except Exception as e:
+        error(f"References operation failed: {str(e)}")
+        logger.exception("Reference operation error")
+        sys.exit(1)
+    finally:
+        # Cleanup
+        try:
+            manager.close()
+        except Exception:
+            pass
 
 
 def handle_word_vba_command(args: argparse.Namespace) -> None:
@@ -671,7 +1056,9 @@ def handle_word_vba_command(args: argparse.Namespace) -> None:
         # Execute requested command
         logger.info(f"Executing command: {args.command}")
         try:
-            if args.command == "edit":
+            if args.command == "references":
+                handle_references_command(args, doc_path)
+            elif args.command == "edit":
                 logger.info("NOTE: Deleting a VBA module file will also delete it in the VBA editor!")
                 handle_export_with_warnings(
                     handler,
