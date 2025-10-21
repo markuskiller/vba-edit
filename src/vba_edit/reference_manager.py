@@ -390,14 +390,19 @@ class ReferenceManager:
             target_ref = None
             
             for i in range(1, refs_collection.Count + 1):
-                ref = refs_collection.Item(i)
-                
-                if guid and ref.Guid.upper() == guid.upper():
-                    target_ref = ref
-                    break
-                if name and ref.Name.lower() == name.lower():
-                    target_ref = ref
-                    break
+                try:
+                    ref = refs_collection.Item(i)
+                    
+                    if guid and ref.Guid.upper() == guid.upper():
+                        target_ref = ref
+                        break
+                    if name and ref.Name.lower() == name.lower():
+                        target_ref = ref
+                        break
+                except pywintypes.com_error as e:
+                    # Skip references that can't be read (corrupted or inaccessible)
+                    logger.debug(f"Skipping unreadable reference at position {i}: {e}")
+                    continue
             
             if target_ref is None:
                 if skip_if_missing:
