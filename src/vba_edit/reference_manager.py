@@ -463,6 +463,13 @@ class ReferenceManager:
                     desc = ref["description"].replace('"', '\\"')
                     toml_content += f'description = "{desc}"\n'
 
+                # IMPORTANT: Include path for document-based references (empty GUID)
+                # This is crucial for references to .dotm, .xlam, .accdb template files
+                if ref.get("path"):
+                    # Escape backslashes for TOML format
+                    path = ref["path"].replace("\\", "\\\\")
+                    toml_content += f'path = "{path}"\n'
+
                 toml_content += "\n"
 
             # Write to file

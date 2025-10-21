@@ -39,7 +39,7 @@ class TestCorePathResolution:
         """Test export with relative --vba-directory doesn't double paths.
 
         This test would have caught Bug #1 where paths were doubled:
-        C:\\dev\\_test-vba-edit\\_test-vba-edit\\XL\\VBA1637
+        C:\\test\\test\\XL\\VBA1637
 
         The bug was in path_utils.py:
         - WRONG: resolve_path(vba_dir, doc_path_resolved.parent)
