@@ -3,40 +3,37 @@ Tests for VBA reference management functionality (Phase 1: Core).
 
 NOTE: These tests require Excel to be installed and VBA trust enabled.
 Many tests are marked as skip by default - run with pytest -v -k "not skip" or individually.
+
+ReferenceManager uses pure win32com - no xlwings dependency required.
 """
 
 import pytest
+import win32com.client
 from pathlib import Path
-
-# NOTE: xlwings is optional dependency - tests will be skipped if not available
-try:
-    import xlwings as xw
-    XLWINGS_AVAILABLE = True
-except ImportError:
-    XLWINGS_AVAILABLE = False
 
 from vba_edit.reference_manager import ReferenceManager, ReferenceError
 
 
 @pytest.fixture
 def test_workbook():
-    """Create a temporary test workbook."""
-    if not XLWINGS_AVAILABLE:
-        pytest.skip("xlwings not available")
+    """Create a temporary test workbook using win32com."""
+    excel = win32com.client.Dispatch("Excel.Application")
+    excel.Visible = False
+    wb = excel.Workbooks.Add()
     
-    app = xw.App(visible=False)
-    wb = app.books.add()
-    wb.api.VBProject.References.AddFromGuid(
+    # Add a test reference
+    wb.VBProject.References.AddFromGuid(
         "{00020813-0000-0000-C000-000000000046}",  # Excel type library
         1, 9  # Version 1.9
     )
+    
     yield wb
-    wb.close()
-    app.quit()
+    
+    wb.Close(SaveChanges=False)
+    excel.Quit()
 
 
-@pytest.mark.skipif(not XLWINGS_AVAILABLE, reason="xlwings not available")
-@pytest.mark.skipif(not XLWINGS_AVAILABLE, reason="xlwings not available")
+@pytest.mark.skip(reason="Requires Excel interaction - run manually when testing")
 @pytest.mark.skip(reason="Requires Excel interaction - run manually when testing")
 def test_list_references(test_workbook):
     """Test listing all references in a workbook."""
@@ -59,7 +56,6 @@ def test_list_references(test_workbook):
     assert "broken" in first_ref
 
 
-@pytest.mark.skipif(not XLWINGS_AVAILABLE, reason="xlwings not available")
 @pytest.mark.skip(reason="Requires Excel interaction - run manually when testing")
 def test_add_reference(test_workbook):
     """Test adding a new reference."""
@@ -85,7 +81,6 @@ def test_add_reference(test_workbook):
     assert scripting_ref["guid"] == "{420B2830-E718-11CF-893D-00A0C9054228}"
 
 
-@pytest.mark.skipif(not XLWINGS_AVAILABLE, reason="xlwings not available")
 @pytest.mark.skip(reason="Requires Excel interaction - run manually when testing")
 def test_remove_reference(test_workbook):
     """Test removing a reference."""
@@ -114,7 +109,6 @@ def test_remove_reference(test_workbook):
     assert scripting_ref is None
 
 
-@pytest.mark.skipif(not XLWINGS_AVAILABLE, reason="xlwings not available")
 @pytest.mark.skip(reason="Requires Excel interaction - run manually when testing")
 def test_reference_exists(test_workbook):
     """Test checking if a reference exists."""
@@ -129,7 +123,6 @@ def test_reference_exists(test_workbook):
     assert manager.reference_exists(guid="{00000000-0000-0000-0000-000000000000}") is False
 
 
-@pytest.mark.skipif(not XLWINGS_AVAILABLE, reason="xlwings not available")
 @pytest.mark.skip(reason="Requires Excel interaction - run manually when testing")
 def test_export_references_to_toml(test_workbook, tmp_path):
     """Test exporting references to TOML file."""
@@ -156,7 +149,6 @@ def test_export_references_to_toml(test_workbook, tmp_path):
     assert len(data["references"]) > 0
 
 
-@pytest.mark.skipif(not XLWINGS_AVAILABLE, reason="xlwings not available")
 @pytest.mark.skip(reason="Requires Excel interaction - run manually when testing")
 def test_import_references_from_toml(test_workbook, tmp_path):
     """Test importing references from TOML file."""

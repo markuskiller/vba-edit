@@ -4,23 +4,26 @@ VBA Reference Management Module
 This module provides functionality for managing VBA library references in Office documents.
 It supports listing, adding, removing, and exporting/importing references via TOML configuration.
 
+**Uses pure win32com** - xlwings is optional for convenience but NOT required.
+
 Phase 1: Core reference management for single documents (v0.5.0)
 Phase 2: CLI integration (v0.5.0)
 Phase 3: Enhanced features and polish (v0.5.0)
 
-Usage:
+Usage with win32com (recommended):
+    import win32com.client
     from vba_edit.reference_manager import ReferenceManager
     
-    # With xlwings
-    import xlwings as xw
-    wb = xw.books.open("file.xlsm")
-    manager = ReferenceManager(wb)
-    
-    # Or with win32com
-    import win32com.client
     excel = win32com.client.Dispatch("Excel.Application")
     wb = excel.Workbooks.Open("file.xlsm")
     manager = ReferenceManager(wb)
+    
+Usage with xlwings (optional convenience):
+    import xlwings as xw
+    from vba_edit.reference_manager import ReferenceManager
+    
+    wb = xw.books.open("file.xlsm")
+    manager = ReferenceManager(wb)  # Automatically extracts COM object
 """
 
 import logging
@@ -49,20 +52,28 @@ class ReferenceManager:
     """Manage VBA library references in Office documents.
     
     This class provides methods to list, add, remove, and manage VBA library references
-    in Microsoft Office documents. It supports both xlwings workbook objects and
-    win32com COM objects.
+    in Microsoft Office documents using pure win32com COM automation.
+    
+    **xlwings is optional** - The manager accepts both xlwings workbook objects (for convenience)
+    and win32com COM objects directly. When given an xlwings object, it automatically extracts
+    the underlying COM object and uses pure win32com for all operations.
     
     Attributes:
         document: The Office document object (xlwings or win32com)
-        vb_project: The VBA project object for the document
+        vb_project: The VBA project COM object for the document
         
-    Example:
-        >>> import xlwings as xw
-        >>> wb = xw.books.open("file.xlsm")
+    Example with win32com (recommended):
+        >>> import win32com.client
+        >>> excel = win32com.client.Dispatch("Excel.Application")
+        >>> wb = excel.Workbooks.Open("file.xlsm")
         >>> manager = ReferenceManager(wb)
         >>> refs = manager.list_references()
-        >>> for ref in refs:
-        ...     print(f"{ref['name']} v{ref['major']}.{ref['minor']}")
+        
+    Example with xlwings (optional):
+        >>> import xlwings as xw
+        >>> wb = xw.books.open("file.xlsm")
+        >>> manager = ReferenceManager(wb)  # Extracts wb.api automatically
+        >>> refs = manager.list_references()
     """
     
     # GUID validation pattern: {XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX}
@@ -73,8 +84,12 @@ class ReferenceManager:
     def __init__(self, document: Any):
         """Initialize the ReferenceManager.
         
+        Accepts both win32com COM objects and xlwings objects. When given an xlwings
+        object (has .api attribute), automatically extracts the underlying COM object.
+        All subsequent operations use pure win32com.
+        
         Args:
-            document: Office document object (xlwings workbook or win32com object)
+            document: Office document object (win32com COM object or xlwings workbook)
             
         Raises:
             VBAAccessError: If VBA project access is denied
