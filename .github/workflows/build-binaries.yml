@@ -92,7 +92,7 @@ jobs:
 
     - name: Upload binaries to release (on release publish)
       if: github.event_name == 'release'
-      uses: softprops/action-gh-release@a6c7483a42ee9d5daced968f6c217562cd680f7f # v2.0.0
+      uses: softprops/action-gh-release@6da8fa9354ddfdc4aeace5fc48d7f679b5214090 # v2.4.1
       with:
         files: |
           dist/excel-vba.exe
