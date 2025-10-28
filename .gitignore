@@ -1,7 +1,10 @@
-# personal workarea / scratch
+# Personal workarea / scratch / internal tools
+# IMPORTANT: All test_*, temp_*, demo_* files MUST go in _workbench/, NOT project root
+# This keeps the project root clean and prevents accidental commits of dev/test files
 _workbench/
 
-# Demo and debug test files (root directory only)
+# Demo and debug test files (root directory only - should NOT exist, use _workbench/ instead)
+# These patterns exist as safety net but files should be created in _workbench/ from the start
 /demo_*
 /test_*
 /temp_*

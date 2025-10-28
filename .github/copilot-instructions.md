@@ -43,7 +43,14 @@ This project is a command-line application that allows users to export, import, 
 ## Folder Structure
 
 - `/src`: Contains the source code
+- `/tests`: Contains automated test suites (pytest)
 - `/docs`: Contains documentation for the project, including ideas for further enhancements and even programming guides for beginners.
+- `/_workbench`: **IMPORTANT** - Personal workspace for all internal development files
+  - **All `test_*.py`, `demo_*.py`, `temp_*` files MUST be created here**
+  - **NEVER create test/demo/temp files in project root**
+  - Internal tools, helper scripts, debugging output
+  - Gitignored - safe for sensitive data and experiments
+  - See `_workbench/README.md` for details
 
 ## General Instructions
 
@@ -53,6 +60,28 @@ Write code (names of classes, objects, variables, methods, comments etc) always 
 
 Also express all your answers in project language, even when prompted in any other language.
 As an exception, the developer may ask for a translation of terms and sentences he or she doesn't understand, on his/her behalf.
+
+### 🚨 CRITICAL: File Creation Rules
+
+**NEVER create these files in project root:**
+- ❌ No `test_*.py` in root
+- ❌ No `demo_*.py` in root  
+- ❌ No `temp_*` in root
+
+**✅ ALWAYS create in `_workbench/` instead:**
+```python
+# ❌ WRONG - DO NOT DO THIS
+create_file("C:\\dev\\vba-edit\\test_feature.py", ...)
+
+# ✅ CORRECT - ALWAYS DO THIS
+create_file("C:\\dev\\vba-edit\\_workbench\\test_feature.py", ...)
+```
+
+**Rationale**: 
+- Keeps project root clean
+- Prevents accidental commits of dev/test files
+- Central location for all internal tools
+- See `_workbench/README.md` for details
 
 ---
 
