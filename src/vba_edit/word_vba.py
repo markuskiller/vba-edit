@@ -1196,9 +1196,10 @@ def main() -> None:
             handle_word_vba_command(args)
 
     except Exception as e:
-        from vba_edit.console import error
+        from vba_edit.console import print_exception
 
-        error(f"Critical error: {str(e)}")
+        # Use print_exception to properly render Rich markup in exception messages
+        print_exception(e)
         sys.exit(1)
 
 

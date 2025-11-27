@@ -285,7 +285,7 @@ def setup_logging(verbose: bool = False, logfile: Optional[str] = None) -> None:
             console_handler.setLevel(logging.DEBUG if verbose else logging.INFO)
             root_logger.addHandler(console_handler)
     """
-    from vba_edit.console import console, _colors_disabled
+    from vba_edit.console import _colors_disabled
 
     root_logger = logging.getLogger()
     root_logger.setLevel(logging.DEBUG if verbose else logging.INFO)
@@ -305,9 +305,36 @@ def setup_logging(verbose: bool = False, logfile: Optional[str] = None) -> None:
         # RichHandler with markup but NO Python syntax highlighting
         # This gives us semantic colorization (paths, warnings) without repr() noise
         from rich.logging import RichHandler
+        from rich.console import Console
+        from rich.theme import Theme
+
+        # Create a separate console for logging WITHOUT highlighter
+        # IMPORTANT: Don't reuse console from console.py as it has HelpTextHighlighter
+        # which would conflict with SemanticLogFormatter's markup
+        # Define same theme as console.py
+        custom_theme = Theme(
+            {
+                "success": "bold green",
+                "error": "bold red",
+                "warning": "bold yellow",
+                "info": "cyan",
+                "dim": "dim",
+                "path": "cyan",
+                "file": "cyan",
+                "command": "bold bright_cyan",
+                "option": "bold bright_cyan",
+                "action": "green",
+                "number": "cyan",
+                "heading": "bold bright_green",
+                "usage": "bold white",
+                "metavar": "cyan",
+                "choices": "dim cyan",
+            }
+        )
+        logging_console = Console(theme=custom_theme, highlight=False, highlighter=None)
 
         console_handler = RichHandler(
-            console=console,
+            console=logging_console,
             markup=True,  # Enable Rich markup rendering ([warning], [path], etc.)
             show_time=False,  # Don't show timestamp (we only want message)
             show_path=False,  # Don't show file path
@@ -321,6 +348,24 @@ def setup_logging(verbose: bool = False, logfile: Optional[str] = None) -> None:
         # Apply custom formatter that adds semantic colorization
         console_handler.setFormatter(SemanticLogFormatter())
         console_handler.setLevel(logging.DEBUG if verbose else logging.INFO)
+
+        # Wrap emit() to catch MarkupError and print without markup
+        # This prevents recursive errors when Rich's own error messages contain markup-like text
+        original_emit = console_handler.emit
+
+        def safe_emit(record):
+            try:
+                original_emit(record)
+            except Exception as e:
+                # If markup rendering fails, print the message as plain text
+                # This handles cases where Rich error messages themselves contain brackets
+                if "markup" in str(e).lower() or "tag" in str(e).lower():
+                    logging_console.print(record.getMessage(), markup=False, highlight=False)
+                else:
+                    # Re-raise other exceptions
+                    raise
+
+        console_handler.emit = safe_emit
         root_logger.addHandler(console_handler)
 
     # File handler with rotation (only if logfile is specified)

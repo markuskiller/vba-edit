@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "vba_edit"
-version = "0.5.0a1"
+version = "0.4.2"
 description = "Enable seamless MS Office VBA code editing in preferred editor or IDE (facilitating the use of coding assistants and version control workflows)"
 authors = [{ name = "Markus Killer", email = "m.killer@langui.ch" }]
 readme = "README.md"
@@ -64,7 +64,6 @@ powerpoint-vba = "vba_edit.powerpoint_vba:main"
 Homepage = "https://langui.ch/current-projects/vba-edit/"
 Documentation = "https://github.com/markuskiller/vba-edit/blob/main/README.md"
 Source = "https://github.com/markuskiller/vba-edit"
-"Bug Tracker" = "https://github.com/markuskiller/vba-edit/issues"
 Changelog = "https://github.com/markuskiller/vba-edit/blob/main/CHANGELOG.md"
 
 [tool.black]

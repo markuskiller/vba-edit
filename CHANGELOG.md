@@ -5,26 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.4.2] - 2025-11-27
 
-### Added
+### Fixed
 
-- **VBA Reference Management**: Comprehensive tools for managing library references in Office documents
-  - List all VBA references with full details (name, GUID, version, path, status)
-  - Export references to TOML configuration files for version control
-  - Import references from TOML to apply consistent library configurations
-  - Support for both COM-based libraries (ADODB, MSForms) and document-based templates (.dotm, .xlam)
-  - Path tracking for document-based references (critical for shared template libraries)
-  - Available for Word, Excel, PowerPoint, and Access
-  - Command: `word-vba references {list|export|import}`
-  - Example: `word-vba references export -f template.dotm -r refs.toml`
-
-### Changed
-
-- **TOML Export Format**: Reference exports now include file paths for all libraries
-  - Enables tracking of document-based template references
-  - Critical for managing shared library locations across teams
-  - Supports reference path updates when libraries are moved or renamed
+- **Rich Markup Error**: Fixed crash when processing file paths containing brackets ([Issue #43](https://github.com/markuskiller/vba-edit/issues/43), [Issue #46](https://github.com/markuskiller/vba-edit/issues/46))
+  - Application no longer crashes with Rich markup errors during file operations
+  - Excel binary workbook format (.xlsb) now works correctly ([Issue #46](https://github.com/markuskiller/vba-edit/issues/46) specific case)
+  - All macro-enabled formats (.xlsm, .xlsb, .xls) function properly
+  - Thanks to [@DjunaPix](https://github.com/DjunaPix) for reporting [Issue #46](https://github.com/markuskiller/vba-edit/issues/46)
+- **Import Messages**: Reduced duplicate "Document has been saved" messages
+  - Now displays once instead of three times during import operations
+  - Makes import output cleaner and less confusing
 
 ## [0.4.1] - 2025-10-17
 
