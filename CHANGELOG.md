@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.2] - 2025-11-27
+
+### Fixed
+
+- **Excel Binary Workbook Support**: Fixed crash when exporting or importing xlsb files
+  - Application no longer crashes with markup error during xlsb operations
+  - All file formats (xlsx, xlsm, xlsb, xls) now work correctly
+- **Import Messages**: Reduced duplicate "Document has been saved" messages
+  - Now displays once instead of three times during import operations
+  - Makes import output cleaner and less confusing
+
 ## [0.4.1] - 2025-10-17
 
 ### Added
