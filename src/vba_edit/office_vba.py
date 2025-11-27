@@ -1378,9 +1378,11 @@ class OfficeVBAHandler(ABC):
 
             logger.info(f"Successfully processed: {file_path.name}")
 
-            # Only try to save for non-Access applications
-            if self.app_name != "Access":
-                self.save_document()
+            # NOTE: Don't save here - import_vba() saves once at the end (after all files imported)
+            # Edit mode uses import_single_file() which has its own save call
+            # Saving after each file is redundant and causes multiple "Document has been saved" messages
+            # if self.app_name != "Access":
+            #     self.save_document()
 
         except Exception as e:
             logger.error(f"Failed to handle {file_path.name}: {str(e)}")
