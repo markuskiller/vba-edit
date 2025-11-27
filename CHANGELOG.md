@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.2] - 2025-11-27
+
+### Fixed
+
+- **Rich Markup Error**: Fixed crash when processing file paths containing brackets ([Issue #43](https://github.com/markuskiller/vba-edit/issues/43), [Issue #46](https://github.com/markuskiller/vba-edit/issues/46))
+  - Application no longer crashes with Rich markup errors during file operations
+  - Excel binary workbook format (.xlsb) now works correctly ([Issue #46](https://github.com/markuskiller/vba-edit/issues/46) specific case)
+  - All macro-enabled formats (.xlsm, .xlsb, .xls) function properly
+  - Thanks to [@DjunaPix](https://github.com/DjunaPix) for reporting [Issue #46](https://github.com/markuskiller/vba-edit/issues/46)
+- **Import Messages**: Reduced duplicate "Document has been saved" messages
+  - Now displays once instead of three times during import operations
+  - Makes import output cleaner and less confusing
+
 ## [0.4.1] - 2025-10-17
 
 ### Added

@@ -24,10 +24,10 @@ pip install -U vba-edit
 📦 **Download**: [Latest Release](https://github.com/markuskiller/vba-edit/releases/latest) (scroll all the way down to **Assets** section)
 
 Available binaries:
-- `excel-vba.exe` - For Excel workbooks
-- `word-vba.exe` - For Word documents
-- `access-vba.exe` - For Access databases
-- `powerpoint-vba.exe` - For PowerPoint presentations
+- `excel-vba.exe` - For Excel workbooks (.xlsm, .xlsb, .xls)
+- `word-vba.exe` - For Word documents (.docm)
+- `access-vba.exe` - For Access databases (.accdb, .mdb)
+- `powerpoint-vba.exe` - For PowerPoint presentations (.pptm)
 
 🔒 **Security**: See [Security Verification Guide](SECURITY_VERIFICATION.md) for SHA256 checksums and attestation validation.
 
@@ -120,10 +120,12 @@ excel-vba edit --rubberduck-folders --in-file-headers
 
 | CLI Tool | Description |
 |---------|-------------|
-| `excel-vba.exe` | For Excel Workbooks |
-| `word-vba.exe` | For Word documents |
-| `access-vba.exe` | For Access databases |
-| `powerpoint-vba.exe` | For PowerPoint presentations |
+| `excel-vba.exe` | For Excel Workbooks (.xlsm, .xlsb, .xls) |
+| `word-vba.exe` | For Word documents (.docm) |
+| `access-vba.exe` | For Access databases (.accdb, .mdb) |
+| `powerpoint-vba.exe` | For PowerPoint presentations (.pptm) |
+
+> 💡 **Note**: Additional macro-enabled formats (.xltm, .dotm, .potm) are likely supported but not yet tested in this release.
 
 ### Commands
 
