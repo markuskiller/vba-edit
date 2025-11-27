@@ -269,7 +269,7 @@ Development priorities evolve based on user feedback and real-world needs.
 
 +👀 **See active planning**: [GitHub Milestones](https://github.com/markuskiller/vba-edit/milestones)  
 +💡 **Request features**: [Open an Issue](https://github.com/markuskiller/vba-edit/issues)  
-+📝 **Current focus**: v0.5.0 - Batch operations for processing multiple Office documents
++📝 **Current focus**: v0.5.0 - Reference management & batch operations
 
 
 ### 💡 Feedback & Contributions
