@@ -20,9 +20,9 @@ class TestRichIntegration:
         from vba_edit.console import console
 
         # In CI/non-TTY, console might be DummyConsole (no highlighter attribute)
-        if not hasattr(console, 'highlighter'):
+        if not hasattr(console, "highlighter"):
             pytest.skip("DummyConsole in use (CI/non-TTY environment)")
-        
+
         # Console has single highlighter attribute, not plural
         if console.highlighter is not None:
             highlighter_name = console.highlighter.__class__.__name__
@@ -46,14 +46,8 @@ class TestRichIntegration:
         assert len(root_logger.handlers) > 0, "Should have logging handlers after setup_logging"
 
         # Find RichHandler if present (may be StreamHandler in CI/non-TTY)
-        has_rich_handler = any(
-            h.__class__.__name__ == "RichHandler" 
-            for h in root_logger.handlers
-        )
-        has_stream_handler = any(
-            h.__class__.__name__ == "StreamHandler"
-            for h in root_logger.handlers
-        )
+        has_rich_handler = any(h.__class__.__name__ == "RichHandler" for h in root_logger.handlers)
+        has_stream_handler = any(h.__class__.__name__ == "StreamHandler" for h in root_logger.handlers)
 
         # In TTY environments, we use RichHandler; in CI/non-TTY, StreamHandler
         assert has_rich_handler or has_stream_handler, (

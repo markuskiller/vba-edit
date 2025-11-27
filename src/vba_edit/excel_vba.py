@@ -859,7 +859,7 @@ def main() -> None:
             handle_excel_vba_command(args)
 
     except Exception as e:
-        from vba_edit.console import error, print_exception
+        from vba_edit.console import print_exception
 
         # Use print_exception to properly render Rich markup in exception messages
         print_exception(e)

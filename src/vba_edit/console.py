@@ -460,8 +460,8 @@ def print_exception(exc: Exception, **kwargs):
     """
     # Disable both markup and highlighting to prevent conflicts
     # This prints the exception as plain text, including any markup tags
-    kwargs['markup'] = False
-    kwargs['highlight'] = False
+    kwargs["markup"] = False
+    kwargs["highlight"] = False
     error_console.print(str(exc), **kwargs)
 
 

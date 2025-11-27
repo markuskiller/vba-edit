@@ -167,7 +167,7 @@ End Function
         # Verify content is readable and contains expected code
         with open(module_file, "r", encoding="cp1252") as f:
             module_content = f.read()
-        
+
         assert "XLSB Format Test" in module_content, "Module content missing"
         assert "GetMessage" in module_content, "Function missing from export"
         assert "CalculateSum" in module_content, "Function missing from export"
@@ -223,7 +223,7 @@ End Function
         # Verify code is present
         code_module = imported_module.CodeModule
         imported_code = code_module.Lines(1, code_module.CountOfLines)
-        
+
         assert "XLSB Format Test" in imported_code, "Imported code missing content"
         assert "GetMessage" in imported_code, "Function missing from import"
 
@@ -297,9 +297,7 @@ End Function
         export2_normalized = export2_content.replace("\r\n", "\n").replace("\r", "\n")
 
         # Content should be identical after roundtrip
-        assert export1_normalized == export2_normalized, (
-            "Round-trip through xlsb file changed code content"
-        )
+        assert export1_normalized == export2_normalized, "Round-trip through xlsb file changed code content"
 
     @pytest.mark.integration
     @pytest.mark.com
@@ -331,9 +329,7 @@ End Function
         )
 
         # Should succeed with returncode 0
-        assert result.returncode == 0, (
-            f"Export with colors failed: {result.stderr}"
-        )
+        assert result.returncode == 0, f"Export with colors failed: {result.stderr}"
 
         # Verify files were created
         assert (vba_dir / "XLSBTestModule.bas").exists(), "Export failed"

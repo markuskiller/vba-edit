@@ -312,23 +312,25 @@ def setup_logging(verbose: bool = False, logfile: Optional[str] = None) -> None:
         # IMPORTANT: Don't reuse console from console.py as it has HelpTextHighlighter
         # which would conflict with SemanticLogFormatter's markup
         # Define same theme as console.py
-        custom_theme = Theme({
-            "success": "bold green",
-            "error": "bold red",
-            "warning": "bold yellow",
-            "info": "cyan",
-            "dim": "dim",
-            "path": "cyan",
-            "file": "cyan",
-            "command": "bold bright_cyan",
-            "option": "bold bright_cyan",
-            "action": "green",
-            "number": "cyan",
-            "heading": "bold bright_green",
-            "usage": "bold white",
-            "metavar": "cyan",
-            "choices": "dim cyan",
-        })
+        custom_theme = Theme(
+            {
+                "success": "bold green",
+                "error": "bold red",
+                "warning": "bold yellow",
+                "info": "cyan",
+                "dim": "dim",
+                "path": "cyan",
+                "file": "cyan",
+                "command": "bold bright_cyan",
+                "option": "bold bright_cyan",
+                "action": "green",
+                "number": "cyan",
+                "heading": "bold bright_green",
+                "usage": "bold white",
+                "metavar": "cyan",
+                "choices": "dim cyan",
+            }
+        )
         logging_console = Console(theme=custom_theme, highlight=False, highlighter=None)
 
         console_handler = RichHandler(
