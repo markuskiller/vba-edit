@@ -440,12 +440,12 @@ def print_path(path: str, **kwargs):
 
 
 def print_exception(exc: Exception, **kwargs):
-    """Print exception message with Rich markup rendering.
+    """Print exception message WITHOUT Rich markup or highlighting.
 
-    This function properly renders Rich markup tags in exception messages,
-    making IMPORTANT warnings, commands, and paths colorized.
-    Use this instead of logger.error(str(e)) for exceptions that contain
-    Rich markup tags like [warning], [command], [path], etc.
+    This function safely prints exception messages by disabling both
+    markup parsing and highlighting to prevent markup conflicts.
+    Exception messages may contain Rich markup tags, but these are
+    printed as plain text to avoid rendering errors.
 
     Args:
         exc: The exception to print
@@ -456,9 +456,12 @@ def print_exception(exc: Exception, **kwargs):
             raise DocumentClosedError()
         except DocumentClosedError as e:
             print_exception(e)
-            # Output: Colorized message with yellow IMPORTANT, cyan commands, etc.
+            # Output: Plain text with [warning] and [command] tags visible
     """
-    # Print the exception message with markup rendering enabled
+    # Disable both markup and highlighting to prevent conflicts
+    # This prints the exception as plain text, including any markup tags
+    kwargs['markup'] = False
+    kwargs['highlight'] = False
     error_console.print(str(exc), **kwargs)
 
 
