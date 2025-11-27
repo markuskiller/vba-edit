@@ -120,7 +120,7 @@ excel-vba edit --rubberduck-folders --in-file-headers
 
 | CLI Tool | Description |
 |---------|-------------|
-| `excel-vba.exe` | For Excel Workbooks (.xlsm, ~~.xlsb~~) [Issue #46](https://github.com/markuskiller/vba-edit/issues/46) |
+| `excel-vba.exe` | For Excel Workbooks (.xlsm, .xlsb) |
 | `word-vba.exe` | For Word documents |
 | `access-vba.exe` | For Access databases |
 | `powerpoint-vba.exe` | For PowerPoint presentations |

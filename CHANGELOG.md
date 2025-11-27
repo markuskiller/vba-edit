@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- **Excel Binary Workbook Support**: Fixed crash when exporting or importing xlsb files
+- **Excel Binary Workbook Support**: Fixed crash when exporting or importing xlsb files ([Issue #46](https://github.com/markuskiller/vba-edit/issues/46))
   - Application no longer crashes with markup error during xlsb operations
   - All file formats (xlsx, xlsm, xlsb, xls) now work correctly
 - **Import Messages**: Reduced duplicate "Document has been saved" messages
