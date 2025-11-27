@@ -50,6 +50,11 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install .[dev]
 
+      - name: Security audit with pip-audit
+        run: |
+          python -m pip install pip-audit
+          pip-audit
+
       - name: Run Pytest
         timeout-minutes: 15  # Prevent runaway tests from blocking CI
         run: |
