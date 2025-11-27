@@ -11,8 +11,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Rich Markup Error**: Fixed crash when processing file paths containing brackets ([Issue #43](https://github.com/markuskiller/vba-edit/issues/43), [Issue #46](https://github.com/markuskiller/vba-edit/issues/46))
   - Application no longer crashes with Rich markup errors during file operations
-  - Excel binary workbook format (.xlsb) now works correctly (Issue #46 specific case)
+  - Excel binary workbook format (.xlsb) now works correctly ([Issue #46](https://github.com/markuskiller/vba-edit/issues/46) specific case)
   - All macro-enabled formats (.xlsm, .xlsb, .xls) function properly
+  - Thanks to [@DjunaPix](https://github.com/DjunaPix) for reporting [Issue #46](https://github.com/markuskiller/vba-edit/issues/46)
 - **Import Messages**: Reduced duplicate "Document has been saved" messages
   - Now displays once instead of three times during import operations
   - Makes import output cleaner and less confusing
