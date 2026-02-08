@@ -7,6 +7,8 @@ import re
 from pathlib import Path
 from typing import Any, Dict, Optional
 
+from twine import metadata
+
 from vba_edit.console import error, info, warning
 from vba_edit.exceptions import VBAExportWarning
 from vba_edit.utils import confirm_action, get_windows_ansi_codepage
@@ -16,9 +18,9 @@ try:
     import tomllib as toml_lib  # Python 3.11+ includes tomllib in stdlib
 except ImportError:
     try:
-        import tomli as toml_lib  # tomli is the recommended TOML parser for Python <3.11
+        import tomli as toml_lib  # tomli is the recommended TOML parser for Python <3.11 # type: ignore[import-not-found]
     except ImportError:
-        import toml as toml_lib  # Fall back to toml package if tomli isn't available
+        import toml as toml_lib  # Fall back to toml package if tomli isn't available # type: ignore[import-not-found]
 
 logger = logging.getLogger(__name__)
 
@@ -125,6 +127,46 @@ CONFIG_KEY_INVISIBLE_MODE = "invisible_mode"
 CONFIG_KEY_MODE = "mode"
 CONFIG_KEY_OPEN_FOLDER = "open_folder"
 
+# Office application CLI configurations
+OFFICE_CLI_CONFIGS = {
+    "excel": {
+        "entry_point": "excel-vba",
+        "app_name": "Excel",
+        "file_type": "workbook",
+        "file_extensions": "*.bas/*.cls/*.frm",
+        "example_filename": "workbook.xlsm",
+    },
+    "word": {
+        "entry_point": "word-vba",
+        "app_name": "Word",
+        "file_type": "document",
+        "file_extensions": "*.bas/*.cls/*.frm",
+        "example_filename": "document.docx",
+    },
+    "access": {
+        "entry_point": "access-vba",
+        "app_name": "MS Access",
+        "file_type": "database",
+        "file_extensions": "*.bas/*.cls",  # Access only supports modules and class modules
+        "example_filename": "database.accdb",
+    },
+    "powerpoint": {
+        "entry_point": "powerpoint-vba",
+        "app_name": "PowerPoint",
+        "file_type": "presentation",
+        "file_extensions": "*.bas/*.cls/*.frm",
+        "example_filename": "presentation.pptx",
+    },
+}
+
+# Centralized help strings
+CLI_HELP_STRINGS = {
+    "edit": "Edit VBA in external editor, sync changes back to {file_type}",
+    "import": "Import VBA from filesystem into {file_type}",
+    "export": "Export VBA from {file_type} to filesystem",
+    "check": "Check VBA project access settings in {app_name}",
+}
+
 
 def resolve_placeholders_in_value(value: str, placeholders: Dict[str, str]) -> str:
     """Resolve placeholders in a single string value.
@@ -224,9 +266,10 @@ def resolve_all_placeholders(args: argparse.Namespace, config_file_path: Optiona
     # Get placeholder values
     placeholders = get_placeholder_values(config_file_path, file_path)
 
-    # Resolve placeholders in all string arguments
+    # Resolve placeholders only in arguments that support them
+    placeholder_enabled_args = {"vba_directory", "logfile"}
     for key, value in args_dict.items():
-        if isinstance(value, str):
+        if key in placeholder_enabled_args and isinstance(value, str):
             args_dict[key] = resolve_placeholders_in_value(value, placeholders)
 
     # Store config file path for later VBA project placeholder resolution
@@ -438,17 +481,20 @@ def add_config_arguments(parser: argparse.ArgumentParser) -> None:
     Args:
         parser: The argument parser to add arguments to
     """
-    parser.add_argument(
+    config_group = parser.add_argument_group("Configuration")
+    config_group.add_argument(
         "--conf",
         "--config",
         metavar="CONFIG_FILE",
-        help="Path to configuration file (TOML format) with argument values. "
-        "Command-line arguments override config file values. "
-        "Configuration values support placeholders: {config.path}, {general.file.name}, {general.file.fullname}, {general.file.path}, {vbaproject}",
+        help=(
+            "Path to configuration file (TOML format)\n"
+            "Command-line arguments override config file values. "
+            "Values in the configuration file support the same placeholders as the corresponding command-line arguments."
+        ),
     )
 
 
-def add_common_arguments(parser: argparse.ArgumentParser) -> None:
+def add_command_arguments(parser: argparse.ArgumentParser) -> None:
     """Add common arguments to a parser.
 
     These are arguments common to edit/import/export commands.
@@ -457,32 +503,83 @@ def add_common_arguments(parser: argparse.ArgumentParser) -> None:
     Args:
         parser: The argument parser to add arguments to
     """
-    add_config_arguments(parser)
-    parser.add_argument(
+    # File Options group
+    file_group = parser.add_argument_group("File Options")
+    file_group.add_argument(
         "--file",
         "-f",
-        help="Path to Office document (optional, defaults to active document). "
-        "Supports placeholders: {general.file.name}, {general.file.fullname}, {general.file.path}, {vbaproject}",
+        dest="file",
+        help="Path to Office document (optional, default: active document).",
     )
-    parser.add_argument(
+    file_group.add_argument(
         "--vba-directory",
-        help="Directory to export VBA files to (optional, defaults to current directory) "
-        "Supports placeholders: {general.file.name}, {general.file.fullname}, {general.file.path}, {vbaproject}",
+        dest="vba_directory",
+        metavar="DIR",
+        help="Directory to export VBA files to (optional, default: same directory as document).\n"
+        f"Supports placeholders: {PLACEHOLDER_FILE_NAME}, {PLACEHOLDER_FILE_FULLNAME}, {PLACEHOLDER_FILE_PATH}, {PLACEHOLDER_CONFIG_PATH}, {PLACEHOLDER_FILE_VBAPROJECT}",
     )
-    parser.add_argument("--verbose", "-v", action="store_true", help="Enable verbose logging output")
-    parser.add_argument(
-        "--logfile",
-        "-l",
-        nargs="?",
-        const="vba_edit.log",
-        help="Enable logging to file. Optional path can be specified (default: vba_edit.log)"
-        "Supports placeholders: {general.file.name}, {general.file.fullname}, {general.file.path}, {vbaproject}",
-    )
-    parser.add_argument(
-        "--no-color",
-        "--no-colour",
+
+
+def add_vba_files_arguments(parser: argparse.ArgumentParser) -> None:
+    """Add folder organization and encoding/decodingarguments to a parser.
+
+    These arguments only make sense for commands that handle VBA code
+    (edit, export, import) and should not be available globally.
+
+    Args:
+        parser: The argument parser to add arguments to
+    """
+    add_encoding_arguments(parser)
+    vba_src_file_group = parser.add_argument_group("Source File Organization")
+    vba_src_file_group.add_argument(
+        "--rubberduck-folders",
         action="store_true",
-        help="Disable colored output (useful for CI/CD, piping, or personal preference)",
+        default=None,
+        help="If a module contains a RubberduckVBA '@Folder annotation, organize folders in the file system accordingly",
+    )
+
+
+def add_exporting_arguments(parser: argparse.ArgumentParser) -> None:
+    """Add export-specific arguments to a parser.
+
+    These arguments only make sense for commands that export VBA code
+    (edit, export) and should not be available globally.
+
+    Args:
+        parser: The argument parser to add arguments to
+    """
+    add_header_arguments(parser)
+    add_metadata_arguments(parser)
+    exporting_group = parser.add_argument_group("Export Options")
+    exporting_group.add_argument(
+        "--force-overwrite",
+        dest="force_overwrite",
+        action="store_true",
+        default=False,
+        help="Force overwrite of existing files without prompting for confirmation (use with caution)",
+    )
+    exporting_group.add_argument(
+        "--open-folder",
+        dest="open_folder",
+        action="store_true",
+        help="Open export directory in file explorer after export",
+    )
+
+
+def add_after_export_arguments(parser: argparse.ArgumentParser) -> None:
+    """Add office file-specific arguments to a parser.
+
+    These arguments only make sense for the export command
+
+    Args:
+        parser: The argument parser to add arguments to
+    """
+    parser.add_argument(
+        "--keep-open",
+        dest="keep_open",
+        action="store_true",
+        default=False,
+        help="Keep document open after export (default: close after export)",
     )
 
 
@@ -505,6 +602,7 @@ def add_common_option_group(parser: argparse.ArgumentParser) -> argparse._Argume
         >>> import_parser = subparsers.add_parser("import")
         >>> add_common_option_group(import_parser)
     """
+    # Common Options group
     common_group = parser.add_argument_group("Common Options")
     common_group.add_argument(
         "--verbose",
@@ -519,7 +617,8 @@ def add_common_option_group(parser: argparse.ArgumentParser) -> argparse._Argume
         dest="logfile",
         nargs="?",
         const="vba_edit.log",
-        help="Enable logging to file (default: vba_edit.log)",
+        help="Enable logging to file (default: vba_edit.log)\n"
+        f"Supports placeholders: {PLACEHOLDER_FILE_NAME}, {PLACEHOLDER_FILE_FULLNAME}, {PLACEHOLDER_FILE_PATH}, {PLACEHOLDER_CONFIG_PATH}",
     )
     common_group.add_argument(
         "--no-color",
@@ -534,30 +633,6 @@ def add_common_option_group(parser: argparse.ArgumentParser) -> argparse._Argume
         action="help",
         help="Show this help message and exit",
     )
-    return common_group
-
-
-def add_folder_organization_arguments(parser: argparse.ArgumentParser) -> None:
-    """Add folder organization arguments to a parser.
-
-    These arguments only make sense for commands that export VBA code
-    (edit, export, import) and should not be available globally.
-
-    Args:
-        parser: The argument parser to add arguments to
-    """
-    parser.add_argument(
-        "--rubberduck-folders",
-        action="store_true",
-        default=False,
-        help="If a module contains a RubberduckVBA '@Folder annotation, organize folders in the file system accordingly",
-    )
-    parser.add_argument(
-        "--open-folder",
-        action="store_true",
-        default=False,
-        help="Open the export directory in file explorer after successful export",
-    )
 
 
 def add_excel_specific_arguments(parser: argparse.ArgumentParser) -> None:
@@ -566,9 +641,11 @@ def add_excel_specific_arguments(parser: argparse.ArgumentParser) -> None:
     Args:
         parser: The argument parser to add arguments to
     """
-    parser.add_argument(
+    excel_group = parser.add_argument_group("Excel-Specific Options")
+    excel_group.add_argument(
         "--xlwings",
         "-x",
+        dest="xlwings",
         action="store_true",
         help="""Use xlwings backend with vba-edit enhancements. Adds custom --vba-directory 
         support (automatically changes directory and creates it if needed). Useful for 
@@ -577,25 +654,31 @@ def add_excel_specific_arguments(parser: argparse.ArgumentParser) -> None:
     )
 
 
-def add_encoding_arguments(parser: argparse.ArgumentParser, default_encoding: str = None) -> None:
+def add_encoding_arguments(parser: argparse.ArgumentParser) -> None:
     """Add encoding-related arguments to a parser.
 
     Args:
         parser: The argument parser to add arguments to
-        default_encoding: Default encoding to use
     """
-    if default_encoding is None:
-        default_encoding = get_windows_ansi_codepage() or "cp1252"
+    default_encoding = get_windows_ansi_codepage() or "cp1252"
 
-    encoding_group = parser.add_mutually_exclusive_group()
-    encoding_group.add_argument(
+    encoding_group = parser.add_argument_group("Encoding Options (mutually exclusive)")
+    encoding_mutex = encoding_group.add_mutually_exclusive_group()
+    encoding_mutex.add_argument(
         "--encoding",
         "-e",
-        help=f"Encoding to be used when reading/writing VBA files (e.g., 'utf-8', 'windows-1252', default: {default_encoding})",
+        dest="encoding",
+        metavar="ENCODING",
+        help=f"Encoding used for reading/writing VBA files (e.g. 'utf-8', 'windows-1252', default: {default_encoding})",
         default=default_encoding,
     )
-    encoding_group.add_argument(
-        "--detect-encoding", "-d", action="store_true", default=None, help="Auto-detect file encoding for VBA files"
+    encoding_mutex.add_argument(
+        "--detect-encoding",
+        "-d",
+        dest="detect_encoding",
+        action="store_true",
+        default=None,
+        help="Auto-detect file encoding for VBA files",
     )
 
 
@@ -605,14 +688,18 @@ def add_header_arguments(parser: argparse.ArgumentParser) -> None:
     Args:
         parser: The argument parser to add arguments to
     """
-    parser.add_argument(
+    header_group = parser.add_argument_group("Header Options (mutually exclusive)")
+    header_mutex = header_group.add_mutually_exclusive_group()
+    header_mutex.add_argument(
         "--save-headers",
+        dest="save_headers",
         action="store_true",
         default=False,
         help="Save VBA component headers to separate .header files (default: False)",
     )
-    parser.add_argument(
+    header_mutex.add_argument(
         "--in-file-headers",
+        dest="in_file_headers",
         action="store_true",
         default=False,
         help="Include VBA headers directly in code files instead of separate .header files (default: False)",
@@ -634,30 +721,270 @@ def add_metadata_arguments(parser: argparse.ArgumentParser) -> None:
     Args:
         parser: The argument parser to add arguments to
     """
-    parser.add_argument(
+    metadata_group = parser.add_argument_group("Metadata Options")
+    metadata_group.add_argument(
         "--save-metadata",
         "-m",
+        dest="save_metadata",
         action="store_true",
         default=None,
         help="Save metadata file with character encoding information (default: False)",
     )
 
 
-def add_export_arguments(parser: argparse.ArgumentParser) -> None:
-    """Add export-specific arguments to a parser.
+def get_office_config(office_app: str) -> Dict[str, str]:
+    """Get configuration for specified Office application.
 
     Args:
-        parser: The argument parser to add arguments to
+        office_app: Office application name (excel, word, access, powerpoint)
+
+    Returns:
+        Configuration dictionary
+
+    Raises:
+        KeyError: If office_app is not supported
     """
-    parser.add_argument(
-        "--force-overwrite",
-        action="store_true",
-        default=False,
-        help="Force overwrite of existing files without prompting for confirmation (use with caution)",
+    if office_app not in OFFICE_CLI_CONFIGS:
+        raise KeyError(f"Unsupported Office application: {office_app}")
+    return OFFICE_CLI_CONFIGS[office_app]
+
+
+def get_help_string(command: str, office_app: str) -> str:
+    """Get help string for a command and Office application.
+
+    Args:
+        command: Command name (edit, import, export, check)
+        office_app: Office application name
+
+    Returns:
+        Formatted help string
+    """
+    config = get_office_config(office_app)
+    template = CLI_HELP_STRINGS.get(command, f"{command.title()} VBA content")
+    return template.format(**config)
+
+
+def get_command_description(command: str, office_app: str) -> str:
+    """Get description string for a command and Office application.
+
+    Args:
+        command: Command name (edit, import, export, check)
+        office_app: Office application name
+    Returns:
+        Formatted description string
+    """
+    config = get_office_config(office_app)
+
+    match command:
+        case "import":
+            command_description = f"""Import VBA code from filesystem into {config["file_type"]}
+
+Header handling is automatic - no flags needed:
+  • Detects inline headers (VERSION/BEGIN/Attribute at file start)
+  • Falls back to separate .header files if present
+  • Creates minimal headers if neither exists
+
+Simple usage:
+  {config["entry_point"]} {command}          # Uses active {config["file_type"]} and imports from same directory
+
+Full control usage:
+  {config["entry_point"]} {command} -f {config["example_filename"]} --vba-directory src"""
+
+        case "export":
+            command_description = f"""Export VBA code from {config["file_type"]} to filesystem
+
+Simple usage:
+  {config["entry_point"]} {command}           # Uses active {config["file_type"]} and exports to same directory
+  
+Full control usage:
+  {config["entry_point"]} {command} -f {config["example_filename"]} --vba-directory src"""
+
+        case "edit":
+            command_description = f"""Export VBA code from {config["file_type"]} to filesystem, edit in external editor and sync changes back into {config["file_type"]} on save [CTRL+S]
+
+Simple usage:
+  {config["entry_point"]} {command}           # Uses active {config["file_type"]} and VBA code files are 
+                            # saved in the same location as the {config["file_type"]}
+  
+Full control usage:
+  {config["entry_point"]} {command} -f {config["example_filename"]} --vba-directory src"""
+
+        case "check":
+            command_description = f"""Check if 'Trust access to the VBA project object model' is enabled
+
+Simple usage:
+  {config["entry_point"]} {command}          # Check {config["app_name"]} VBA access
+  {config["entry_point"]} {command} all      # Check all Office applications"""
+        case _:
+            command_description = "dummy"
+
+    return command_description
+
+
+def get_command_usage(command: str, office_app: str) -> str:
+    """Get usage string for a command and Office application.
+
+    Args:
+        command: Command name (edit, import, export, check)
+        office_app: Office application name
+    Returns:
+        Formatted usage string
+    """
+    common_command_options1 = """
+    [--file FILE | -f FILE]
+    [--vba-directory DIR]"""
+
+    edit_and_export_options = """
+    [--save-headers | --in-file-headers]
+    [--save-metadata | -m]
+    [--open-folder]
+    [--force-overwrite]"""
+
+    after_export_options = """
+    [--keep-open]"""
+
+    vba_handling_options = """
+    [--encoding ENCODING | -e ENCODING | --detect-encoding | -d]
+    [--rubberduck-folders]"""
+
+    config_options = """
+    [--conf FILE | --config FILE]"""
+
+    app_excel_specific_options = """
+    [--xlwings | -x]"""
+
+    common_command_options2 = """
+    [--verbose | -v]
+    [--logfile | -l]
+    [--no-color | --no-colour]
+    [--help | -h]"""
+
+    config = get_office_config(office_app)
+
+    command_usage = f"{config['entry_point']} {command}"
+    match command:
+        case "export" | "edit" | "import":
+            command_usage = f"{command_usage}{common_command_options1}"
+
+            if command in ("edit", "export"):
+                command_usage = f"{command_usage}{edit_and_export_options}"
+
+            if command == "export":
+                command_usage = f"{command_usage}{after_export_options}"
+
+            command_usage = f"{command_usage}{vba_handling_options}"
+            if office_app == "excel":
+                command_usage = f"{command_usage}{app_excel_specific_options}"
+            command_usage = f"{command_usage}{config_options}"
+
+    command_usage = f"{command_usage}{common_command_options2}"
+
+    return command_usage
+
+
+EXAMPLE_FILENAME_MAX_LEN = 24
+EXAMPLE_COMMAND_COL_WIDTH = 46
+
+
+def _cap_example_filename(example_filename: str, max_len: int = EXAMPLE_FILENAME_MAX_LEN) -> str:
+    """Cap example filename length to keep example alignment stable."""
+    if len(example_filename) <= max_len:
+        return example_filename
+    return example_filename[: max_len - 1] + "…"
+
+
+def _format_example_line(command: str, comment: str, col_width: int = EXAMPLE_COMMAND_COL_WIDTH) -> str:
+    """Format example line with aligned comments."""
+    return f"{command.ljust(col_width)}# {comment}"
+
+
+def create_cli_description(
+    entry_point_name: str,
+    package_name_formatted: str,
+    package_version: str,
+    app_name: str,
+    file_type: str,
+    file_extensions: str,
+    example_filename: str,
+) -> str:
+    """Create standardized CLI description for Office VBA tools."""
+    return f"""{package_name_formatted} v{package_version} ({entry_point_name})
+
+A command-line tool for managing VBA content in {app_name} {file_type}s.
+Export, import, and edit VBA code in external editor with live sync back to the {file_type}."""
+
+
+def create_cli_examples(
+    entry_point_name: str,
+    package_name_formatted: str,
+    package_version: str,
+    app_name: str,
+    file_type: str,
+    file_extensions: str,
+    example_filename: str,
+) -> str:
+    """Create standardized CLI description for Office VBA tools."""
+    example_filename = _cap_example_filename(example_filename)
+
+    edit_cmd = f"{entry_point_name} edit"
+    export_cmd = f"{entry_point_name} export -f {example_filename}"
+    import_cmd = f"{entry_point_name} import --vba-directory src"
+    check_cmd = f"{entry_point_name} check"
+
+    return f"""
+Examples:
+  {_format_example_line(edit_cmd, f"Edit in external editor, sync changes to {file_type}")}
+  {_format_example_line(export_cmd, "Export VBA to directory")}
+  {_format_example_line(import_cmd, "Import VBA from directory")}
+  {_format_example_line(check_cmd, "Verify that access to VBA is enabled")}
+
+Use '{entry_point_name} <command> --help' for more information on a specific command.
+    
+IMPORTANT: Requires "Trust access to the VBA project object model" enabled in {app_name}.
+           Early release - backup important files before use!"""
+
+
+def create_office_cli_description(office_app: str, package_name_formatted: str, package_version: str) -> str:
+    """Create CLI description for specified Office application.
+
+    Args:
+        office_app: Office application name (excel, word, access, powerpoint)
+        package_name_formatted: Package name for display (e.g., "excel-vba")
+        package_version: Version string
+
+    Returns:
+        Formatted description string
+    """
+    config = get_office_config(office_app)
+    return create_cli_description(
+        entry_point_name=config["entry_point"],
+        package_name_formatted=package_name_formatted,
+        package_version=package_version,
+        app_name=config["app_name"],
+        file_type=config["file_type"],
+        file_extensions=config["file_extensions"],
+        example_filename=config["example_filename"],
     )
-    parser.add_argument(
-        "--keep-open",
-        action="store_true",
-        default=False,
-        help="Keep document open after export (default: close document after export completes)",
+
+
+def create_office_cli_examples(office_app: str, package_name_formatted: str, package_version: str) -> str:
+    """Create CLI epilog for specified Office application.
+
+    Args:
+        office_app: Office application name (excel, word, access, powerpoint)
+        package_name_formatted: Package name for display (e.g., "excel-vba")
+        package_version: Version string
+
+    Returns:
+        Formatted epilog string
+    """
+    config = get_office_config(office_app)
+    return create_cli_examples(
+        entry_point_name=config["entry_point"],
+        package_name_formatted=package_name_formatted,
+        package_version=package_version,
+        app_name=config["app_name"],
+        file_type=config["file_type"],
+        file_extensions=config["file_extensions"],
+        example_filename=config["example_filename"],
     )
