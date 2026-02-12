@@ -115,7 +115,10 @@ def validate_document_path(doc_path: Optional[str], must_exist: bool = True) -> 
 
 
 def get_document_paths(
-    doc_path: Optional[str], active_doc_path: Optional[str], vba_dir: Optional[str] = None
+    doc_path: Optional[str],
+    active_doc_path: Optional[str],
+    vba_dir: Optional[str] = None,
+    vbadir_placeholders: Optional[Tuple[str, ...]] = None,
 ) -> Tuple[Path, Path]:
     """Get validated document and VBA directory paths.
 
@@ -125,15 +128,19 @@ def get_document_paths(
         doc_path: Explicit document path from CLI/API
         active_doc_path: Path from active Office document
         vba_dir: Optional VBA directory override
-
+        vbadir_placeholders: Optional tuple of placeholders for VBA directory
     Returns:
         Tuple of (document_path, vba_directory_path)
 
     Raises:
         DocumentNotFoundError: If no valid document path can be found
         PathError: If VBA directory path is invalid
+        TypeError: If vbadir_placeholders is not a tuple
     """
     logger.debug(f"get_document_paths: doc_path={doc_path}, active_doc_path={active_doc_path}, vba_dir={vba_dir}")
+
+    if vbadir_placeholders is not None and not isinstance(vbadir_placeholders, tuple):
+        raise TypeError("vbadir_placeholders must be a tuple of placeholder strings, or None")
 
     # Try explicit path first
     try:
@@ -162,8 +169,16 @@ def get_document_paths(
 
     # Ensure VBA directory exists
     try:
-        vba_path.mkdir(parents=True, exist_ok=True)
-        logger.debug(f"get_document_paths: ensured VBA directory exists: {vba_path}")
+        # Only create the VBA directory if the path does not contain any known placeholder token, or if they are already resolved
+        vba_path_text = str(vba_path)
+        placeholder_tokens = vbadir_placeholders or ()
+        contains_placeholder = any(token and token in vba_path_text for token in placeholder_tokens)
+
+        if not contains_placeholder:
+            vba_path.mkdir(parents=True, exist_ok=True)
+            logger.debug(f"get_document_paths: ensured VBA directory exists: {vba_path}")
+        else:
+            logger.debug(f"get_document_paths: skipped mkdir; unresolved placeholders in path: {vba_path_text}")
     except Exception as e:
         logger.exception("get_document_paths: failed to create/access VBA directory")
         raise PathError(f"Failed to create/access VBA directory: {e}")
