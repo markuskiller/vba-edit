@@ -37,6 +37,12 @@ from vba_edit.utils import (
 )
 from vba_edit.console import console
 
+from vba_edit.cli_common import (
+    get_placeholders_for_config_key,
+    CONFIG_KEY_VBA_DIRECTORY,
+    PLACEHOLDER_FILE_VBAPROJECT,
+)
+
 
 def _filter_attributes(code: str) -> str:
     """Filter out hidden member-level Attribute lines from the given code.
@@ -839,7 +845,9 @@ class OfficeVBAHandler(ABC):
         """Initialize the VBA handler."""
         try:
             # Let DocumentNotFoundError propagate as is - it's more fundamental than VBA errors
-            self.doc_path, self.vba_dir = get_document_paths(doc_path, None, vba_dir)
+            self.doc_path, self.vba_dir = get_document_paths(
+                doc_path, None, vba_dir, get_placeholders_for_config_key(CONFIG_KEY_VBA_DIRECTORY)
+            )
             self.encoding = encoding
             self.verbose = verbose
             self.save_headers = save_headers
@@ -884,6 +892,17 @@ class OfficeVBAHandler(ABC):
         """Get the document type string for error messages."""
         return "workbook" if self.app_name == "Excel" else "document"
 
+    def _resolve_vbaproject_placeholder(self, vba_project_name: str) -> None:
+        """Resolve {vbaproject} placeholder in vba_dir after VBA project name is known."""
+        vba_dir_str = str(self.vba_dir)
+        if PLACEHOLDER_FILE_VBAPROJECT in vba_dir_str:
+            resolved_path = vba_dir_str.replace(PLACEHOLDER_FILE_VBAPROJECT, vba_project_name)
+            self.vba_dir = Path(resolved_path)
+            logger.debug(f"Resolved {PLACEHOLDER_FILE_VBAPROJECT} placeholder in vba_dir: {self.vba_dir}")
+            if not self.vba_dir.exists():
+                logger.info(f"Creating VBA directory: {self.vba_dir}")
+                self.vba_dir.mkdir(parents=True, exist_ok=True)
+
     def get_vba_project(self) -> Any:
         """Get VBA project based on application type."""
         logger.debug("Getting VBA project...")
@@ -920,6 +939,7 @@ class OfficeVBAHandler(ABC):
                 )
 
             logger.debug("VBA project accessed successfully")
+            self._resolve_vbaproject_placeholder(vba_project.Name)
             return vba_project
 
         except Exception as e:
