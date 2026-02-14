@@ -355,6 +355,32 @@ class OfficeVBACLI:
                     self.logger.info(f"Creating VBA directory: {vba_dir}")
                     vba_dir.mkdir(parents=True, exist_ok=True)
 
+    def _call_handle_export_with_warnings(
+        self,
+        handler,
+        args,
+        *,
+        overwrite: bool,
+        interactive: bool,
+        keep_open: bool = False,
+        save_metadata: bool | None = None,
+        force_overwrite: bool | None = None,
+    ) -> None:
+        """Call the module-level handle_export_with_warnings via runtime lookup.
+
+        NOTE: This indirection ensures test patches applied to vba_edit.excel_vba.handle_export_with_warnings
+        (and then synced into this module) are honored at call time.
+        """
+        module = sys.modules[__name__]
+        module.handle_export_with_warnings(
+            handler,
+            save_metadata=getattr(args, "save_metadata", False) if save_metadata is None else save_metadata,
+            overwrite=overwrite,
+            interactive=interactive,
+            force_overwrite=getattr(args, "force_overwrite", False) if force_overwrite is None else force_overwrite,
+            keep_open=keep_open,
+        )
+
     def handle_office_vba_command(self, args: argparse.Namespace) -> None:
         """Handle the office-vba command execution."""
         try:
@@ -433,8 +459,16 @@ class OfficeVBACLI:
                     extra_notes = self.special_config.get("extra_notes", [])
                     for note in extra_notes:
                         print(note)
-
-                    handler.export_vba(overwrite=False)
+                    # region Indirection to ensure test patches to handle_export_with_warnings are honored
+                    # once test_excel_vba_cli.py::test_save_metadata_passed_to_handler_edit is adapted, this can be simplified to a direct call to handle_export_with_warnings
+                    self._call_handle_export_with_warnings(
+                        handler,
+                        args,
+                        overwrite=False,
+                        interactive=True,
+                        keep_open=True,  # CRITICAL: Must keep document open for edit mode
+                    )
+                    # endregion
                     try:
                         handler.watch_changes()
                     except (DocumentClosedError, RPCError) as e:
