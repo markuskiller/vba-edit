@@ -6,8 +6,9 @@ from pathlib import Path
 
 from vba_edit.office_cli import create_office_main
 
-# region PRcompat
-# for PR integration only, until test modules are updated
+# region UnifiedCLI_PRcompat
+# TODO: Remove once test modules no longer depend on these module-level functions.
+#       These shims exist solely to avoid breaking existing tests when refactoring the CLI.
 from vba_edit.office_cli import OfficeVBACLI
 
 # Re-export symbols that older tests patch at vba_edit.excel_vba.*.
@@ -21,10 +22,13 @@ from vba_edit.utils import setup_logging as setup_logging
 
 
 # endregion
-# region PRcompat
+
 MODULE_NAME = "excel"
 
 
+# region UnifiedCLI_PRcompat
+# TODO: Remove once test modules no longer depend on these module-level functions.
+#       These shims exist solely to avoid breaking existing tests when refactoring the CLI.
 def _sync_prcompat_patches_to_office_cli() -> None:
     """Ensure patches applied to vba_edit.excel_vba.* affect vba_edit.office_cli.* too."""
     office_cli.setup_logging = setup_logging
@@ -117,7 +121,7 @@ def excel_xlwings_handler(cli_instance, args: argparse.Namespace) -> bool:
 
 
 # Create the main function for Excel
-main = create_office_main("excel")
+main = create_office_main(MODULE_NAME)
 
 if __name__ == "__main__":
     main()

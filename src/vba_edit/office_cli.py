@@ -322,23 +322,15 @@ class OfficeVBACLI:
             formatter_class=EnhancedHelpFormatter,
             add_help=False,
         )
+        check_parser.add_argument(
+            "subcommand",
+            nargs="?",
+            choices=["all"],
+            default=None,
+            metavar="all",
+            help="verify VBA project access for all supported Office applications (default: this application only)",
+        )
         add_common_option_group(check_parser)  # Add common options to check command
-
-        # Subcommand for checking all applications
-        # Note: Using custom usage above, so subparser metavar doesn't affect main help
-        check_subparser = check_parser.add_subparsers(
-            dest="subcommand",
-            required=False,
-            title="Subcommands",
-            metavar="",  # Empty metavar to avoid space in usage line
-        )
-        check_all_parser = check_subparser.add_parser(
-            "all",
-            help="Check Trust Access to VBA project model of all supported Office applications",
-            formatter_class=EnhancedHelpFormatter,
-            add_help=False,
-        )
-        add_common_option_group(check_all_parser)  # Add common options to check all subcommand
 
         # Add application specific arguments
         extra_args_func = self._get_special_function("extra_arguments")

@@ -2,16 +2,20 @@
 
 from vba_edit.office_cli import create_office_main
 
-# region PRcompat
-# for PR integration only, until test modules are updated
+# region UnifiedCLI_PRcompat
+# TODO: Remove once test modules no longer depend on these module-level functions.
+#       These shims exist solely to avoid breaking existing tests when refactoring the CLI.
 import argparse
 from vba_edit.office_cli import OfficeVBACLI
 
 # endregion
-# region PRcompat
+
 MODULE_NAME = "powerpoint"
 
 
+# region UnifiedCLI_PRcompat
+# TODO: Remove once test modules no longer depend on these module-level functions.
+#       These shims exist solely to avoid breaking existing tests when refactoring the CLI.
 def validate_paths(args: argparse.Namespace) -> None:
     """Backwards-compatible wrapper for path validation."""
     OfficeVBACLI(MODULE_NAME).validate_paths(args)
@@ -34,7 +38,7 @@ def create_cli_parser() -> argparse.ArgumentParser:
 # endregion
 
 # Create the main function for PowerPoint
-main = create_office_main("powerpoint")
+main = create_office_main(MODULE_NAME)
 
 if __name__ == "__main__":
     main()

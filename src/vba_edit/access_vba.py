@@ -5,16 +5,18 @@ import sys
 from vba_edit.exceptions import VBAError
 from vba_edit.office_cli import create_office_main
 
-# region PRcompat
-# for PR integration only, until test modules are updated
+# region UnifiedCLI_PRcompat
+# TODO: Remove once test modules no longer depend on these module-level functions.
+#       These shims exist solely to avoid breaking existing tests when refactoring the CLI.
 from vba_edit.office_cli import OfficeVBACLI
 # endregion
-# region PRcompat
-
 
 MODULE_NAME = "access"
 
 
+# region UnifiedCLI_PRcompat
+# TODO: Remove once test modules no longer depend on these module-level functions.
+#       These shims exist solely to avoid breaking existing tests when refactoring the CLI.
 def validate_paths(args: argparse.Namespace) -> None:
     """Backwards-compatible wrapper for path validation."""
     OfficeVBACLI(MODULE_NAME).validate_paths(args)
@@ -29,7 +31,7 @@ def create_cli_parser() -> argparse.ArgumentParser:
     """Backwards-compatible wrapper.
 
     NOTE: The CLI is now centralized in OfficeVBACLI (office_cli.py). This function
-    remains to preserve the historical excel_vba module API and entry-point tests.
+    remains to preserve the historical access_vba module API and entry-point tests.
     """
     return OfficeVBACLI(MODULE_NAME).create_cli_parser()
 
@@ -103,7 +105,7 @@ def access_pre_command_hook(args: argparse.Namespace) -> None:
 
 
 # Create the main function for Access
-main = create_office_main("access")
+main = create_office_main(MODULE_NAME)
 
 if __name__ == "__main__":
     main()
