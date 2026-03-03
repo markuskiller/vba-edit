@@ -23,14 +23,17 @@ except ImportError:
 logger = logging.getLogger(__name__)
 
 
-# region PRcompat
-# for PR integration only, until test modules are updated
+# region UnifiedCLI_PRcompat
+# TODO: Remove once test modules no longer depend on these module-level functions.
+#       These shims exist solely to avoid breaking existing tests when refactoring the CLI.
 def add_folder_organization_arguments(parser: argparse.ArgumentParser) -> None:
     add_vba_files_arguments(parser)
     add_exporting_arguments(parser)
 
+
 def add_export_arguments(parser: argparse.ArgumentParser) -> None:
     add_exporting_arguments(parser)
+
 
 def add_common_arguments(parser: argparse.ArgumentParser) -> None:
     add_config_arguments(parser)
@@ -50,6 +53,7 @@ PLACEHOLDER_FILE_PATH_LEGACY = "{general.file.path}"
 PLACEHOLDER_VBA_PROJECT_LEGACY = "{vbaproject}"
 PLACEHOLDER_VBA_PROJECT = PLACEHOLDER_VBA_PROJECT_LEGACY
 
+
 def _placeholder_compatibility_stub(placeholders: Dict[str, str]) -> Dict[str, str]:
     placeholders[PLACEHOLDER_FILE_NAME_LEGACY] = placeholders[PLACEHOLDER_FILE_NAME]
     placeholders[PLACEHOLDER_FILE_FULLNAME_LEGACY] = placeholders[PLACEHOLDER_FILE_FULLNAME]
@@ -57,6 +61,8 @@ def _placeholder_compatibility_stub(placeholders: Dict[str, str]) -> Dict[str, s
     placeholders[PLACEHOLDER_VBA_PROJECT] = placeholders[PLACEHOLDER_FILE_VBAPROJECT]
     placeholders[PLACEHOLDER_VBA_PROJECT_LEGACY] = placeholders[PLACEHOLDER_FILE_VBAPROJECT]
     return placeholders
+
+
 # endregion
 
 
@@ -288,7 +294,6 @@ def get_placeholder_values(config_file_path: Optional[str] = None, file_path: Op
 
     placeholders = _placeholder_compatibility_stub(placeholders)
     return placeholders
-
 
 
 def resolve_all_placeholders(args: argparse.Namespace, config_file_path: Optional[str] = None) -> argparse.Namespace:
@@ -841,6 +846,9 @@ def get_command_usage(command: str, office_app: str) -> str:
             if office_app == "excel":
                 command_usage = f"{command_usage}{app_excel_specific_options}"
             command_usage = f"{command_usage}{config_options}"
+
+        case "check":
+            command_usage = f"{command_usage} [all]"
 
     command_usage = f"{command_usage}{common_command_options2}"
 
