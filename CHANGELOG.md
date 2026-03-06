@@ -19,6 +19,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Python 3.9 Support Dropped**: Python 3.9 reached end-of-life in October 2025 and is no longer supported
   - Minimum supported version is now Python 3.10
+- **Improved CLI Consistency**: All four Office tools (Excel, Word, PowerPoint, Access) now share a unified command-line handling layer
+  - Commands, options, and their behaviour are more consistent across tools
+  - Many thanks to [@onderhold](https://github.com/onderhold) for this substantial contribution!
 
 ### Fixed
 
