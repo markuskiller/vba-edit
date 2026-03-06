@@ -21,10 +21,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Minimum supported version is now Python 3.10
 - **Improved CLI Consistency**: All four Office tools (Excel, Word, PowerPoint, Access) now share a unified command-line handling layer
   - Commands, options, and their behaviour are more consistent across tools
-  - Many thanks to [@onderhold](https://github.com/onderhold) for this substantial contribution!
+  - Improves code maintainability and simplifies future cli feature enhancements
+  - Many thanks to [@onderhold](https://github.com/onderhold)
 
 ### Fixed
 
+- **Configuration File Precedence**: Config file values are no longer silently ignored when CLI arguments have defaults ([Issue #61](https://github.com/markuskiller/vba-edit/issues/61))
+  - Settings in a config file (e.g. `in-file-headers = true`) now take effect as expected when not overridden on the command line
+  - Explicitly passing a conflicting flag on the command line still correctly takes precedence over the config file
 - **Help Text**: Corrected the description for `--vba-directory` option in the `import` command
   - Previously showed the export-specific description; now accurately describes the directory to import VBA files from ([#76](https://github.com/markuskiller/vba-edit/pull/76)) ([@onderhold](https://github.com/onderhold))
 
