@@ -177,6 +177,8 @@ def build_executable(app_name: str, config: dict, src_dir: str, additional_args:
         f"--version-file={version_file}",
         # Include pyproject.toml in the bundle for version detection
         f"--add-data={pyproject_path};.",
+        # Collect chardet including mypyc-compiled extensions (avoids ModuleNotFoundError)
+        "--collect-all", "chardet",
     ]
 
     # Add any additional arguments
