@@ -491,9 +491,11 @@ def add_command_arguments(parser: argparse.ArgumentParser) -> None:
         "--vba-directory",
         dest=CONFIG_KEY_VBA_DIRECTORY,
         metavar="DIR",
-        help=("Directory to import VBA files from (default: same directory as document).\n"
-              if parser.prog.endswith("import") else
-              "Directory to export VBA files to (default: same directory as document).\n")
+        help=(
+            "Directory to import VBA files from (default: same directory as document).\n"
+            if parser.prog.endswith("import")
+            else "Directory to export VBA files to (default: same directory as document).\n"
+        )
         + f"Supports placeholders: {', '.join(get_placeholders_for_config_key(CONFIG_KEY_VBA_DIRECTORY))}",
     )
 
