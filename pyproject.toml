@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "vba_edit"
-version = "0.4.3rc4"
+version = "0.4.3rc5"
 description = "Enable seamless MS Office VBA code editing in preferred editor or IDE (facilitating the use of coding assistants and version control workflows)"
 authors = [{ name = "Markus Killer", email = "m.killer@langui.ch" }]
 readme = "README.md"
@@ -26,7 +26,6 @@ classifiers = [
     "Topic :: Office/Business :: Office Suites",
 ]
 dependencies = [
-    "charset-normalizer",
     "pywin32 >= 224;platform_system=='Windows'",
     "watchfiles>=1.1.1",                         # replaced watchgod; 1.1.1+ required for Python 3.14
     "tomli>=2.0.0; python_version < '3.11'",
