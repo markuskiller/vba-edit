@@ -833,6 +833,10 @@ def detect_vba_encoding(file_path: str) -> Tuple[str, float]:
     try:
         with open(file_path, "rb") as f:
             raw_data = f.read()
+
+            if not raw_data:
+                raise EncodingError(f"Cannot detect encoding: file is empty: {file_path}")
+
             result = chardet.detect(raw_data)
 
             if not result["encoding"]:
