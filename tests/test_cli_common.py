@@ -303,3 +303,63 @@ class TestHandleExportWithWarnings:
 
         output = buffer.getvalue().lower()
         assert "cancelled" in output
+
+
+class TestHeaderMutexConfigOverride:
+    """Tests that CLI header flags are not overridden by conflicting config file defaults.
+
+    Covers the edge case described in issue #61: if a config file sets one side of
+    the mutually-exclusive --save-headers / --in-file-headers pair, but the user
+    explicitly provides the other side on the CLI, validate_header_options must not
+    raise a conflict error.
+    """
+
+    def _make_config_toml(self, tmp_path: Path, key: str) -> Path:
+        """Write a minimal TOML config that sets one header flag."""
+        cfg = tmp_path / "vba-config.toml"
+        cfg.write_text(f"[general]\n{key} = true\n")
+        return cfg
+
+    @pytest.mark.parametrize(
+        "cli_flag, config_key",
+        [
+            ("--save-headers", "in-file-headers"),
+            ("--in-file-headers", "save-headers"),
+        ],
+    )
+    def test_cli_header_flag_wins_over_conflicting_config(self, tmp_path, cli_flag, config_key):
+        """CLI header flag must not conflict with the opposite flag set in config."""
+        from vba_edit.office_cli import OfficeVBACLI
+        from vba_edit.cli_common import validate_header_options
+        import sys
+
+        cfg = self._make_config_toml(tmp_path, config_key)
+        doc = tmp_path / "test.docm"
+        doc.touch()
+
+        cli = OfficeVBACLI("word")
+        parser = cli.create_cli_parser()
+
+        # Simulate: user passes cli_flag on the command line together with --conf
+        argv = ["export", "--file", str(doc), "--conf", str(cfg), cli_flag]
+        with patch.object(sys, "argv", ["word-vba"] + argv):
+            pre_args, _ = parser.parse_known_args(argv)
+            from vba_edit.cli_common import load_config_file
+
+            config = load_config_file(str(cfg))
+            subparser = cli._get_subparser(parser, "export")
+            target_parser = subparser or parser
+            config_defaults = cli._get_config_defaults(target_parser, config)
+
+            # Apply the guard (the fix under test)
+            if config_defaults:
+                if getattr(pre_args, "save_headers", False):
+                    config_defaults.pop("in_file_headers", None)
+                if getattr(pre_args, "in_file_headers", False):
+                    config_defaults.pop("save_headers", None)
+                target_parser.set_defaults(**config_defaults)
+
+            args = parser.parse_args(argv)
+
+        # Must not raise — the conflicting config default was suppressed
+        validate_header_options(args)

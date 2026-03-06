@@ -559,6 +559,15 @@ class OfficeVBACLI:
                     target_parser = subparser or parser
                     config_defaults = self._get_config_defaults(target_parser, config)
                     if config_defaults:
+                        # If the user explicitly passed one side of a mutually exclusive
+                        # header pair on the CLI, don't let the config file silently set
+                        # the other side via set_defaults — that would cause validate_header_options
+                        # to raise an "options are mutually exclusive" error even though the
+                        # user never specified both.
+                        if getattr(pre_args, "save_headers", False):
+                            config_defaults.pop("in_file_headers", None)
+                        if getattr(pre_args, "in_file_headers", False):
+                            config_defaults.pop("save_headers", None)
                         target_parser.set_defaults(**config_defaults)
 
             args = parser.parse_args()
