@@ -8,7 +8,7 @@ from functools import wraps
 from pathlib import Path
 from typing import Callable, Dict, Optional, Tuple
 
-import chardet
+from charset_normalizer import detect as _detect_encoding
 import pywintypes
 import win32com.client
 
@@ -837,7 +837,7 @@ def detect_vba_encoding(file_path: str) -> Tuple[str, float]:
             if not raw_data:
                 raise EncodingError(f"Cannot detect encoding: file is empty: {file_path}")
 
-            result = chardet.detect(raw_data)
+            result = _detect_encoding(raw_data)
 
             if not result["encoding"]:
                 raise EncodingError(f"Could not detect encoding for file: {file_path}")
