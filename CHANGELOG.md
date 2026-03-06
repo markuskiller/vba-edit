@@ -13,6 +13,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+## [0.4.3a2] - 2026-03-06
+
+### Changed
+
+- **Python 3.9 Support Dropped**: Python 3.9 reached end-of-life in October 2025 and is no longer supported
+  - Minimum supported version is now Python 3.10
+
+### Fixed
+
+- **Help Text**: Corrected the description for `--vba-directory` option in the `import` command
+  - Previously showed the export-specific description; now accurately describes the directory to import VBA files from ([#76](https://github.com/markuskiller/vba-edit/pull/76)) ([@onderhold](https://github.com/onderhold))
+
+### Security
+
+- **Dependency Update**: Updated `filelock` to resolve a known vulnerability ([GHSA-w853-jp5j-5j7f](https://github.com/advisories/GHSA-w853-jp5j-5j7f))
+
 ## [0.4.2] - 2025-11-27
 
 ### Fixed
