@@ -5,6 +5,35 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+### Changed
+
+### Fixed
+
+## [0.4.3] - 2026-03-07
+
+### Changed
+
+- **Python 3.9 Support Dropped**: Python 3.9 reached end-of-life in October 2025 and is no longer supported
+  - Minimum supported version is now Python 3.10
+- **Improved CLI Consistency**: All four Office tools (Excel, Word, PowerPoint, Access) now share a unified command-line handling layer
+  - Commands, options, and their behaviour are more consistent across tools
+  - Improves code maintainability and simplifies future cli feature enhancements
+  - Many thanks to [@onderhold](https://github.com/onderhold)
+
+### Fixed
+
+- **Configuration File Precedence**: Config file values are no longer silently ignored when CLI arguments have defaults ([Issue #61](https://github.com/markuskiller/vba-edit/issues/61))
+  - Settings in a config file (e.g. `in-file-headers = true`) now take effect as expected when not overridden on the command line
+  - Explicitly passing a conflicting flag on the command line still correctly takes precedence over the config file
+
+### Security
+
+- **Dependency Update**: Updated `filelock` to resolve a known vulnerability ([GHSA-w853-jp5j-5j7f](https://github.com/advisories/GHSA-w853-jp5j-5j7f))
+
 ## [0.4.2] - 2025-11-27
 
 ### Fixed

@@ -1,6 +1,7 @@
 import argparse
 import os
 import sys
+from datetime import date
 from pathlib import Path
 
 from PyInstaller.__main__ import run
@@ -53,6 +54,34 @@ def get_version():
     return "0.4.0"
 
 
+def get_copyright_year() -> str:
+    """Return copyright year range for vba-edit, e.g. '2024-2026'."""
+    start_year = 2024
+    current_year = date.today().year
+    if current_year > start_year:
+        return f"{start_year}-{current_year}"
+    return str(start_year)
+
+
+def update_license_year() -> None:
+    """Patch the LICENSE file's copyright year range to include the current year."""
+    import re
+
+    license_path = Path(__file__).parent / "LICENSE"
+    if not license_path.exists():
+        return
+    text = license_path.read_text(encoding="utf-8")
+    updated = re.sub(
+        r"(Copyright \(c\) \d{4})(?: - \d{4})?(, Markus Killer)",
+        lambda m: f"{m.group(1)} - {date.today().year}{m.group(2)}",
+        text,
+        count=1,
+    )
+    if updated != text:
+        license_path.write_text(updated, encoding="utf-8")
+        print(f"Updated LICENSE copyright year to {date.today().year}.")
+
+
 def create_version_file(exe_name: str, app_description: str, output_dir: str = "."):
     """Create a version file for PyInstaller to embed Windows properties."""
     version = get_version()
@@ -102,7 +131,7 @@ VSVersionInfo(
         StringStruct(u'FileDescription', u'{app_description}'),
         StringStruct(u'FileVersion', u'{file_version}'),
         StringStruct(u'InternalName', u'{exe_name}'),
-        StringStruct(u'LegalCopyright', u'Copyright (c) 2024-2025 Markus Killer (BSD-3-Clause License)'),
+        StringStruct(u'LegalCopyright', u'Copyright (c) {get_copyright_year()} Markus Killer (BSD-3-Clause License)'),
         StringStruct(u'OriginalFilename', u'{exe_name}.exe'),
         StringStruct(u'ProductName', u'vba-edit'),
         StringStruct(u'ProductVersion', u'{version}')])
@@ -209,6 +238,9 @@ Examples:
     parser.add_argument("--output-dir", help="Specify output directory for executables (default: dist/)")
 
     args = parser.parse_args()
+
+    # Update LICENSE copyright year automatically
+    update_license_year()
 
     # Handle --list option
     if args.list:

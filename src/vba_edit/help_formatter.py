@@ -126,7 +126,6 @@ class EnhancedHelpFormatter(argparse.RawDescriptionHelpFormatter):
             width: Maximum line width (None = auto-detect)
         """
         super().__init__(prog, indent_increment, max_help_position, width)
-        self._section_heading = None  # Store just the heading text for reference
         # NOTE: Don't cache _use_colors here - check dynamically via _should_use_colors()
         # This ensures --no-color flag is respected even when checked before parser creation
 
@@ -190,8 +189,6 @@ class EnhancedHelpFormatter(argparse.RawDescriptionHelpFormatter):
         Args:
             heading: Section heading text
         """
-        # Store heading for reference in other methods
-        self._section_heading = heading
         # Capitalize first letter and add single colon for consistency
         if heading:
             # Capitalize first letter of each word for section headings
@@ -250,14 +247,13 @@ class EnhancedHelpFormatter(argparse.RawDescriptionHelpFormatter):
                 flags=re.MULTILINE,
             )
 
-            # Pass 3: Colorize command names in Commands/Subcommands section
-            # Only if we're in the commands section
-            if (
-                hasattr(self, "_section_heading")
-                and self._section_heading
-                and self._section_heading.lower() in ["commands", "subcommands"]
-            ):
-                # Matches command name at start of line (after whitespace) followed by 2+ spaces
+            # Pass 3: Colorize positional argument names and subcommand names.
+            # Positional actions (no option_strings) cover both subparser command
+            # lists and positional arguments like `all` in the check command.
+            # Note: _section_heading cannot be used here — _format_action is called
+            # at render time, after all start_section() calls have run, so
+            # _section_heading holds the last section built, not the current one.
+            if not action.option_strings:
                 result = re.sub(
                     r"^(\s+)(\w+)(?=\s{2,})",
                     lambda m: m.group(1) + self._colorize(m.group(2), "command"),

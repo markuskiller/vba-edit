@@ -1,7 +1,7 @@
 # GitHub Actions SHA Pinning Reference
 
 **Last Updated**: 2025-10-20  
-**Branch**: main  
+**Branch**: dev (synced with main)
 **Reason**: Security best practice - pinning actions to commit SHAs prevents supply chain attacks
 
 ## Why Pin to Commit SHAs?
@@ -38,7 +38,7 @@ Pinning third-party GitHub Actions to full commit SHAs is currently the **only w
 - **Release Date**: October 2025 (2 weeks ago as of 2025-10-20)
 - **Release URL**: https://github.com/astral-sh/setup-uv/releases/tag/v7.0.0
 - **Used in**: build-binaries.yml only
-- **Breaking Changes**: Uses node24 instead of node20, removed deprecated `server-url` input
+- **Breaking Change**: Uses node24 instead of node20, removed deprecated `server-url` input
 
 ### actions/attest-build-provenance
 - **Current Pin**: `977bb373ede98d70efdf65b84cb5f73e068dcc2a`
@@ -74,10 +74,10 @@ When updating to a new version:
 
 ```yaml
 # Before
-uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v5 (v4.2.2)
 
-# After updating to v5.1.0
-uses: actions/checkout@NEW_COMMIT_SHA_HERE # v5.1.0
+# After updating to v4.3.0
+uses: actions/checkout@NEW_COMMIT_SHA_HERE # v5 (v4.3.0)
 ```
 
 ## Comment Format Convention
@@ -91,19 +91,6 @@ uses: owner/action@COMMIT_SHA # vX.Y.Z
 Where `vX.Y.Z` is the actual release version the SHA points to (e.g., `v5.0.0`, `v6.0.0`).
 
 This makes it clear exactly which version is pinned.
-
-## Branch-Specific Differences
-
-### Main Branch vs Dev Branch
-- **setup-uv**: Main uses v7.0.0, dev may use v4.0.0
-  - Main: `eb1897b8dc4b5d5bfe39a428a8f2304605e0983c` (v7.0.0)
-  - Dev: `d8db0a86d3d88f3017a4e6b8a1e2b234e7a0a1b5` (v4.0.0)
-
-### paths-ignore Configuration
-- **test.yaml**: Main branch includes additional ignore patterns
-  - Ignores: `CHANGELOG.md`, `README.md`, `AUTHORS.md`, `.github/**` (except workflows)
-- **lint.yaml**: Main branch includes additional ignore patterns
-  - Ignores: `CHANGELOG.md`, `README.md`, `AUTHORS.md`, `.github/**` (except workflows)
 
 ## Automated Dependency Updates
 
@@ -125,4 +112,3 @@ This makes it clear exactly which version is pinned.
 - Always review release notes before updating
 - Test updated actions in a feature branch first
 - Document breaking changes in CHANGELOG.md
-- Keep main and dev branches in sync for security updates

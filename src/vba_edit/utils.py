@@ -8,7 +8,7 @@ from functools import wraps
 from pathlib import Path
 from typing import Callable, Dict, Optional, Tuple
 
-import chardet
+
 import pywintypes
 import win32com.client
 
@@ -818,7 +818,10 @@ def is_office_app_installed(app_name: str) -> bool:
 
 @error_handler
 def detect_vba_encoding(file_path: str) -> Tuple[str, float]:
-    """Detect the encoding of a VBA file using chardet.
+    """Detect the encoding of a VBA file using BOM detection and UTF-8 probing.
+
+    Supports UTF-16 LE/BE (with BOM), UTF-8 with BOM, UTF-8 without BOM,
+    and falls back to the Windows ANSI codepage (or cp1252) for legacy files.
 
     Args:
         file_path: Path to the file to analyze
@@ -833,13 +836,35 @@ def detect_vba_encoding(file_path: str) -> Tuple[str, float]:
     try:
         with open(file_path, "rb") as f:
             raw_data = f.read()
-            result = chardet.detect(raw_data)
 
-            if not result["encoding"]:
-                raise EncodingError(f"Could not detect encoding for file: {file_path}")
+        if not raw_data:
+            raise EncodingError(f"Cannot detect encoding: file is empty: {file_path}")
 
-            logger.debug(f"Detected encoding: {result['encoding']} (confidence: {result['confidence']})")
-            return result["encoding"], result["confidence"]
+        # BOM-based detection (unambiguous, confidence 1.0)
+        if raw_data.startswith(b"\xff\xfe"):
+            encoding = "utf-16-le"
+            confidence = 1.0
+        elif raw_data.startswith(b"\xfe\xff"):
+            encoding = "utf-16-be"
+            confidence = 1.0
+        elif raw_data.startswith(b"\xef\xbb\xbf"):
+            encoding = "utf-8-sig"
+            confidence = 1.0
+        else:
+            # Try strict UTF-8 decode
+            try:
+                raw_data.decode("utf-8")
+                encoding = "utf-8"
+                confidence = 0.99
+            except UnicodeDecodeError:
+                # Fall back to Windows ANSI codepage (legacy VBA files)
+                encoding = get_windows_ansi_codepage() or "cp1252"
+                confidence = 0.5
+
+        logger.debug(f"Detected encoding: {encoding} (confidence: {confidence})")
+        return encoding, confidence
+    except EncodingError:
+        raise
     except Exception as e:
         raise EncodingError(f"Failed to detect encoding: {e}")
 

@@ -338,12 +338,16 @@ vba_directory = "{config.path}/vba-modules"
 
 ### Command-Line Override
 
-Command-line arguments always override config file settings:
+Command-line arguments always override config file settings, including boolean flags:
 
 ```bash
 # Config says vba_directory = "src/vba"
 # This overrides it to "build/vba"
 excel-vba export --conf vba-config.toml --vba-directory build/vba
+
+# Config says in_file_headers = true
+# This overrides it to save-headers mode
+excel-vba export --conf vba-config.toml --save-headers
 ```
 
 > ⚠️ **CAUTION**: **1.** Always **backup your Office files** before using `vba-edit` **2.** Use **version control (git)** to track your VBA code **3.** Run `export` after changing **form layouts** or module properties
@@ -371,4 +375,4 @@ BSD 3-Clause License
 
 **vba-edit** builds on an excellent idea first implemented for Excel in [xlwings](https://www.xlwings.org/) (BSD-3).
 
-Special thanks to **@onderhold** for improved header handling, RubberduckVBA folder and config file support in v0.4.0.
+Special thanks to **@onderhold** for improved header handling, RubberduckVBA folder and config file support in v0.4.0, and unified CLI handling across all Office tools in v0.4.3.

@@ -91,8 +91,10 @@ def test_detect_vba_encoding_edge_cases():
         with pytest.raises(EncodingError):
             detect_vba_encoding(str(test_file))
 
-        # Test binary content
-        test_file.write_bytes(b"\x00\x01\x02\x03")
+        # Test binary content with UTF-16 LE BOM — unambiguously detectable by
+        # chardet across all supported Python versions (4 random bytes are too
+        # short for chardet to identify reliably on some versions)
+        test_file.write_bytes(b"\xff\xfe" + "Hello VBA".encode("utf-16-le"))
         encoding, confidence = detect_vba_encoding(str(test_file))
         assert encoding is not None
 
