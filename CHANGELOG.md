@@ -13,7 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-## [0.4.3rc5] - 2026-03-06
+## [0.4.3] - 2026-03-07
 
 ### Changed
 
@@ -29,8 +29,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Configuration File Precedence**: Config file values are no longer silently ignored when CLI arguments have defaults ([Issue #61](https://github.com/markuskiller/vba-edit/issues/61))
   - Settings in a config file (e.g. `in-file-headers = true`) now take effect as expected when not overridden on the command line
   - Explicitly passing a conflicting flag on the command line still correctly takes precedence over the config file
-- **Help Text**: Corrected the description for `--vba-directory` option in the `import` command
-  - Previously showed the export-specific description; now accurately describes the directory to import VBA files from ([#76](https://github.com/markuskiller/vba-edit/pull/76)) ([@onderhold](https://github.com/onderhold))
 
 ### Security
 
