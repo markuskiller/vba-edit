@@ -133,6 +133,17 @@ class DocumentIsReadOnlyError(VBAError):
         )
 
 
+class ReferenceError(VBAError):
+    """Exception raised for VBA reference-related errors.
+
+    This can occur when adding, removing, or accessing VBA library references
+    in Office documents, such as invalid GUIDs, missing libraries, or
+    built-in reference protection violations.
+    """
+
+    pass
+
+
 class RPCError(VBAError):
     """Exception raised when the RPC server becomes unavailable.
 
