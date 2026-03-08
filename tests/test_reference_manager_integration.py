@@ -14,7 +14,7 @@ from pathlib import Path
 import pytest
 import win32com.client
 
-from vba_edit.exceptions import ReferenceError
+from vba_edit.exceptions import VBAReferenceError
 from vba_edit.reference_manager import ReferenceManager
 
 
@@ -52,7 +52,6 @@ def test_workbook(excel_app):
 
 
 @pytest.mark.integration
-@pytest.mark.skip(reason="Integration test - run explicitly with pytest tests/test_reference_manager_integration.py")
 class TestReferenceManagerIntegration:
     """Integration tests for ReferenceManager with real Excel."""
 

@@ -263,7 +263,7 @@ Development priorities evolve based on user feedback and real-world needs.
 
 👀 **See active planning**: [GitHub Milestones](https://github.com/markuskiller/vba-edit/milestones)  
 💡 **Request features**: [Open an Issue](https://github.com/markuskiller/vba-edit/issues)  
-📝 **Current focus**: v0.5.0 - PowerQuery support & bi-directional sync
+📝 **Current focus**: v0.5.0 - Power Query support & bi-directional sync
 
 
 ### 💡 Feedback & Contributions
