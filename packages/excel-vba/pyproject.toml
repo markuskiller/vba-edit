@@ -1,0 +1,38 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "excel-vba"
+version = "0.0.1"
+description = "Edit, export and import Excel VBA code from the command line. Thin entry-point wrapper for vba-edit."
+authors = [{ name = "Markus Killer", email = "m.killer@langui.ch" }]
+readme = "README.md"
+requires-python = ">=3.10"
+license = "BSD-3-Clause"
+keywords = ["vba", "excel", "office", "automation", "macro"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Programming Language :: Python :: Implementation :: CPython",
+    "Operating System :: Microsoft :: Windows",
+    "Topic :: Office/Business :: Office Suites",
+]
+dependencies = ["vba-edit==0.4.3"]
+
+[project.urls]
+Homepage = "https://github.com/markuskiller/vba-edit"
+Repository = "https://github.com/markuskiller/vba-edit"
+Changelog = "https://github.com/markuskiller/vba-edit/blob/main/CHANGELOG.md"
+
+[project.scripts]
+excel-vba = "vba_edit.excel_vba:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
