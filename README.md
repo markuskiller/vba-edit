@@ -29,7 +29,7 @@ pip install -U vba-edit
 
 ### Windows Binaries (No Python Required)
 
-**NEW v0.4.1+** Standalone executables available - no Python installation needed!
+Standalone executables available - no Python installation needed!
 
 📦 **Download**: [Latest Release](https://github.com/markuskiller/vba-edit/releases/latest) (scroll all the way down to **Assets** section)
 
@@ -254,7 +254,7 @@ End Sub
 
 ## Colorized Output
 
-**NEW v0.4.1** Terminal output features professional color-coded messages for better readability:
+Terminal output features color-coded messages terms for better readability:
 
 - ✓ **Success** messages in green
 - ✗ **Error** messages in red
@@ -277,7 +277,7 @@ export NO_COLOR=1; excel-vba export      # Via environment variable
 
 ## Configuration Files
 
-**NEW v0.4.0+** Use TOML configuration files to standardize team workflows and avoid repetitive command-line arguments.
+Use TOML configuration files to standardize team workflows and avoid repetitive command-line arguments.
 
 ### Basic Configuration
 
