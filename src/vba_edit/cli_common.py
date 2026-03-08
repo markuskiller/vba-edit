@@ -226,6 +226,7 @@ CLI_HELP_STRINGS = {
     "import": "Import VBA from filesystem into {file_type}",
     "export": "Export VBA from {file_type} to filesystem",
     "check": "Check VBA project access settings in {app_name}",
+    "references": "Manage VBA library references in {file_type}",
 }
 
 
@@ -919,6 +920,81 @@ Use '{entry_point_name} <command> --help' for more information on a specific com
     
 IMPORTANT: Requires "Trust access to the VBA project object model" enabled in {app_name}.
            Early release - backup important files before use!"""
+
+
+def add_references_file_arguments(parser: argparse.ArgumentParser) -> None:
+    """Add file arguments for the references command (--file only, no --vba-directory)."""
+    file_group = parser.add_argument_group("File Options")
+    file_group.add_argument(
+        "--file",
+        "-f",
+        dest=CONFIG_KEY_FILE,
+        help="Path to Office document (default: active document).",
+    )
+
+
+def add_references_output_arguments(parser: argparse.ArgumentParser) -> None:
+    """Add output file argument for references export/import subcommands."""
+    refs_group = parser.add_argument_group("References Options")
+    refs_group.add_argument(
+        "--refs-file",
+        "-r",
+        dest="refs_file",
+        metavar="FILE",
+        help="TOML file for references (default: {document}_refs.toml)",
+    )
+
+
+def get_references_command_description(refs_subcommand: str, office_app: str) -> str:
+    """Get description string for a references subcommand."""
+    config = get_office_config(office_app)
+    ep = config["entry_point"]
+    ft = config["file_type"]
+    ex = config["example_filename"]
+
+    match refs_subcommand:
+        case "list":
+            return f"""List all VBA references in a {ft}
+
+Shows reference details including name, GUID, version, path and status (built-in, broken).
+
+Examples:
+  {ep} references list              # List refs in active {ft}
+  {ep} references list -f {ex}  # List refs in specific file"""
+        case "export":
+            return f"""Export VBA references to a TOML configuration file
+
+Saves all non-built-in references to a TOML file that can be shared,
+version-controlled, or used to replicate reference setup in other documents.
+
+Examples:
+  {ep} references export                      # Export to {{document}}_refs.toml
+  {ep} references export -r custom_refs.toml  # Export to custom file
+  {ep} references export -f {ex} -r refs.toml"""
+        case "import":
+            return f"""Import VBA references from a TOML configuration file
+
+Adds references defined in a TOML file to the {ft}.
+Handles duplicate detection, missing files, and invalid GUIDs.
+
+Examples:
+  {ep} references import -r refs.toml         # Import from TOML file
+  {ep} references import -f {ex} -r refs.toml"""
+        case _:
+            return f"Manage VBA library references in {ft}"
+
+
+def get_references_command_usage(office_app: str) -> str:
+    """Get usage string for the references command."""
+    config = get_office_config(office_app)
+    ep = config["entry_point"]
+    return f"""{ep} references <command>
+    [--file FILE | -f FILE]
+    [--refs-file FILE | -r FILE]
+    [--verbose | -v]
+    [--logfile | -l]
+    [--no-color | --no-colour]
+    [--help | -h]"""
 
 
 def create_office_cli_description(office_app: str, package_name_formatted: str, package_version: str) -> str:
