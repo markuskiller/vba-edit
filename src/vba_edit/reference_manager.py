@@ -527,7 +527,7 @@ class ReferenceManager:
                 with open(input_path, "rb") as f:
                     data = tomllib.load(f)
             else:
-                import tomli
+                import tomli  # type: ignore[import-not-found]
 
                 with open(input_path, "rb") as f:
                     data = tomli.load(f)
