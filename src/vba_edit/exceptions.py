@@ -133,7 +133,7 @@ class DocumentIsReadOnlyError(VBAError):
         )
 
 
-class ReferenceError(VBAError):
+class VBAReferenceError(VBAError):
     """Exception raised for VBA reference-related errors.
 
     This can occur when adding, removing, or accessing VBA library references

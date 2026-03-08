@@ -99,7 +99,7 @@ from vba_edit.exceptions import (
     VBAError,
 )
 from vba_edit.reference_manager import ReferenceManager
-from vba_edit.reference_manager import ReferenceError as VBAReferenceError
+from vba_edit.exceptions import VBAReferenceError
 from vba_edit.help_formatter import ColorizedArgumentParser, EnhancedHelpFormatter
 from vba_edit.office_vba import (
     ExcelVBAHandler,
@@ -416,12 +416,16 @@ Simple usage:
         The 'check' command doesn't use file/vba_directory arguments.
         """
         # Skip validation for commands that don't use file paths
-        if args.command in ("check", "references"):
+        if args.command == "check":
             return
 
         if args.file and not Path(args.file).exists():
             file_type = self.config["file_type"]
             raise FileNotFoundError(f"{file_type.title()} not found: {args.file}")
+
+        # The references command uses --file but not --vba-directory
+        if args.command == "references":
+            return
 
         if args.vba_directory:
             # Only create the VBA directory if there's no PLACEHOLDER_FILE_VBAPROJECT value, or if it is already resolved
@@ -624,6 +628,11 @@ Simple usage:
 
         self.logger.info(f"References command '{subcommand}' on {file_type}: {doc_path}")
 
+        # Track whether we opened the document so we can close it in cleanup
+        opened_doc = False
+        app = None
+        doc = None
+
         try:
             # Open the document via win32com
             office_dispatch_ids = {
@@ -640,6 +649,7 @@ Simple usage:
             if self.office_app == "excel":
                 if file_arg:
                     doc = app.Workbooks.Open(doc_path)
+                    opened_doc = True
                 else:
                     doc = app.ActiveWorkbook
                     if doc is None:
@@ -648,6 +658,7 @@ Simple usage:
             elif self.office_app == "word":
                 if file_arg:
                     doc = app.Documents.Open(doc_path)
+                    opened_doc = True
                 else:
                     doc = app.ActiveDocument
                     if doc is None:
@@ -656,6 +667,7 @@ Simple usage:
             elif self.office_app == "access":
                 if file_arg:
                     app.OpenCurrentDatabase(doc_path)
+                    opened_doc = True
                 doc = app.CurrentDb()
                 if doc is None:
                     self.logger.error(f"No active {file_type} found. Open a {file_type} first.")
@@ -663,6 +675,7 @@ Simple usage:
             elif self.office_app == "powerpoint":
                 if file_arg:
                     doc = app.Presentations.Open(doc_path)
+                    opened_doc = True
                 else:
                     doc = app.ActivePresentation
                     if doc is None:
@@ -718,6 +731,20 @@ Simple usage:
             if getattr(args, "verbose", False):
                 self.logger.exception("Detailed error information:")
             sys.exit(1)
+        finally:
+            if opened_doc and doc is not None:
+                try:
+                    if self.office_app == "excel":
+                        doc.Close(SaveChanges=False)
+                    elif self.office_app == "word":
+                        doc.Close(SaveChanges=False)
+                    elif self.office_app == "access":
+                        if app is not None:
+                            app.CloseCurrentDatabase()
+                    elif self.office_app == "powerpoint":
+                        doc.Close()
+                except Exception as close_err:
+                    self.logger.debug(f"Could not close document after references operation: {close_err}")
 
     def main(self) -> None:
         """Main entry point for the Office VBA CLI."""
