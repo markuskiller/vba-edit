@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+### Changed
+
+### Fixed
+
+## [0.5.0b1] - 2026-03-08
+
+> **Beta release** — focused on early testing of the new VBA Reference Manager.
+> Published to [TestPyPI](https://test.pypi.org/project/vba-edit/). See installation instructions below.
+
+### Added
+
 - **VBA Reference Manager**: New `references` command to manage VBA library references across all Office apps
   - `references list` — Display all references with name, GUID, version, path, and status
   - `references export` — Save all non-built-in references to a shareable TOML file (default: `{document}_refs.toml`)
@@ -21,9 +32,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Each package automatically pulls in the `vba-edit` core — no separate install step needed
   - Ideal for one-off use, scripts, and CI/CD pipelines
 
-### Changed
-
 ### Fixed
+
+- **Encoding Detection**: ASCII-only VBA files are no longer misidentified as UTF-8
+  - Files containing only ASCII characters (the majority of English-language VBA code) now correctly report the Windows system code page (e.g. `cp1252`) rather than `utf-8`
+  - Prevents potential encoding mismatches when files are shared or re-imported
 
 ## [0.4.3] - 2026-03-07
 
