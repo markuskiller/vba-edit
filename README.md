@@ -98,6 +98,24 @@ Enable VBA access in Office:
 
 > 💡 Can't find it? Run `uvx excel-vba check` (or `excel-vba check` if installed) to verify settings
 
+### VS Code Settings (Recommended)
+
+To ensure VS Code handles VBA file encoding correctly, add the following to your user settings (`%APPDATA%\Code\User\settings.json`):
+
+```json
+"[vba]": {
+    "files.encoding": "windows1252"
+},
+"files.associations": {
+    "*.bas": "vba",
+    "*.cls": "vba",
+    "*.frm": "vba"
+}
+```
+
+> 💡 **Using VS Code Profiles?** Add these settings to each profile's `settings.json` as well.  
+> Change `"windows1252"` to match the `--encoding` value you pass to vba-edit if you use a different code page.
+
 
 ## Common Workflows
 
@@ -263,7 +281,7 @@ Development priorities evolve based on user feedback and real-world needs.
 
 👀 **See active planning**: [GitHub Milestones](https://github.com/markuskiller/vba-edit/milestones)  
 💡 **Request features**: [Open an Issue](https://github.com/markuskiller/vba-edit/issues)  
-📝 **Current focus**: v0.5.0 - Power Query support & bi-directional sync
+📝 **Current focus**: v0.5.0 - Reference management
 
 
 ### 💡 Feedback & Contributions
