@@ -12,7 +12,17 @@
 
 ## Installation
 
-### Python Package (Recommended)
+### RECOMMENDED: Via [``uvx``](https://docs.astral.sh/uv/guides/tools/) (No Install Required)
+```bash
+uvx excel-vba edit -f myfile.xlsm
+uvx word-vba edit -f myfile.docm
+uvx powerpoint-vba edit -f myfile.pptm
+uvx access-vba edit -f myfile.accdb
+```
+
+> **Note:** The ``uvx`` command runs the tool without installing it permanently — same as: ``uv tool run excel-vba``
+
+### Python Package
 ```bash
 pip install -U vba-edit
 ```
@@ -35,8 +45,8 @@ Available binaries:
 
 ## 30-Second Demo
 ```bash
-# Start editing (uses active Excel/Word document)
-excel-vba edit    # or word-vba edit
+# Start editing (uses active Excel/Word document) — no install required!
+uvx excel-vba edit    # or: uvx word-vba edit
 
 # That's it! Edit the .bas/.cls files in your editor. Save = Sync.
 ```
@@ -86,14 +96,17 @@ Enable VBA access in Office:
 
 ✅ **Trust access to the VBA project object model**
 
-> 💡 Can't find it? Run `excel-vba check` to verify settings
+> 💡 Can't find it? Run `uvx excel-vba check` (or `excel-vba check` if installed) to verify settings
 
 
 ## Common Workflows
 
+> All workflows below work with both `excel-vba <command>` (installed) and `uvx excel-vba <command>` (no install required).
+
 ### Start Fresh
 ```bash
-excel-vba edit                    # Start with active workbook
+uvx excel-vba edit                # Start with active workbook — no install required!
+excel-vba edit                    # If already installed
 ```
 
 ### Quick Export with Folder View
@@ -120,10 +133,12 @@ excel-vba edit --rubberduck-folders --in-file-headers
 
 | CLI Tool | Description |
 |---------|-------------|
-| `excel-vba.exe` | For Excel Workbooks (.xlsm, .xlsb, .xls) |
-| `word-vba.exe` | For Word documents (.docm) |
-| `access-vba.exe` | For Access databases (.accdb, .mdb) |
-| `powerpoint-vba.exe` | For PowerPoint presentations (.pptm) |
+| `excel-vba` | For Excel Workbooks (.xlsm, .xlsb, .xls) |
+| `word-vba` | For Word documents (.docm) |
+| `access-vba` | For Access databases (.accdb, .mdb) |
+| `powerpoint-vba` | For PowerPoint presentations (.pptm) |
+
+> 💡 Use with `uvx excel-vba <command>` (no install) or `excel-vba <command>` (if installed). Standalone `.exe` binaries also available — see [Latest Release](https://github.com/markuskiller/vba-edit/releases/latest).
 
 > 💡 **Note**: Additional macro-enabled formats (.xltm, .dotm, .potm) are likely supported but not yet tested in this release.
 
@@ -136,9 +151,12 @@ excel-vba edit --rubberduck-folders --in-file-headers
 | `export` | Export VBA content from Office document |
 | `check` | Check if 'Trust Access to the Office VBA project object model' is enabled |
 
-> 💡 Use **`*-vba.exe <command> --help`** in your terminal for a detailed option overview.
+> 💡 Use **`uvx excel-vba <command> --help`** (or `excel-vba <command> --help` if installed) for a detailed option overview.
 
 ### Examples of options
+
+> All examples below work with both `excel-vba <command>` (installed) and `uvx excel-vba <command>` (no install required).
+
 | Command | What it does |
 |---------|-------------|
 | `excel-vba edit` | Start live editing |
@@ -154,7 +172,7 @@ excel-vba edit --rubberduck-folders --in-file-headers
 
 | Issue | Solution |
 |-------|----------|
-| "Trust access" error | Run `excel-vba check` for diagnostics |
+| "Trust access" error | Run `uvx excel-vba check` (or `excel-vba check`) for diagnostics |
 | Changes not syncing | Save the file in your editor |
 | Forms not working | Add `--in-file-headers` flag |
 
