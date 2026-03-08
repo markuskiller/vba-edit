@@ -179,7 +179,7 @@ excel-vba edit --rubberduck-folders --in-file-headers
 
 ## Safety Features
 
-**🛡️ Data Loss Prevention** (v0.4.0+)
+**🛡️ Data Loss Prevention**
 
 vba-edit now protects your work with smart safety checks:
 
@@ -201,16 +201,16 @@ excel-vba export --vba-directory ./src --force-overwrite
 **🚀 Core**
 - Live sync between Office and your editor
 - Full Git/version control support
-- All Office apps: Excel, Word, Access & **NEW v0.4.0+** PowerPoint
+- All Office apps: Excel, Word, Access & PowerPoint
 
 **📁 Organization** 
-- **NEW v0.4.0+** RubberduckVBA folder structure support
-- **NEW v0.4.0+** Smart file organization with `@Folder` annotations
-- **NEW v0.4.0+** TOML config files for team standards
+- RubberduckVBA folder structure support
+- Smart file organization with `@Folder` annotations
+- TOML config files for team standards
 
 **🔧 Advanced**
 - Unicode & encoding support
-- **IMPROVED v0.4.0+** UserForms with layout preservation  
+- UserForms with layout preservation  
 - Class modules with custom attributes
 
 
@@ -233,7 +233,7 @@ Found a bug? Have a feature idea? Questions about usage? Open an [Issue](https:/
 
 > 💡 **Complete CLI Overview**: available **[here](https://langui.ch/current-projects/vba-edit/#CLI)**
 
-### Example of `--in-file-headers --rubberduck-folders` (v0.4.0+)
+### Example of `--in-file-headers --rubberduck-folders`
 
 ```vba
 VERSION 1.0 CLASS
@@ -323,7 +323,7 @@ excel-vba export --conf vba-config.toml
 
 Configuration values support dynamic placeholders for flexible path management.
 
-**Available placeholders (v0.4.1+):**
+**Available placeholders**
 - `{config.path}` - Directory containing the config file
 - `{file.name}` - Document filename without extension
 - `{file.fullname}` - Document filename with extension
