@@ -16,7 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.5.0b1] - 2026-03-08
 
 > **Beta release** — focused on early testing of the new VBA Reference Manager.
-> Published to [TestPyPI](https://test.pypi.org/project/vba-edit/). See installation instructions below.
+> Download the pre-built binaries from the [Assets section](https://github.com/markuskiller/vba-edit/releases/tag/v0.5.0b1) below to test without a Python installation.
 
 ### Added
 
