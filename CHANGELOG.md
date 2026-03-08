@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`uvx` Support via Satellite Entry-Point Packages**: All four tools are now available on PyPI as standalone packages — `excel-vba`, `word-vba`, `powerpoint-vba`, `access-vba`
+  - Run any tool instantly without installing: `uvx excel-vba edit`, `uvx word-vba edit`, etc.
+  - Each package automatically pulls in the `vba-edit` core — no separate install step needed
+  - Ideal for one-off use, scripts, and CI/CD pipelines
+
 ### Changed
 
 ### Fixed
