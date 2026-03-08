@@ -150,6 +150,7 @@ excel-vba edit --rubberduck-folders --in-file-headers
 | `import` | Import VBA content into Office document |
 | `export` | Export VBA content from Office document |
 | `check` | Check if 'Trust Access to the Office VBA project object model' is enabled |
+| `references` | Manage VBA library references (list / export / import) |
 
 > 💡 Use **`uvx excel-vba <command> --help`** (or `excel-vba <command> --help` if installed) for a detailed option overview.
 
@@ -165,8 +166,45 @@ excel-vba edit --rubberduck-folders --in-file-headers
 | `excel-vba export --open-folder --keep-open` | Export and open folder in explorer, keep document open for inspection |
 | `excel-vba export --force-overwrite` | Export without confirmation prompts |
 | `excel-vba check` | Verify status of *Trust access* to the VBA project object model |
+| `excel-vba references list` | List all VBA library references in the active workbook |
+| `excel-vba references export` | Export references to a TOML file for sharing or version control |
+| `excel-vba references import -r refs.toml` | Restore references from a TOML file |
 
 > 💡 **Complete Option Matrix**: available **[here](https://langui.ch/current-projects/vba-edit/#OptionMatrix)**
+
+## VBA Reference Manager
+
+Manage VBA library references (e.g. Microsoft Scripting Runtime, ActiveX Data Objects) directly from the command line:
+
+```bash
+# List all references in the active workbook
+excel-vba references list
+
+# Export references to a TOML file (default: {document}_refs.toml)
+excel-vba references export
+excel-vba references export -r shared_refs.toml
+
+# Import references from a TOML file
+excel-vba references import -r shared_refs.toml
+excel-vba references import -f myfile.xlsm -r shared_refs.toml
+```
+
+**Use cases:**
+- Track reference dependencies alongside VBA code in version control
+- Replicate the same reference setup across multiple documents
+- Onboard team members — just run `references import` to get the right libraries
+
+**TOML format** (exportable and hand-editable):
+```toml
+[[references]]
+name = "Scripting"
+guid = "{420B2830-E718-11CF-893D-00A0C9054228}"
+major = 1
+minor = 0
+description = "Microsoft Scripting Runtime"
+```
+
+> Works with all four Office apps: `excel-vba`, `word-vba`, `powerpoint-vba`, `access-vba`
 
 ## Troubleshooting
 
@@ -208,7 +246,12 @@ excel-vba export --vba-directory ./src --force-overwrite
 - Smart file organization with `@Folder` annotations
 - TOML config files for team standards
 
-**🔧 Advanced**
+**� Reference Management**
+- List, export, and import VBA library references
+- Share reference setups via version-controlled TOML files
+- Replicate reference configurations across documents and machines
+
+**�🔧 Advanced**
 - Unicode & encoding support
 - UserForms with layout preservation  
 - Class modules with custom attributes
@@ -220,7 +263,7 @@ Development priorities evolve based on user feedback and real-world needs.
 
 👀 **See active planning**: [GitHub Milestones](https://github.com/markuskiller/vba-edit/milestones)  
 💡 **Request features**: [Open an Issue](https://github.com/markuskiller/vba-edit/issues)  
-📝 **Current focus**: v0.5.0 - Reference management & batch operations
+📝 **Current focus**: v0.5.0 - PowerQuery support & bi-directional sync
 
 
 ### 💡 Feedback & Contributions

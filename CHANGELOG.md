@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **VBA Reference Manager**: New `references` command to manage VBA library references across all Office apps
+  - `references list` — Display all references with name, GUID, version, path, and status
+  - `references export` — Save all non-built-in references to a shareable TOML file (default: `{document}_refs.toml`)
+  - `references import` — Add references from a TOML file to replicate setups across documents or machines
+  - Use `--refs-file / -r` to specify a custom TOML file path
+  - Works with all four Office apps: Excel, Word, PowerPoint, and Access
+  - Makes reference dependencies trackable in version control alongside VBA code
 - **`uvx` Support via Satellite Entry-Point Packages**: All four tools are now available on PyPI as standalone packages — `excel-vba`, `word-vba`, `powerpoint-vba`, `access-vba`
   - Run any tool instantly without installing: `uvx excel-vba edit`, `uvx word-vba edit`, etc.
   - Each package automatically pulls in the `vba-edit` core — no separate install step needed

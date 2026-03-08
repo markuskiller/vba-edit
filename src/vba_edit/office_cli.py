@@ -80,6 +80,10 @@ from vba_edit.cli_common import (
     add_vba_files_arguments,
     add_exporting_arguments,
     add_excel_specific_arguments,
+    add_references_file_arguments,
+    add_references_output_arguments,
+    get_references_command_description,
+    get_references_command_usage,
     create_office_cli_description,
     create_office_cli_examples,
     get_help_string,
@@ -94,6 +98,8 @@ from vba_edit.exceptions import (
     VBAAccessError,
     VBAError,
 )
+from vba_edit.reference_manager import ReferenceManager
+from vba_edit.reference_manager import ReferenceError as VBAReferenceError
 from vba_edit.help_formatter import ColorizedArgumentParser, EnhancedHelpFormatter
 from vba_edit.office_vba import (
     ExcelVBAHandler,
@@ -339,6 +345,68 @@ class OfficeVBACLI:
             extra_args_func(import_parser)
             extra_args_func(export_parser)
 
+        # References command
+        references_parser = subparsers.add_parser(
+            "references",
+            usage=get_references_command_usage(self.office_app),
+            help=get_help_string("references", self.office_app),
+            description=f"""Manage VBA library references in {self.config["file_type"]}s
+
+VBA references are links to external type libraries (COM objects, DLLs, other Office documents).
+
+Simple usage:
+  {self.config["entry_point"]} references list                    # List refs in active {self.config["file_type"]}
+  {self.config["entry_point"]} references export                  # Export to {{document}}_refs.toml
+  {self.config["entry_point"]} references import -r refs.toml     # Import from TOML file""",
+            formatter_class=EnhancedHelpFormatter,
+            add_help=False,
+        )
+
+        refs_subparsers = references_parser.add_subparsers(
+            dest="refs_subcommand",
+            required=True,
+            title="Commands",
+            metavar="<command>",
+        )
+
+        # references list
+        list_refs_parser = refs_subparsers.add_parser(
+            "list",
+            usage=f"{self.config['entry_point']} references list [--file FILE] [options]",
+            help="List all references in document",
+            description=get_references_command_description("list", self.office_app),
+            formatter_class=EnhancedHelpFormatter,
+            add_help=False,
+        )
+        add_references_file_arguments(list_refs_parser)
+        add_common_option_group(list_refs_parser)
+
+        # references export
+        export_refs_parser = refs_subparsers.add_parser(
+            "export",
+            usage=f"{self.config['entry_point']} references export [--file FILE] [--refs-file FILE] [options]",
+            help="Export references to TOML file",
+            description=get_references_command_description("export", self.office_app),
+            formatter_class=EnhancedHelpFormatter,
+            add_help=False,
+        )
+        add_references_file_arguments(export_refs_parser)
+        add_references_output_arguments(export_refs_parser)
+        add_common_option_group(export_refs_parser)
+
+        # references import
+        import_refs_parser = refs_subparsers.add_parser(
+            "import",
+            usage=f"{self.config['entry_point']} references import --refs-file FILE [--file FILE] [options]",
+            help="Import references from TOML file",
+            description=get_references_command_description("import", self.office_app),
+            formatter_class=EnhancedHelpFormatter,
+            add_help=False,
+        )
+        add_references_file_arguments(import_refs_parser)
+        add_references_output_arguments(import_refs_parser)
+        add_common_option_group(import_refs_parser)
+
         return parser
 
     def validate_paths(self, args: argparse.Namespace) -> None:
@@ -348,7 +416,7 @@ class OfficeVBACLI:
         The 'check' command doesn't use file/vba_directory arguments.
         """
         # Skip validation for commands that don't use file paths
-        if args.command == "check":
+        if args.command in ("check", "references"):
             return
 
         if args.file and not Path(args.file).exists():
@@ -525,6 +593,132 @@ class OfficeVBACLI:
         finally:
             self.logger.debug("Command execution completed")
 
+    def _handle_references_command(self, args: argparse.Namespace) -> None:
+        """Handle the 'references' subcommand (list / export / import)."""
+        from vba_edit.console import info, success, warning
+        import win32com.client
+
+        setup_logging(verbose=getattr(args, "verbose", False), logfile=getattr(args, "logfile", None))
+
+        subcommand = args.refs_subcommand
+        file_arg = getattr(args, "file", None)
+
+        # Resolve document path
+        if file_arg:
+            doc_path = str(Path(file_arg).resolve())
+        else:
+            try:
+                doc_path = get_active_office_document(self.office_app)
+            except ApplicationError as e:
+                self.logger.error(str(e))
+                sys.exit(1)
+
+        app_name = self.config["app_name"]
+        file_type = self.config["file_type"]
+
+        # Derive default refs file path from document stem
+        refs_file = getattr(args, "refs_file", None)
+        if not refs_file and subcommand in ("export", "import"):
+            doc_stem = Path(doc_path).stem
+            refs_file = str(Path(doc_path).parent / f"{doc_stem}_refs.toml")
+
+        self.logger.info(f"References command '{subcommand}' on {file_type}: {doc_path}")
+
+        try:
+            # Open the document via win32com
+            office_dispatch_ids = {
+                "excel": "Excel.Application",
+                "word": "Word.Application",
+                "access": "Access.Application",
+                "powerpoint": "PowerPoint.Application",
+            }
+            dispatch_id = office_dispatch_ids[self.office_app]
+            app = win32com.client.Dispatch(dispatch_id)
+            app.Visible = True
+
+            # Get the document COM object
+            if self.office_app == "excel":
+                if file_arg:
+                    doc = app.Workbooks.Open(doc_path)
+                else:
+                    doc = app.ActiveWorkbook
+                    if doc is None:
+                        self.logger.error(f"No active {file_type} found. Open a {file_type} first.")
+                        sys.exit(1)
+            elif self.office_app == "word":
+                if file_arg:
+                    doc = app.Documents.Open(doc_path)
+                else:
+                    doc = app.ActiveDocument
+                    if doc is None:
+                        self.logger.error(f"No active {file_type} found. Open a {file_type} first.")
+                        sys.exit(1)
+            elif self.office_app == "access":
+                if file_arg:
+                    app.OpenCurrentDatabase(doc_path)
+                doc = app.CurrentDb()
+                if doc is None:
+                    self.logger.error(f"No active {file_type} found. Open a {file_type} first.")
+                    sys.exit(1)
+            elif self.office_app == "powerpoint":
+                if file_arg:
+                    doc = app.Presentations.Open(doc_path)
+                else:
+                    doc = app.ActivePresentation
+                    if doc is None:
+                        self.logger.error(f"No active {file_type} found. Open a {file_type} first.")
+                        sys.exit(1)
+
+            manager = ReferenceManager(doc)
+
+            if subcommand == "list":
+                refs = manager.list_references()
+                if not refs:
+                    info("No VBA references found.")
+                    sys.exit(0)
+                info(f"VBA references in {Path(doc_path).name} ({len(refs)} total):\n")
+                for ref in refs:
+                    status = "[BROKEN]" if ref["broken"] else "[BUILTIN]" if ref["builtin"] else "       "
+                    path_str = f"\n      Path: {ref['path']}" if ref.get("path") else ""
+                    desc_str = f"\n      Desc: {ref['description']}" if ref.get("description") else ""
+                    print(
+                        f"  {status}  {ref['name']} v{ref['major']}.{ref['minor']}\n"
+                        f"      GUID: {ref['guid']}{path_str}{desc_str}"
+                    )
+
+            elif subcommand == "export":
+                manager.export_to_toml(refs_file)
+                success(f"References exported to: {refs_file}")
+
+            elif subcommand == "import":
+                if not refs_file or not Path(refs_file).exists():
+                    self.logger.error(f"References file not found: {refs_file}")
+                    self.logger.error("Use --refs-file to specify the TOML file.")
+                    sys.exit(1)
+                stats = manager.import_from_toml(refs_file)
+                added = stats.get("added", 0)
+                skipped = stats.get("skipped", 0)
+                failed = stats.get("failed", 0)
+                success(f"References imported: {added} added, {skipped} skipped, {failed} failed")
+                if failed:
+                    warning(f"{failed} reference(s) could not be added — check log for details")
+
+        except VBAReferenceError as e:
+            self.logger.error(f"Reference error: {e}")
+            sys.exit(1)
+        except VBAAccessError as e:
+            self.logger.error(str(e))
+            self.logger.error(f'Please enable "Trust access to the VBA project object model" in {app_name}.')
+            sys.exit(1)
+        except VBAError as e:
+            self.logger.error(f"VBA error: {e}")
+            sys.exit(1)
+        except Exception as e:
+            self.logger.error(f"Unexpected error: {e}")
+            if getattr(args, "verbose", False):
+                self.logger.exception("Detailed error information:")
+            sys.exit(1)
+
     def main(self) -> None:
         """Main entry point for the Office VBA CLI."""
         try:
@@ -598,6 +792,8 @@ class OfficeVBACLI:
                 except Exception as e:
                     self.logger.error(f"Failed to check Trust Access to VBA project object model: {str(e)}")
                 sys.exit(0)
+            elif args.command == "references":
+                self._handle_references_command(args)
             else:
                 self.handle_office_vba_command(args)
 
