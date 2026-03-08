@@ -286,6 +286,26 @@ When updating CHANGELOG.md:
 - Use GitHub releases with appropriate templates (see `docs/development/RELEASE_PROCESS.md`)
 - Binaries are built automatically on release creation
 
+### Creating GitHub Releases via `gh` CLI — CRITICAL
+
+**NEVER use `--notes "..."` with inline backticks in PowerShell.**
+
+PowerShell interprets `` \` `` inside double-quoted strings before `gh` sees the argument, stripping
+backticks and corrupting inline code spans (e.g. `` `references` `` becomes `eferences`).
+
+**Always write release notes to a temp file and use `--notes-file`:**
+
+```powershell
+$notes = @'
+## Release notes with `backticks` that work correctly
+- `some-command` does something
+'@
+$notes | Set-Content -Path "$env:TEMP\release_notes.md" -Encoding UTF8
+gh release create vX.Y.Z --notes-file "$env:TEMP\release_notes.md" ...
+```
+
+This applies to both `gh release create` and `gh release edit`.
+
 ### Release Branches
 - `dev`: Active development, pre-releases
 - `main`: Stable releases only
