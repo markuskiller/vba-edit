@@ -291,6 +291,16 @@ When updating CHANGELOG.md:
 - `main`: Stable releases only
 - Feature branches: `feature/<name>` (merge to dev via PR)
 
+### Satellite Entry-Point Packages
+- Located in `packages/` — `excel-vba`, `word-vba`, `powerpoint-vba`, `access-vba`
+- Also placeholder name reservations: `outlook-vba`, `visio-vba`, `project-vba` (no entry points, not yet implemented)
+- **Dependency pinning policy**: satellites use EXACT version pin — `vba-edit==X.Y.Z` — NOT a range
+  - Each release publishes new satellite versions pinned to that exact core release
+  - Users who want a newer core must upgrade the satellite package (`pip install -U excel-vba`)
+  - The CI `publish-satellites` job in `publish.yaml` enforces this automatically
+- **Version alignment**: satellite version always equals core version (e.g. core `0.4.3` → satellites `0.4.3`)
+- **Never use** `>=X.Y.Z,<X.(Y+1).0` or any other range — always `==X.Y.Z`
+
 ---
 
 ## Dependencies & Tools

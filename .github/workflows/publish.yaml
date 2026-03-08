@@ -80,10 +80,7 @@ jobs:
 
         tag = "${{ github.ref_name }}"
         version = tag.lstrip("v")
-        parts = re.split(r'[.\-]', version)
-        major, minor = parts[0], int(parts[1])
-        upper = f"{major}.{minor + 1}.0"
-        constraint = f"vba-edit>={version},<{upper}"
+        constraint = f"vba-edit=={version}"
 
         for pkg in ["excel-vba", "word-vba", "powerpoint-vba", "access-vba"]:
             path = Path(f"packages/{pkg}/pyproject.toml")
