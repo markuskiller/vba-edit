@@ -17,7 +17,7 @@ This is a thin entry-point package for [vba-edit](https://pypi.org/project/vba-e
 ### RECOMMENDED: Via [``uvx``](https://docs.astral.sh/uv/guides/tools/)
 
 ```bash
-uvx access-vba edit -f myfile.accdb --vba-directory .\src
+uvx access-vba edit -f myfile.accdb --vba-directory .\src\VBA
 ```
 
 > **Note:** The ``uvx`` command invokes a tool without installing it — same as: ``uv tool run access-vba``
@@ -25,7 +25,7 @@ uvx access-vba edit -f myfile.accdb --vba-directory .\src
 ### 30-Second Demo
 ```bash
 # Start editing (uses active Access database)
-access-vba edit
+uvx access-vba edit
 
 # That's it! Edit the .bas/.cls files in your editor. Save = Sync.
 ```
@@ -67,6 +67,8 @@ pip install access-vba
 > **Note:** Installing `access-vba` also installs the `vba-edit` core package, which provides entry points for all supported Office apps (`excel-vba`, `word-vba`, `powerpoint-vba`, `access-vba`).
 
 ## Usage
+
+> All commands below work with both `access-vba <command>` (installed) and `uvx access-vba <command>` (no install required).
 
 | Command | What it does |
 |---------|-------------|

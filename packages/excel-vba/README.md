@@ -25,7 +25,7 @@ uvx excel-vba edit -f myfile.xlsm --vba-directory .\src\VBA
 ### 30-Second Demo
 ```bash
 # Start editing (uses active Excel workbook)
-excel-vba edit
+uvx excel-vba edit
 
 # That's it! Edit the .bas/.cls files in your editor. Save = Sync.
 ```
@@ -67,6 +67,8 @@ pip install excel-vba
 > **Note:** Installing `excel-vba` also installs the `vba-edit` core package, which provides entry points for all supported Office apps (`excel-vba`, `word-vba`, `powerpoint-vba`, `access-vba`).
 
 ## Usage
+
+> All commands below work with both `excel-vba <command>` (installed) and `uvx excel-vba <command>` (no install required).
 
 | Command | What it does |
 |---------|-------------|
