@@ -58,6 +58,8 @@ jobs:
   publish-satellites:
     needs: [publish]
     runs-on: ubuntu-latest
+    env:
+      SATELLITE_PKGS: "excel-vba word-vba powerpoint-vba access-vba"
 
     steps:
     - name: Check out code
@@ -75,6 +77,7 @@ jobs:
     - name: Sync satellite versions to release tag
       run: |
         python - <<'EOF'
+        import os
         import re
         from pathlib import Path
 
@@ -82,18 +85,19 @@ jobs:
         version = tag.lstrip("v")
         constraint = f"vba-edit=={version}"
 
-        for pkg in ["excel-vba", "word-vba", "powerpoint-vba", "access-vba"]:
+        for pkg in os.environ["SATELLITE_PKGS"].split():
             path = Path(f"packages/{pkg}/pyproject.toml")
             content = path.read_text()
             content = re.sub(r'^version = "[^"]*"', f'version = "{version}"', content, flags=re.MULTILINE)
-            content = re.sub(r'"vba-edit[^"]*"', f'"{constraint}"', content)
+            content = re.sub(r'"vba-edit(?:==[^"]+)?"', f'"{constraint}"', content)
             path.write_text(content)
             print(f"Updated {pkg} to {version} with {constraint}")
         EOF
 
     - name: Build satellite packages
       run: |
-        for pkg in excel-vba word-vba powerpoint-vba access-vba; do
+        for pkg in $SATELLITE_PKGS; do
+          rm -rf packages/$pkg/dist
           python -m build packages/$pkg
         done
 
@@ -103,7 +107,7 @@ jobs:
         TWINE_USERNAME: __token__
         TWINE_PASSWORD: ${{ secrets.TEST_PYPI_API_TOKEN }}
       run: |
-        for pkg in excel-vba word-vba powerpoint-vba access-vba; do
+        for pkg in $SATELLITE_PKGS; do
           twine upload --verbose --repository-url https://test.pypi.org/legacy/ packages/$pkg/dist/*
         done
 
@@ -113,7 +117,7 @@ jobs:
         TWINE_USERNAME: __token__
         TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
       run: |
-        for pkg in excel-vba word-vba powerpoint-vba access-vba; do
+        for pkg in $SATELLITE_PKGS; do
           twine upload --verbose packages/$pkg/dist/*
         done
 
