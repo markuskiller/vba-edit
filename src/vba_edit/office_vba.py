@@ -1736,7 +1736,7 @@ class OfficeVBAHandler(ABC):
                     raise VBAError(f"Failed to import form binary {name}.frx") from e
         except PathError as e:
             raise VBAError(f"Failed to handle form binary path: {str(e)}") from e
-        
+
     @abstractmethod
     def _update_document_module(self, name: str, code: str, components: Any) -> None:
         """Update an existing document module."""
