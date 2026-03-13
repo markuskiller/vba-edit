@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "powerpoint-vba"
-version = "0.5.0b1"
+version = "0.4.4"
 description = "Edit, export and import PowerPoint VBA code from the command line. Thin entry-point wrapper for vba-edit."
 authors = [{ name = "Markus Killer", email = "m.killer@langui.ch" }]
 readme = "README.md"
@@ -24,7 +24,7 @@ classifiers = [
     "Operating System :: Microsoft :: Windows",
     "Topic :: Office/Business :: Office Suites",
 ]
-dependencies = ["vba-edit==0.5.0b1"]
+dependencies = ["vba-edit==0.4.4"]
 
 [project.urls]
 Homepage = "https://github.com/markuskiller/vba-edit"
