@@ -837,3 +837,29 @@ class TestSafetyFeatures:
                 metadata = json.loads(metadata_file.read_text())
                 assert "header_mode" in metadata
                 assert metadata["header_mode"] == "inline"
+
+
+def test_handle_form_binary_import_skips_same_file(temp_dir):
+    """Regression test for issue #83: skip .frx copy when vba_dir equals workbook dir.
+
+    When the workbook is located in the same directory as vba_dir (the default),
+    frx_source and frx_target resolve to the same path. Attempting to copy the
+    file fails with [WinError 32] because Excel locks the .frx while open.
+    The fix should detect same-path and return early without calling shutil.copy2.
+    """
+    doc_path = temp_dir / "test.xlsm"
+    doc_path.touch()
+
+    # Place the .frx in the same directory as the workbook (reproduces the bug)
+    frx_file = temp_dir / "UserForm1.frx"
+    frx_file.write_bytes(b"\x00\x00")
+
+    with patch("win32com.client.Dispatch"):
+        handler = ExcelVBAHandler(doc_path=str(doc_path), vba_dir=str(temp_dir))
+        # Point doc.FullName at the workbook in the same dir so source == target
+        handler.doc = Mock()
+        handler.doc.FullName = str(doc_path)
+
+        with patch("shutil.copy2") as mock_copy:
+            handler._handle_form_binary_import("UserForm1")
+            mock_copy.assert_not_called()

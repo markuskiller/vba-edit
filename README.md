@@ -12,14 +12,24 @@
 
 ## Installation
 
-### Python Package (Recommended)
+### RECOMMENDED: Via [``uvx``](https://docs.astral.sh/uv/guides/tools/) (No Install Required)
+```bash
+uvx excel-vba edit -f myfile.xlsm
+uvx word-vba edit -f myfile.docm
+uvx powerpoint-vba edit -f myfile.pptm
+uvx access-vba edit -f myfile.accdb
+```
+
+> **Note:** The ``uvx`` command runs the tool without installing it permanently — same as: ``uv tool run excel-vba``
+
+### Python Package
 ```bash
 pip install -U vba-edit
 ```
 
 ### Windows Binaries (No Python Required)
 
-**NEW v0.4.1+** Standalone executables available - no Python installation needed!
+Standalone executables available - no Python installation needed!
 
 📦 **Download**: [Latest Release](https://github.com/markuskiller/vba-edit/releases/latest) (scroll all the way down to **Assets** section)
 
@@ -35,8 +45,8 @@ Available binaries:
 
 ## 30-Second Demo
 ```bash
-# Start editing (uses active Excel/Word document)
-excel-vba edit    # or word-vba edit
+# Start editing (uses active Excel/Word document) — no install required!
+uvx excel-vba edit    # or: uvx word-vba edit
 
 # That's it! Edit the .bas/.cls files in your editor. Save = Sync.
 ```
@@ -86,14 +96,35 @@ Enable VBA access in Office:
 
 ✅ **Trust access to the VBA project object model**
 
-> 💡 Can't find it? Run `excel-vba check` to verify settings
+> 💡 Can't find it? Run `uvx excel-vba check` (or `excel-vba check` if installed) to verify settings
+
+### VS Code Settings (Recommended)
+
+To ensure VS Code handles VBA file encoding correctly, add the following to your user settings (`%APPDATA%\Code\User\settings.json`):
+
+```json
+"[vba]": {
+    "files.encoding": "windows1252"
+},
+"files.associations": {
+    "*.bas": "vba",
+    "*.cls": "vba",
+    "*.frm": "vba"
+}
+```
+
+> 💡 **Using VS Code Profiles?** Add these settings to each profile's `settings.json` as well.  
+> Change `"windows1252"` to match the `--encoding` value you pass to vba-edit if you use a different code page.
 
 
 ## Common Workflows
 
+> All workflows below work with both `excel-vba <command>` (installed) and `uvx excel-vba <command>` (no install required).
+
 ### Start Fresh
 ```bash
-excel-vba edit                    # Start with active workbook
+uvx excel-vba edit                # Start with active workbook — no install required!
+excel-vba edit                    # If already installed
 ```
 
 ### Quick Export with Folder View
@@ -120,10 +151,12 @@ excel-vba edit --rubberduck-folders --in-file-headers
 
 | CLI Tool | Description |
 |---------|-------------|
-| `excel-vba.exe` | For Excel Workbooks (.xlsm, .xlsb, .xls) |
-| `word-vba.exe` | For Word documents (.docm) |
-| `access-vba.exe` | For Access databases (.accdb, .mdb) |
-| `powerpoint-vba.exe` | For PowerPoint presentations (.pptm) |
+| `excel-vba` | For Excel Workbooks (.xlsm, .xlsb, .xls) |
+| `word-vba` | For Word documents (.docm) |
+| `access-vba` | For Access databases (.accdb, .mdb) |
+| `powerpoint-vba` | For PowerPoint presentations (.pptm) |
+
+> 💡 Use with `uvx excel-vba <command>` (no install) or `excel-vba <command>` (if installed). Standalone `.exe` binaries also available — see [Latest Release](https://github.com/markuskiller/vba-edit/releases/latest).
 
 > 💡 **Note**: Additional macro-enabled formats (.xltm, .dotm, .potm) are likely supported but not yet tested in this release.
 
@@ -136,9 +169,12 @@ excel-vba edit --rubberduck-folders --in-file-headers
 | `export` | Export VBA content from Office document |
 | `check` | Check if 'Trust Access to the Office VBA project object model' is enabled |
 
-> 💡 Use **`*-vba.exe <command> --help`** in your terminal for a detailed option overview.
+> 💡 Use **`uvx excel-vba <command> --help`** (or `excel-vba <command> --help` if installed) for a detailed option overview.
 
 ### Examples of options
+
+> All examples below work with both `excel-vba <command>` (installed) and `uvx excel-vba <command>` (no install required).
+
 | Command | What it does |
 |---------|-------------|
 | `excel-vba edit` | Start live editing |
@@ -154,14 +190,14 @@ excel-vba edit --rubberduck-folders --in-file-headers
 
 | Issue | Solution |
 |-------|----------|
-| "Trust access" error | Run `excel-vba check` for diagnostics |
+| "Trust access" error | Run `uvx excel-vba check` (or `excel-vba check`) for diagnostics |
 | Changes not syncing | Save the file in your editor |
 | Forms not working | Add `--in-file-headers` flag |
 
 
 ## Safety Features
 
-**🛡️ Data Loss Prevention** (v0.4.0+)
+**🛡️ Data Loss Prevention**
 
 vba-edit now protects your work with smart safety checks:
 
@@ -183,16 +219,16 @@ excel-vba export --vba-directory ./src --force-overwrite
 **🚀 Core**
 - Live sync between Office and your editor
 - Full Git/version control support
-- All Office apps: Excel, Word, Access & **NEW v0.4.0+** PowerPoint
+- All Office apps: Excel, Word, Access & PowerPoint
 
 **📁 Organization** 
-- **NEW v0.4.0+** RubberduckVBA folder structure support
-- **NEW v0.4.0+** Smart file organization with `@Folder` annotations
-- **NEW v0.4.0+** TOML config files for team standards
+- RubberduckVBA folder structure support
+- Smart file organization with `@Folder` annotations
+- TOML config files for team standards
 
 **🔧 Advanced**
 - Unicode & encoding support
-- **IMPROVED v0.4.0+** UserForms with layout preservation  
+- UserForms with layout preservation  
 - Class modules with custom attributes
 
 
@@ -202,7 +238,7 @@ Development priorities evolve based on user feedback and real-world needs.
 
 👀 **See active planning**: [GitHub Milestones](https://github.com/markuskiller/vba-edit/milestones)  
 💡 **Request features**: [Open an Issue](https://github.com/markuskiller/vba-edit/issues)  
-📝 **Current focus**: v0.5.0 - Reference management & batch operations
+📝 **Current focus**: v0.5.0 - Reference management
 
 
 ### 💡 Feedback & Contributions
@@ -215,7 +251,7 @@ Found a bug? Have a feature idea? Questions about usage? Open an [Issue](https:/
 
 > 💡 **Complete CLI Overview**: available **[here](https://langui.ch/current-projects/vba-edit/#CLI)**
 
-### Example of `--in-file-headers --rubberduck-folders` (v0.4.0+)
+### Example of `--in-file-headers --rubberduck-folders`
 
 ```vba
 VERSION 1.0 CLASS
@@ -236,7 +272,7 @@ End Sub
 
 ## Colorized Output
 
-**NEW v0.4.1** Terminal output features professional color-coded messages for better readability:
+Terminal output features color-coded messages terms for better readability:
 
 - ✓ **Success** messages in green
 - ✗ **Error** messages in red
@@ -259,7 +295,7 @@ export NO_COLOR=1; excel-vba export      # Via environment variable
 
 ## Configuration Files
 
-**NEW v0.4.0+** Use TOML configuration files to standardize team workflows and avoid repetitive command-line arguments.
+Use TOML configuration files to standardize team workflows and avoid repetitive command-line arguments.
 
 ### Basic Configuration
 
@@ -305,7 +341,7 @@ excel-vba export --conf vba-config.toml
 
 Configuration values support dynamic placeholders for flexible path management.
 
-**Available placeholders (v0.4.1+):**
+**Available placeholders**
 - `{config.path}` - Directory containing the config file
 - `{file.name}` - Document filename without extension
 - `{file.fullname}` - Document filename with extension
