@@ -1715,6 +1715,10 @@ class OfficeVBAHandler(ABC):
             frx_source = resolve_path(f"{name}.frx", self.vba_dir)
             if frx_source.exists():
                 frx_target = resolve_path(f"{name}.frx", Path(self.doc.FullName).parent)
+                # Skip copy when source and target are the same file (vba_dir == workbook dir)
+                if frx_source.resolve() == frx_target.resolve():
+                    logger.debug(f"Skipping form binary copy for {name}.frx: source and target are the same file")
+                    return
                 try:
                     # If target exists and is read-only, make it writable temporarily
                     if frx_target.exists():
@@ -1732,7 +1736,7 @@ class OfficeVBAHandler(ABC):
                     raise VBAError(f"Failed to import form binary {name}.frx") from e
         except PathError as e:
             raise VBAError(f"Failed to handle form binary path: {str(e)}") from e
-
+        
     @abstractmethod
     def _update_document_module(self, name: str, code: str, components: Any) -> None:
         """Update an existing document module."""
