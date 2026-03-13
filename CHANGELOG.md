@@ -13,6 +13,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+## [0.4.4] - 2026-03-13
+
+### Added
+
+- **`uvx` Support**: Run any vba-edit tool directly without installing it permanently
+  - Use `uvx excel-vba edit -f myfile.xlsm` (or `uvx word-vba`, `uvx access-vba`, `uvx powerpoint-vba`)
+  - Same as `uv tool run excel-vba` — no permanent installation required
+  - README updated with `uvx`-first examples and workflows
+- **VS Code Settings Guidance**: Added recommended VS Code configuration to README
+  - Correct encoding (`windows1252`) and file-type associations for `.bas`, `.cls`, `.frm` files
+
+### Fixed
+
+- **UserForm Import Error on Same-Directory Workbooks**: Fixed `[WinError 32]` crash when importing from a workbook located in the same folder as the executable (or when `vba-dir` equals the workbook directory) ([Issue #83](https://github.com/markuskiller/vba-edit/issues/83))
+  - Excel locks `.frx` binary files while open; the tool now detects when source and target are the same file and skips the redundant copy
+  - Thanks to [@erikvanhimbergen](https://github.com/erikvanhimbergen) for the report and fix ([PR #84](https://github.com/markuskiller/vba-edit/pull/84))
+
 ## [0.4.3] - 2026-03-07
 
 ### Changed
