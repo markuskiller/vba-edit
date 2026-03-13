@@ -55,3 +55,65 @@ jobs:
       run: |
         twine upload --verbose dist/*
 
+  publish-satellites:
+    needs: [publish]
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Check out code
+      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+    - name: Set up Python
+      uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+      with:
+        python-version: "3.12"
+
+    - name: Install dependencies
+      run: |
+        pip install build twine
+
+    - name: Sync satellite versions to release tag
+      run: |
+        python - <<'EOF'
+        import re
+        from pathlib import Path
+
+        tag = "${{ github.ref_name }}"
+        version = tag.lstrip("v")
+        constraint = f"vba-edit=={version}"
+
+        for pkg in ["excel-vba", "word-vba", "powerpoint-vba", "access-vba"]:
+            path = Path(f"packages/{pkg}/pyproject.toml")
+            content = path.read_text()
+            content = re.sub(r'^version = "[^"]*"', f'version = "{version}"', content, flags=re.MULTILINE)
+            content = re.sub(r'"vba-edit[^"]*"', f'"{constraint}"', content)
+            path.write_text(content)
+            print(f"Updated {pkg} to {version} with {constraint}")
+        EOF
+
+    - name: Build satellite packages
+      run: |
+        for pkg in excel-vba word-vba powerpoint-vba access-vba; do
+          python -m build packages/$pkg
+        done
+
+    - name: Publish satellites to Test PyPI
+      if: startsWith(github.ref, 'refs/tags/v') && github.event.release.prerelease
+      env:
+        TWINE_USERNAME: __token__
+        TWINE_PASSWORD: ${{ secrets.TEST_PYPI_API_TOKEN }}
+      run: |
+        for pkg in excel-vba word-vba powerpoint-vba access-vba; do
+          twine upload --verbose --repository-url https://test.pypi.org/legacy/ packages/$pkg/dist/*
+        done
+
+    - name: Publish satellites to PyPI
+      if: startsWith(github.ref, 'refs/tags/v') && !github.event.release.prerelease
+      env:
+        TWINE_USERNAME: __token__
+        TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
+      run: |
+        for pkg in excel-vba word-vba powerpoint-vba access-vba; do
+          twine upload --verbose packages/$pkg/dist/*
+        done
+
