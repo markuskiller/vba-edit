@@ -82,6 +82,7 @@ from vba_edit.cli_common import (
     add_importing_arguments,
     add_excel_specific_arguments,
     add_references_file_arguments,
+    add_references_filter_arguments,
     add_references_output_arguments,
     get_references_command_description,
     get_references_command_usage,
@@ -99,7 +100,7 @@ from vba_edit.exceptions import (
     VBAAccessError,
     VBAError,
 )
-from vba_edit.reference_manager import ReferenceManager
+from vba_edit.reference_manager import ReferenceManager, filter_references
 from vba_edit.exceptions import VBAReferenceError
 from vba_edit.help_formatter import ColorizedArgumentParser, EnhancedHelpFormatter
 from vba_edit.office_vba import (
@@ -381,6 +382,7 @@ Simple usage:
             add_help=False,
         )
         add_references_file_arguments(list_refs_parser)
+        add_references_filter_arguments(list_refs_parser)
         add_common_option_group(list_refs_parser)
 
         # references export
@@ -394,6 +396,7 @@ Simple usage:
         )
         add_references_file_arguments(export_refs_parser)
         add_references_output_arguments(export_refs_parser)
+        add_references_filter_arguments(export_refs_parser)
         add_common_option_group(export_refs_parser)
 
         # references import
@@ -687,14 +690,33 @@ Simple usage:
 
             manager = ReferenceManager(doc)
 
+            # Read filter flags (present on list and export subcommands)
+            no_builtins = getattr(args, "no_builtins", False)
+            no_third_party = getattr(args, "no_third_party", False)
+            no_custom = getattr(args, "no_custom", False)
+
             if subcommand == "list":
                 refs = manager.list_references()
+                refs = filter_references(
+                    refs,
+                    no_builtins=no_builtins,
+                    no_third_party=no_third_party,
+                    no_custom=no_custom,
+                )
                 if not refs:
                     info("No VBA references found.")
                     sys.exit(0)
                 info(f"VBA references in {Path(doc_path).name} ({len(refs)} total):\n")
                 for ref in refs:
-                    status = "[BROKEN]" if ref["broken"] else "[BUILTIN]" if ref["builtin"] else "       "
+                    category = ref.get("category", "custom")
+                    if ref["broken"]:
+                        status = "[BROKEN]   "
+                    elif ref["builtin"]:
+                        status = "[BUILTIN]  "
+                    elif category == "third-party":
+                        status = "[3RD-PARTY]"
+                    else:
+                        status = "[CUSTOM]   "
                     path_str = f"\n      Path: {ref['path']}" if ref.get("path") else ""
                     desc_str = f"\n      Desc: {ref['description']}" if ref.get("description") else ""
                     print(
@@ -703,7 +725,12 @@ Simple usage:
                     )
 
             elif subcommand == "export":
-                manager.export_to_toml(refs_file)
+                manager.export_to_toml(
+                    refs_file,
+                    no_builtins=no_builtins,
+                    no_third_party=no_third_party,
+                    no_custom=no_custom,
+                )
                 success(f"References exported to: {refs_file}")
 
             elif subcommand == "import":

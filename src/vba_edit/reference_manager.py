@@ -42,6 +42,88 @@ from vba_edit.exceptions import (
 # Configure module logger
 logger = logging.getLogger(__name__)
 
+# --- Reference classification ---
+# Known third-party COM library GUIDs.  These are installed by external
+# software (e.g. Adobe Acrobat) and are NOT project-specific references
+# that a developer deliberately added.  The set is matched case-insensitively.
+THIRD_PARTY_GUIDS: set = {
+    # Adobe Acrobat
+    "{E64169B3-3592-47D2-816E-602C5C13F328}",  # Acrobat (older versions)
+    "{05BFD3F1-6319-4F30-B532-6B9BB480B9E5}",  # AFormAut 1.0 Type Library
+    "{B801CA65-A1FC-11D0-85AD-444553540000}",  # Adobe Acrobat 10.0+
+    "{1A184091-1B64-4B21-80E0-29657E7E09B2}",  # AcroPDFLib
+}
+
+# Name-based patterns for third-party references whose GUIDs vary across
+# versions.  Matched case-insensitively against the reference *name*.
+THIRD_PARTY_NAME_PATTERNS: list = [
+    "acrobat",
+    "acropdf",
+    "aformaut",
+]
+
+
+def classify_reference(ref: Dict[str, Any]) -> str:
+    """Classify a reference as 'builtin', 'third-party', or 'custom'.
+
+    Classification rules (evaluated in order):
+    1. COM ``BuiltIn`` flag is True → ``'builtin'``
+    2. GUID is in ``THIRD_PARTY_GUIDS`` → ``'third-party'``
+    3. Name matches a ``THIRD_PARTY_NAME_PATTERNS`` entry → ``'third-party'``
+    4. Everything else → ``'custom'``
+
+    Args:
+        ref: Reference dictionary as returned by ``list_references()``.
+
+    Returns:
+        One of ``'builtin'``, ``'third-party'``, or ``'custom'``.
+    """
+    if ref.get("builtin"):
+        return "builtin"
+
+    guid = (ref.get("guid") or "").upper()
+    if guid and guid in {g.upper() for g in THIRD_PARTY_GUIDS}:
+        return "third-party"
+
+    name_lower = (ref.get("name") or "").lower()
+    for pattern in THIRD_PARTY_NAME_PATTERNS:
+        if pattern in name_lower:
+            return "third-party"
+
+    return "custom"
+
+
+def filter_references(
+    refs: List[Dict[str, Any]],
+    *,
+    no_builtins: bool = False,
+    no_third_party: bool = False,
+    no_custom: bool = False,
+) -> List[Dict[str, Any]]:
+    """Filter a list of references by classification category.
+
+    Args:
+        refs: List of reference dictionaries.
+        no_builtins: Exclude built-in references.
+        no_third_party: Exclude third-party COM add-in references.
+        no_custom: Exclude custom (project-specific) references.
+
+    Returns:
+        Filtered list of reference dictionaries.
+    """
+    excluded = set()
+    if no_builtins:
+        excluded.add("builtin")
+    if no_third_party:
+        excluded.add("third-party")
+    if no_custom:
+        excluded.add("custom")
+
+    if not excluded:
+        return refs
+
+    return [ref for ref in refs if classify_reference(ref) not in excluded]
+
 
 def _reference_to_dict(ref: Any, index: int) -> Dict[str, Any]:
     """Build a reference info dict from a COM reference object."""
@@ -62,6 +144,10 @@ def _reference_to_dict(ref: Any, index: int) -> Dict[str, Any]:
         info["path"] = ref.FullPath
     except (AttributeError, pywintypes.com_error):
         info["path"] = ""
+
+    # Add classification category
+    info["category"] = classify_reference(info)
+
     return info
 
 
@@ -455,11 +541,18 @@ class ReferenceManager:
             logger.error(f"Failed to remove reference: {e}")
             raise VBAReferenceError(f"Unable to remove reference: {e}")
 
-    def export_to_toml(self, output_file: Union[str, Path]) -> None:
+    def export_to_toml(
+        self,
+        output_file: Union[str, Path],
+        *,
+        no_builtins: bool = False,
+        no_third_party: bool = False,
+        no_custom: bool = False,
+    ) -> None:
         """Export VBA references to a TOML configuration file.
 
-        Creates a TOML file with all non-built-in references. Built-in references
-        are excluded as they are always present and application-specific.
+        By default, all references with a valid GUID are exported.
+        Use the filter flags to exclude specific categories.
 
         TOML Format:
             [[references]]
@@ -471,6 +564,9 @@ class ReferenceManager:
 
         Args:
             output_file: Path to output TOML file
+            no_builtins: Exclude built-in references.
+            no_third_party: Exclude third-party COM add-in references.
+            no_custom: Exclude custom (project-specific) references.
 
         Raises:
             ReferenceError: If unable to export references
@@ -486,28 +582,34 @@ class ReferenceManager:
         try:
             references = self.list_references()
 
-            # Filter out built-in references AND project/template references that
-            # lack a valid GUID (e.g. Word's Normal.dotm appears as a non-built-in
-            # reference but has an empty GUID and cannot be re-added by GUID).
-            user_refs = [
-                ref for ref in references
-                if not ref["builtin"] and self.GUID_PATTERN.match(ref.get("guid", ""))
-            ]
+            # Always exclude references that lack a valid GUID (e.g. Word's
+            # Normal.dotm appears as a non-built-in reference but has an
+            # empty GUID and cannot be re-added by GUID).
+            exportable_refs = [ref for ref in references if self.GUID_PATTERN.match(ref.get("guid", ""))]
 
-            if not user_refs:
-                logger.warning("No user references to export (only built-in references found)")
-
-            logger.debug(
-                f"Exporting {len(user_refs)} user references (excluded {len(references) - len(user_refs)} built-in)"
+            # Apply category filters
+            exportable_refs = filter_references(
+                exportable_refs,
+                no_builtins=no_builtins,
+                no_third_party=no_third_party,
+                no_custom=no_custom,
             )
 
-            toml_content = _serialize_references_to_toml(user_refs)
+            if not exportable_refs:
+                logger.warning("No references to export after filtering")
+
+            logger.debug(
+                f"Exporting {len(exportable_refs)} references "
+                f"(excluded {len(references) - len(exportable_refs)} by filter)"
+            )
+
+            toml_content = _serialize_references_to_toml(exportable_refs)
 
             # Write to file
             output_path.parent.mkdir(parents=True, exist_ok=True)
             output_path.write_text(toml_content, encoding="utf-8")
 
-            logger.info(f"Exported {len(user_refs)} references to: {output_path}")
+            logger.info(f"Exported {len(exportable_refs)} references to: {output_path}")
 
         except VBAReferenceError:
             logger.error("Failed to export references")

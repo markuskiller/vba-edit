@@ -967,6 +967,29 @@ def add_references_output_arguments(parser: argparse.ArgumentParser) -> None:
     )
 
 
+def add_references_filter_arguments(parser: argparse.ArgumentParser) -> None:
+    """Add reference category filter arguments (--no-builtins, --no-third-party, --no-custom)."""
+    filter_group = parser.add_argument_group("Filter Options")
+    filter_group.add_argument(
+        "--no-builtins",
+        action="store_true",
+        default=False,
+        help="Exclude built-in references (VBA, Excel, Word, Office, etc.)",
+    )
+    filter_group.add_argument(
+        "--no-third-party",
+        action="store_true",
+        default=False,
+        help="Exclude third-party COM add-in references (e.g. Adobe Acrobat)",
+    )
+    filter_group.add_argument(
+        "--no-custom",
+        action="store_true",
+        default=False,
+        help="Exclude custom (project-specific) references",
+    )
+
+
 def get_references_command_description(refs_subcommand: str, office_app: str) -> str:
     """Get description string for a references subcommand."""
     config = get_office_config(office_app)
@@ -991,7 +1014,7 @@ version-controlled, or used to replicate reference setup in other documents.
 
 Examples:
   {ep} references export                      # Export to {{document}}_refs.toml
-  {ep} references export -r custom_refs.toml  # Export to custom file
+  {ep} references export -r my_file_refs.toml  # Export to custom file
   {ep} references export -f {ex} -r refs.toml"""
         case "import":
             return f"""Import VBA references from a TOML configuration file
