@@ -13,7 +13,7 @@ license = "BSD-3-Clause"
 license-files = ["LICENSE", "LICENSES/*.txt", "AUTHORS.md", "SECURITY.md"]
 keywords = ["vba", "excel", "word", "office", "automation", "macro", "PyPI"]
 classifiers = [
-    "Development Status :: 3 - Alpha",
+    "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.10",

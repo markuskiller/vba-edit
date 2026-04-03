@@ -168,7 +168,7 @@ excel-vba edit --rubberduck-folders --in-file-headers
 | `import` | Import VBA content into Office document |
 | `export` | Export VBA content from Office document |
 | `check` | Check if 'Trust Access to the Office VBA project object model' is enabled |
-| `references` | Manage VBA library references (list / export / import) |
+| `references` | Manage VBA library references (list / export / import / validate / add / remove) |
 
 > 💡 Use **`uvx excel-vba <command> --help`** (or `excel-vba <command> --help` if installed) for a detailed option overview.
 
@@ -185,8 +185,13 @@ excel-vba edit --rubberduck-folders --in-file-headers
 | `excel-vba export --force-overwrite` | Export without confirmation prompts |
 | `excel-vba check` | Verify status of *Trust access* to the VBA project object model |
 | `excel-vba references list` | List all VBA library references in the active workbook |
+| `excel-vba references list --no-builtins` | List only third-party and custom references |
 | `excel-vba references export` | Export references to a TOML file for sharing or version control |
 | `excel-vba references import -r refs.toml` | Restore references from a TOML file |
+| `excel-vba references validate` | Check for broken or missing references |
+| `excel-vba references add lib.xlam` | Add a reference by file path |
+| `excel-vba references remove MyLib` | Remove a reference by name |
+| `excel-vba export --with-references` | Export VBA code and references together |
 
 > 💡 **Complete Option Matrix**: available **[here](https://langui.ch/current-projects/vba-edit/#OptionMatrix)**
 
@@ -198,6 +203,9 @@ Manage VBA library references (e.g. Microsoft Scripting Runtime, ActiveX Data Ob
 # List all references in the active workbook
 excel-vba references list
 
+# List only custom and third-party references (hide built-ins)
+excel-vba references list --no-builtins
+
 # Export references to a TOML file (default: {document}_refs.toml)
 excel-vba references export
 excel-vba references export -r shared_refs.toml
@@ -205,12 +213,47 @@ excel-vba references export -r shared_refs.toml
 # Import references from a TOML file
 excel-vba references import -r shared_refs.toml
 excel-vba references import -f myfile.xlsm -r shared_refs.toml
+
+# Validate references — check for broken or missing ones
+excel-vba references validate
+
+# Add or remove individual references
+excel-vba references add path/to/library.xlam
+excel-vba references remove "My Custom Library"
 ```
+
+### Automatic reference sync
+
+Use `--with-references` to include references alongside code during export, import, or edit:
+
+```bash
+# Export VBA code AND references together
+excel-vba export --with-references
+
+# Import code AND restore references in one step
+excel-vba import --with-references
+
+# Live edit with automatic reference sync on save
+excel-vba edit --with-references
+```
+
+### Reference classification & filtering
+
+References are classified into three categories for easy filtering:
+
+| Category | Description | Example |
+|----------|-------------|----------|
+| `builtin` | Built-in Office references | VBA, Excel, stdole |
+| `third-party` | Third-party COM add-ins | Adobe Acrobat, SAP |
+| `custom` | Project-specific references | Your `.xlam` add-ins |
+
+Filter flags can be combined: `--no-builtins`, `--no-third-party`, `--no-custom`
 
 **Use cases:**
 - Track reference dependencies alongside VBA code in version control
 - Replicate the same reference setup across multiple documents
 - Onboard team members — just run `references import` to get the right libraries
+- Detect broken references before they cause runtime errors
 
 **TOML format** (exportable and hand-editable):
 ```toml
@@ -264,12 +307,13 @@ excel-vba export --vba-directory ./src --force-overwrite
 - Smart file organization with `@Folder` annotations
 - TOML config files for team standards
 
-**� Reference Management**
-- List, export, and import VBA library references
+**📚 Reference Management**
+- List, export, import, validate, add, and remove VBA library references
+- Classify references as builtin, third-party, or custom with composable filters
+- Automatic reference sync alongside code with `--with-references`
 - Share reference setups via version-controlled TOML files
-- Replicate reference configurations across documents and machines
 
-**�🔧 Advanced**
+**🔧 Advanced**
 - Unicode & encoding support
 - UserForms with layout preservation  
 - Class modules with custom attributes
@@ -281,7 +325,7 @@ Development priorities evolve based on user feedback and real-world needs.
 
 👀 **See active planning**: [GitHub Milestones](https://github.com/markuskiller/vba-edit/milestones)  
 💡 **Request features**: [Open an Issue](https://github.com/markuskiller/vba-edit/issues)  
-📝 **Current focus**: v0.5.0 - Reference management
+📝 **Current focus**: VBA reference management, supply chain security, and stability
 
 
 ### 💡 Feedback & Contributions

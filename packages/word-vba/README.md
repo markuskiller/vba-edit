@@ -6,11 +6,12 @@
 [![PyPI - Version](https://img.shields.io/pypi/v/vba-edit.svg)](https://pypi.org/project/vba-edit)
 [![PyPI - Python Version](https://img.shields.io/pypi/pyversions/vba-edit.svg)](https://pypi.org/project/vba-edit)
 [![Platform](https://img.shields.io/badge/platform-windows-blue.svg)](https://pypi.org/search/?q=vba-edit&o=&c=Operating+System+%3A%3A+Microsoft+%3A%3A+Windows)
-[![vba-edit - Downloads](https://img.shields.io/pypi/dm/vba-edit)](https://www.pypiplus.com/project/vba-edit/)
-[![word-vba - Downloads](https://img.shields.io/pypi/dm/word-vba)](https://www.pypiplus.com/project/word-vba/)
+[![Downloads](https://img.shields.io/pypi/dm/vba-edit)](https://www.pypiplus.com/project/vba-edit/)
 [![License](https://img.shields.io/badge/License-BSD_3--Clause-blue.svg)](https://opensource.org/licenses/BSD-3-Clause)
 
 This is a thin entry-point package for [vba-edit](https://pypi.org/project/vba-edit/). Installing `word-vba` gives you the `word-vba` command and automatically installs the `vba-edit` core package.
+
+[![Downloads](https://img.shields.io/pypi/dm/word-vba)](https://www.pypiplus.com/project/word-vba/)
 
 ## Quick Start
 

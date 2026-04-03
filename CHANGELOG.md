@@ -9,15 +9,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+### Changed
+
+### Fixed
+
+## [0.5.0b2] - 2026-04-03
+
+> **Beta release** — adds reference classification, management subcommands, and supply chain security hardening.
+
+### Added
+
 - **Skip Empty Modules** (`--skip-empty`): New flag for `export` and `import` commands to skip modules with no code ([Issue #63](https://github.com/markuskiller/vba-edit/issues/63))
   - Particularly useful for Excel workbooks where every worksheet creates a module — even empty ones
   - On `export`: modules with no code (e.g. `Sheet2`, `Sheet3`) are not written to files
   - On `import`: files that contain only a module header and no actual code are skipped
   - Has no effect on `edit` mode
+- **Reference Classification & Filtering**: References are now classified as `builtin`, `third-party`, or `custom` with composable filters
+  - `--no-builtins` — Hide built-in references (VBA, Excel, Word, Office, etc.)
+  - `--no-third-party` — Hide third-party COM add-in references
+  - `--no-custom` — Hide project-specific references
+  - Category tags displayed next to each reference in `references list` output
+- **Reference Validation**: New `references validate` subcommand to check for broken or missing references
+- **Add & Remove References**: New subcommands for direct reference management
+  - `references add LIBRARY` — Add a reference by file path (e.g. `.xlam`, `.dotm`, `.dll`)
+  - `references remove NAME` — Remove a reference by name
+- **Automatic Reference Sync** (`--with-references`): Opt-in flag to include VBA references alongside code during `export`, `import`, and `edit` operations
+  - On `export`: saves references to a TOML file alongside your VBA code files
+  - On `import`: restores references from the TOML file before importing code
+  - On `edit`: watches the TOML file for changes and syncs references back to Office on save
+  - TOML file includes metadata (version, timestamp, source document) for traceability
 
 ### Changed
 
-### Fixed
+- **Development Status**: Project classifier updated from Alpha to Beta on PyPI, reflecting growing stability and adoption
+
+### Security
+
+- **Trusted Publishers**: PyPI and TestPyPI uploads now use OpenID Connect (OIDC) authentication — no more stored API tokens
+- **PEP 740 Attestations**: Every published package now includes cryptographically signed provenance, proving it was built by the official GitHub Actions workflow
+- **Supply Chain Hardening**: Added `pip-audit` security scan to the publish pipeline and `--no-upx` to binary builds to reduce antivirus false positives
 
 ## [0.5.0b1] - 2026-03-08
 
