@@ -221,10 +221,14 @@ class OfficeVBACLI:
         return dests
 
     def _get_subparser(self, parser: argparse.ArgumentParser, command: str) -> argparse.ArgumentParser | None:
-        for action in parser._actions:
-            if isinstance(action, argparse._SubParsersAction):
-                return action.choices.get(command)
-        return None
+        return next(
+            (
+                action.choices.get(command)
+                for action in parser._actions
+                if isinstance(action, argparse._SubParsersAction)
+            ),
+            None,
+        )
 
     def _get_config_defaults(self, parser: argparse.ArgumentParser, config: dict) -> dict:
         defaults = {}
@@ -351,9 +355,7 @@ class OfficeVBACLI:
         )
         add_common_option_group(check_parser)  # Add common options to check command
 
-        # Add application specific arguments
-        extra_args_func = self._get_special_function("extra_arguments")
-        if extra_args_func:
+        if extra_args_func := self._get_special_function("extra_arguments"):
             extra_args_func(edit_parser)
             extra_args_func(import_parser)
             extra_args_func(export_parser)
@@ -488,13 +490,11 @@ Simple usage:
         if args.command == "references":
             return
 
-        if args.vba_directory:
-            # Only create the VBA directory if there's no PLACEHOLDER_FILE_VBAPROJECT value, or if it is already resolved
-            if PLACEHOLDER_FILE_VBAPROJECT not in args.vba_directory:
-                vba_dir = Path(args.vba_directory)
-                if not vba_dir.exists():
-                    self.logger.info(f"Creating VBA directory: {vba_dir}")
-                    vba_dir.mkdir(parents=True, exist_ok=True)
+        if args.vba_directory and PLACEHOLDER_FILE_VBAPROJECT not in args.vba_directory:
+            vba_dir = Path(args.vba_directory)
+            if not vba_dir.exists():
+                self.logger.info(f"Creating VBA directory: {vba_dir}")
+                vba_dir.mkdir(parents=True, exist_ok=True)
 
     def _call_handle_export_with_warnings(
         self,
@@ -569,9 +569,7 @@ Simple usage:
             # Ensure paths exist early (creates vba_directory if provided)
             self.validate_paths(args)
 
-            # Run application-specific pre-command hook
-            pre_hook = self._get_special_function("pre_command_hook")
-            if pre_hook:
+            if pre_hook := self._get_special_function("pre_command_hook"):
                 pre_hook(args)
 
             # Handle xlwings option if present (Excel only)
@@ -865,16 +863,14 @@ Simple usage:
 
             elif subcommand == "add":
                 library_path = args.library
-                added = manager.add_reference_by_path(library_path)
-                if added:
+                if added := manager.add_reference_by_path(library_path):
                     success(f"Added reference: {Path(library_path).stem}")
                 else:
                     info(f"Reference already exists: {Path(library_path).stem}")
 
             elif subcommand == "remove":
                 ref_name = args.ref_name
-                removed = manager.remove_reference(name=ref_name, skip_if_missing=False)
-                if removed:
+                if manager.remove_reference(name=ref_name, skip_if_missing=False):
                     success(f"Removed reference: {ref_name}")
 
         except VBAReferenceError as e:
@@ -939,8 +935,7 @@ Simple usage:
                 else:
                     subparser = self._get_subparser(parser, command)
                     target_parser = subparser or parser
-                    config_defaults = self._get_config_defaults(target_parser, config)
-                    if config_defaults:
+                    if config_defaults := self._get_config_defaults(target_parser, config):
                         # If the user explicitly passed one side of a mutually exclusive
                         # header pair on the CLI, don't let the config file silently set
                         # the other side via set_defaults — that would cause validate_header_options

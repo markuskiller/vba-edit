@@ -118,6 +118,7 @@ This module extends the original xlwings VBA interaction concept to provide a co
 interface for interacting with VBA code across different Microsoft Office applications.
 """
 
+
 # Configure module logger
 logger = logging.getLogger(__name__)
 
@@ -166,7 +167,7 @@ ALL_VBA_EXTENSIONS: Dict[str, str] = {
 }
 
 # Command-line entry points for different Office applications
-OFFICE_CLI_NAMES = {app: f"{app}-vba" for app in OFFICE_MACRO_EXTENSIONS.keys()}
+OFFICE_CLI_NAMES = {app: f"{app}-vba" for app in OFFICE_MACRO_EXTENSIONS}
 
 # Regex pattern for Rubberduck @Folder annotations
 RUBBERDUCK_FOLDER_PATTERN = re.compile(r"'\s*@folder\s*(?:\(\s*)?[\"']([^\"']+)[\"']\s*(?:\))?\s*$", re.IGNORECASE)
@@ -254,10 +255,9 @@ class VBADocumentNames:
             return True
 
         # Handle PowerPoint slides
-        if any(name.startswith(prefix) and name[len(prefix) :].isdigit() for prefix in cls.POWERPOINT_SLIDE_PREFIXES):
-            return True
-
-        return False
+        return any(
+            (name.startswith(prefix) and name[len(prefix) :].isdigit() for prefix in cls.POWERPOINT_SLIDE_PREFIXES)
+        )
 
 
 # VBA type definitions and constants
@@ -388,7 +388,7 @@ class VBAComponentHandler:
         exposed = re.search(r"Attribute VB_Exposed = (\w+)", header)
 
         # Document modules have both attributes set to True
-        if predeclared and exposed and predeclared.group(1).lower() == "true" and exposed.group(1).lower() == "true":
+        if predeclared and exposed and predeclared[1].lower() == "true" and exposed[1].lower() == "true":
             return VBAModuleType.DOCUMENT
 
         return VBAModuleType.CLASS
@@ -590,7 +590,7 @@ class VBAComponentHandler:
                 "   ClientLeft      =   100",
                 "   ClientTop       =   400",
                 "   ClientWidth     =   4000",
-                '   OleObjectBlob   =   "' + name + '.frx":0000',
+                f'   OleObjectBlob   =   "{name}.frx":0000',
                 "   StartUpPosition =   1  'CenterOwner",
                 "End",
                 f'Attribute VB_Name = "{name}"',
@@ -629,9 +629,8 @@ class VBAComponentHandler:
             # When in_file_headers is True, return only the code part for AddFromString
             # The header handling will be done differently (via COM properties, not AddFromString)
             return code
-        else:
-            if not header and module_type == VBAModuleType.STANDARD:
-                header = self.create_minimal_header(name, module_type)
+        if not header and module_type == VBAModuleType.STANDARD:
+            header = self.create_minimal_header(name, module_type)
 
         return f"{header}\n{code}\n" if header else f"{code}\n"
 
@@ -709,9 +708,7 @@ class VBAComponentHandler:
         for line in lines:
             stripped = line.strip()
             if not stripped or stripped.startswith("'"):
-                # Look for @Folder annotation
-                match = RUBBERDUCK_FOLDER_PATTERN.match(stripped)
-                if match:
+                if match := RUBBERDUCK_FOLDER_PATTERN.match(stripped):
                     # Extract folder path and convert dot notation to filesystem path
                     folder_path = match.group(1).replace(".", os.sep)
                     # Found the folder annotation, no need to continue
@@ -799,10 +796,7 @@ class VBAComponentHandler:
             folder_path = str(relative_path.parent)
 
             # Return empty string for root directory
-            if folder_path == ".":
-                return ""
-
-            return folder_path
+            return "" if folder_path == "." else folder_path
         except ValueError:
             # File is not under vba_base_dir
             return ""
@@ -947,7 +941,7 @@ class OfficeVBAHandler(ABC):
 
         except Exception as e:
             if check_rpc_error(e):
-                raise RPCError(self.app_name)
+                raise RPCError(self.app_name) from e
 
             if isinstance(e, VBAAccessError):
                 raise
@@ -976,8 +970,8 @@ class OfficeVBAHandler(ABC):
 
         except Exception as e:
             if check_rpc_error(e):
-                raise RPCError(self.app_name)
-            raise DocumentClosedError(self.document_type)
+                raise RPCError(self.app_name) from e
+            raise DocumentClosedError(self.document_type) from e
 
     def initialize_app(self) -> None:
         """Initialize the Office application."""
@@ -1002,8 +996,7 @@ class OfficeVBAHandler(ABC):
             VBAError: If .frm files are found and neither save_headers nor in_file_headers is enabled
         """
         if not self.save_headers and not self.in_file_headers:
-            form_files = list(vba_dir.glob("*.frm"))
-            if form_files:
+            if form_files := list(vba_dir.glob("*.frm")):
                 form_names = ", ".join(f.stem for f in form_files)
                 error_msg = (
                     f"\nERROR: Found UserForm files ({form_names}) but preferred header option is not enabled!\n"
@@ -1092,67 +1085,68 @@ class OfficeVBAHandler(ABC):
         it also closes the application.
         It's primarily used after export operations to clean up resources.
         """
-        if self.doc is not None:
-            try:
-                # Check document count BEFORE closing to decide if we should close app
-                # We need to check if count will be 0 after closing this document
-                should_close_app = False
-                if self.app is not None:
-                    try:
-                        if self.app_name == "Access":
-                            # Access: will close app after closing database
-                            should_close_app = True  # Always close Access after closing database
-                        elif self.app_name == "Word":
-                            # Word: close app if this is the only document (count == 1)
-                            should_close_app = self.app.Documents.Count <= 1
-                        elif self.app_name == "Excel":
-                            # Excel: close app if this is the only workbook (count == 1)
-                            should_close_app = self.app.Workbooks.Count <= 1
-                        elif self.app_name == "PowerPoint":
-                            # PowerPoint: close app if this is the only presentation (count == 1)
-                            should_close_app = self.app.Presentations.Count <= 1
+        if self.doc is None:
+            return
+        try:
+            # Check document count BEFORE closing to decide if we should close app
+            # We need to check if count will be 0 after closing this document
+            should_close_app = False
+            if self.app is not None:
+                try:
+                    if self.app_name == "Access":
+                        # Access: will close app after closing database
+                        should_close_app = True  # Always close Access after closing database
+                    elif self.app_name == "Excel":
+                        # Excel: close app if this is the only workbook (count == 1)
+                        should_close_app = self.app.Workbooks.Count <= 1
+                    elif self.app_name == "PowerPoint":
+                        # PowerPoint: close app if this is the only presentation (count == 1)
+                        should_close_app = self.app.Presentations.Count <= 1
 
-                        # Log the document count
-                        if self.app_name == "Word":
-                            logger.debug(f"Document count before closing: {self.app.Documents.Count}")
-                        elif self.app_name == "Excel":
-                            logger.debug(f"Workbook count before closing: {self.app.Workbooks.Count}")
-                        elif self.app_name == "PowerPoint":
-                            logger.debug(f"Presentation count before closing: {self.app.Presentations.Count}")
-                    except Exception as e:
-                        logger.debug(f"Could not check document count: {str(e)}")
-                        # Default to not closing app if we can't determine count
-                        should_close_app = False
+                    elif self.app_name == "Word":
+                        # Word: close app if this is the only document (count == 1)
+                        should_close_app = self.app.Documents.Count <= 1
+                    # Log the document count
+                    if self.app_name == "Word":
+                        logger.debug(f"Document count before closing: {self.app.Documents.Count}")
+                    elif self.app_name == "Excel":
+                        logger.debug(f"Workbook count before closing: {self.app.Workbooks.Count}")
+                    elif self.app_name == "PowerPoint":
+                        logger.debug(f"Presentation count before closing: {self.app.Presentations.Count}")
+                except Exception as e:
+                    logger.debug(f"Could not check document count: {str(e)}")
+                    # Default to not closing app if we can't determine count
+                    should_close_app = False
 
-                logger.debug(f"Closing {self.document_type}: {self.doc_path}")
-                # Close without saving (SaveChanges=False / wdDoNotSaveChanges=0)
-                if self.app_name == "Access":
-                    # Access handles close differently
-                    self.app.CloseCurrentDatabase()
-                else:
-                    # Excel, Word, PowerPoint use Close method
-                    self.doc.Close(SaveChanges=False)
-                self.doc = None
-                logger.info(f"{self.document_type.capitalize()} closed successfully")
+            logger.debug(f"Closing {self.document_type}: {self.doc_path}")
+            # Close without saving (SaveChanges=False / wdDoNotSaveChanges=0)
+            if self.app_name == "Access":
+                # Access handles close differently
+                self.app.CloseCurrentDatabase()
+            else:
+                # Excel, Word, PowerPoint use Close method
+                self.doc.Close(SaveChanges=False)
+            self.doc = None
+            logger.info(f"{self.document_type.capitalize()} closed successfully")
 
-                # Now close the application if appropriate
-                if should_close_app and self.app is not None:
-                    try:
-                        logger.debug(f"No other documents open, closing {self.app_name} application")
-                        self.app.Quit()
-                        self.app = None
-                        logger.info(f"{self.app_name} application closed successfully")
-                    except Exception as e:
-                        logger.warning(f"Failed to close {self.app_name} application: {str(e)}")
-                        # Don't raise - closing app is not critical
-                elif not should_close_app:
-                    logger.debug(f"Other documents are open, keeping {self.app_name} application running")
+            # Now close the application if appropriate
+            if should_close_app and self.app is not None:
+                try:
+                    logger.debug(f"No other documents open, closing {self.app_name} application")
+                    self.app.Quit()
+                    self.app = None
+                    logger.info(f"{self.app_name} application closed successfully")
+                except Exception as e:
+                    logger.warning(f"Failed to close {self.app_name} application: {str(e)}")
+                    # Don't raise - closing app is not critical
+            elif not should_close_app:
+                logger.debug(f"Other documents are open, keeping {self.app_name} application running")
 
-            except Exception as e:
-                logger.warning(f"Failed to close {self.document_type}: {str(e)}")
-                # Don't raise exception - closing is not critical
-                # Set to None anyway to avoid stale references
-                self.doc = None
+        except Exception as e:
+            logger.warning(f"Failed to close {self.document_type}: {str(e)}")
+            # Don't raise exception - closing is not critical
+            # Set to None anyway to avoid stale references
+            self.doc = None
 
     def _check_header_mode_change(self) -> bool:
         """Check if the header storage mode has changed since last export.
@@ -1248,13 +1242,10 @@ class OfficeVBAHandler(ABC):
         vba_extensions = [".bas", ".cls", ".frm"]
 
         try:
-            if self.use_rubberduck_folders:
-                # Check recursively
-                for ext in vba_extensions:
+            for ext in vba_extensions:
+                if self.use_rubberduck_folders:
                     existing_files.extend(self.vba_dir.rglob(f"*{ext}"))
-            else:
-                # Check only root directory
-                for ext in vba_extensions:
+                else:
                     existing_files.extend(self.vba_dir.glob(f"*{ext}"))
 
             return existing_files
@@ -1424,8 +1415,7 @@ class OfficeVBAHandler(ABC):
 
         # Add Rubberduck folder annotation if enabled
         if self.use_rubberduck_folders:
-            folder_path = self.component_handler.get_folder_from_file_path(file_path, self.vba_dir)
-            if folder_path:
+            if folder_path := self.component_handler.get_folder_from_file_path(file_path, self.vba_dir):
                 code = self.component_handler.add_rubberduck_folder(code, folder_path)
 
         # Handle based on module type
@@ -1529,8 +1519,7 @@ class OfficeVBAHandler(ABC):
 
         # Add Rubberduck folder annotation if enabled
         if self.use_rubberduck_folders:
-            folder_path = self.component_handler.get_folder_from_file_path(file_path, self.vba_dir)
-            if folder_path:
+            if folder_path := self.component_handler.get_folder_from_file_path(file_path, self.vba_dir):
                 code = self.component_handler.add_rubberduck_folder(code, folder_path)
                 logger.debug(f"Added @Folder annotation: {folder_path}")
 
@@ -1634,17 +1623,12 @@ class OfficeVBAHandler(ABC):
         lines = header.splitlines()
         for line in lines:
             line = line.strip()
-            if line.startswith("Attribute VB_"):
-                # Most VB_ attributes are read-only and set automatically
-                # Only a few can be modified via COM
-                if "VB_Description" in line:
-                    # Extract and set description if supported
-                    match = re.search(r'Attribute VB_Description = "([^"]*)"', line)
-                    if match:
-                        try:
-                            component.Description = match.group(1)
-                        except Exception:
-                            pass  # Not all components support description
+            if line.startswith("Attribute VB_") and "VB_Description" in line:
+                if match := re.search(r'Attribute VB_Description = "([^"]*)"', line):
+                    try:
+                        component.Description = match[1]
+                    except Exception:
+                        pass  # Not all components support description
 
     def _update_module_content(self, component: Any, content: str) -> None:
         """Update the content of an existing module.
@@ -1774,12 +1758,11 @@ class OfficeVBAHandler(ABC):
             with open(code_file, "r", encoding=self.encoding) as f:
                 content = f.read().strip()
 
-            if self.in_file_headers:
-                # Split content to extract only the code part
-                _, code = self.component_handler.split_vba_content(content)
-                return code
-            else:
+            if not self.in_file_headers:
                 return content
+            # Split content to extract only the code part
+            _, code = self.component_handler.split_vba_content(content)
+            return code
         except Exception as e:
             logger.error(f"Failed to read code file {code_file}: {str(e)}")
             raise VBAError(f"Failed to read VBA code file: {code_file}") from e
@@ -1828,14 +1811,12 @@ class OfficeVBAHandler(ABC):
 
             # Setup file patterns for watchfiles
             if self.use_rubberduck_folders:
-                # Watch recursively
-                watch_path = self.vba_dir
                 recursive = True
             else:
-                # Watch only the root directory
-                watch_path = self.vba_dir
                 recursive = False
 
+            # Watch recursively
+            watch_path = self.vba_dir
             # Define VBA file extensions we want to watch
             vba_extensions = {".bas", ".cls", ".frm"}
 
@@ -1963,13 +1944,10 @@ class OfficeVBAHandler(ABC):
 
             # Find all VBA files, recursively if Rubberduck folders are enabled
             vba_files = []
-            if self.use_rubberduck_folders:
-                # Search recursively
-                for ext in [".cls", ".bas", ".frm"]:
+            for ext in [".cls", ".bas", ".frm"]:
+                if self.use_rubberduck_folders:
                     vba_files.extend(self.vba_dir.rglob(f"*{ext}"))
-            else:
-                # Search only in root directory
-                for ext in [".cls", ".bas", ".frm"]:
+                else:
                     vba_files.extend(self.vba_dir.glob(f"*{ext}"))
 
             if not vba_files:
@@ -1997,8 +1975,8 @@ class OfficeVBAHandler(ABC):
 
         except Exception as e:
             if check_rpc_error(e):
-                raise DocumentClosedError(self.document_type)
-            raise VBAError(str(e))
+                raise DocumentClosedError(self.document_type) from e
+            raise VBAError(str(e)) from e
 
     def import_single_file(self, file_path: Path) -> None:
         """Import a single VBA file that has changed.
@@ -2125,10 +2103,9 @@ class OfficeVBAHandler(ABC):
             self._check_form_safety(self.vba_dir)  # Check for forms before proceeding
 
             # Check if we have any UserForms (in exported data or existing files)
-            has_forms = any(info.get("type") == "UserForm" for info in encoding_data.values())
-            if not has_forms:
-                # Also check for existing .frm files in case they were skipped
-                has_forms = bool(list(self.vba_dir.glob("*.frm")))
+            has_forms = any(info.get("type") == "UserForm" for info in encoding_data.values()) or bool(
+                list(self.vba_dir.glob("*.frm"))
+            )
 
             # Warn about .frx files if forms were exported
             if has_forms:
@@ -2402,7 +2379,7 @@ class AccessVBAHandler(OfficeVBAHandler):
                     "To continue:\n"
                     "1. Start Access\n"
                     "2. Run the access-vba command again"
-                )
+                ) from e
             raise VBAError(f"Failed to open database: {str(e)}") from e
 
     def get_document_module_name(self) -> str:
@@ -2456,7 +2433,7 @@ class AccessVBAHandler(OfficeVBAHandler):
                 logger.debug("Database verified accessible - Access auto-saves changes")
         except Exception as e:
             if check_rpc_error(e):
-                raise RPCError(self.app_name)
+                raise RPCError(self.app_name) from e
             # Don't raise other errors - Access handles saving automatically
 
     def is_document_open(self) -> bool:
@@ -2478,8 +2455,8 @@ class AccessVBAHandler(OfficeVBAHandler):
 
         except Exception as e:
             if check_rpc_error(e):
-                raise RPCError(self.app_name)
-            raise DocumentClosedError(self.document_type)
+                raise RPCError(self.app_name) from e
+            raise DocumentClosedError(self.document_type) from e
 
 
 class PowerPointVBAHandler(OfficeVBAHandler):

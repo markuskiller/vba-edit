@@ -268,23 +268,21 @@ def get_placeholder_values(config_file_path: Optional[str] = None, file_path: Op
         placeholders[PLACEHOLDER_CONFIG_PATH] = str(config_dir)
 
     # Extract file information if file path is available
-    if file_path:
-        # Handle case where file_path might contain unresolved placeholders
-        if "{" not in file_path:  # Only process if no placeholders remain
-            resolved_file_path = Path(file_path)
+    if file_path and "{" not in file_path:
+        resolved_file_path = Path(file_path)
 
-            # If relative path and we have config directory, resolve relative to config
-            if not resolved_file_path.is_absolute() and config_file_path:
-                config_dir = Path(config_file_path).parent
-                resolved_file_path = config_dir / file_path
+        # If relative path and we have config directory, resolve relative to config
+        if not resolved_file_path.is_absolute() and config_file_path:
+            config_dir = Path(config_file_path).parent
+            resolved_file_path = config_dir / file_path
 
-            file_name = resolved_file_path.stem  # filename without extension
-            file_fullname = resolved_file_path.name  # filename with extension
-            file_path_str = str(resolved_file_path.parent)
+        file_name = resolved_file_path.stem  # filename without extension
+        file_fullname = resolved_file_path.name  # filename with extension
+        file_path_str = str(resolved_file_path.parent)
 
-            placeholders[PLACEHOLDER_FILE_NAME] = file_name
-            placeholders[PLACEHOLDER_FILE_FULLNAME] = file_fullname
-            placeholders[PLACEHOLDER_FILE_PATH] = file_path_str
+        placeholders[PLACEHOLDER_FILE_NAME] = file_name
+        placeholders[PLACEHOLDER_FILE_FULLNAME] = file_fullname
+        placeholders[PLACEHOLDER_FILE_PATH] = file_path_str
 
     return placeholders
 
@@ -462,15 +460,13 @@ def _merge_config_section(args_dict: dict, config: Dict[str, Any], section: str,
         arg_key = key.replace("-", "_")
         if arg_key not in args_dict:
             continue
-        if cli_explicit is not None:
-            # Robust path: only apply if user didn't explicitly set this arg
-            if arg_key not in cli_explicit:
-                args_dict[arg_key] = value
-        else:
-            # Legacy fallback: only apply if value is None
-            if args_dict[arg_key] is None:
-                args_dict[arg_key] = value
-
+        if (
+            cli_explicit is not None
+            and arg_key not in cli_explicit
+            or cli_explicit is None
+            and args_dict[arg_key] is None
+        ):
+            args_dict[arg_key] = value
     # Convert back to a Namespace
     return argparse.Namespace(**args_dict)
 
@@ -926,7 +922,7 @@ def get_command_usage(command: str, office_app: str) -> str:
         case "export" | "edit" | "import":
             command_usage = f"{command_usage}{common_command_options1}"
 
-            if command in ("edit", "export"):
+            if command in {"edit", "export"}:
                 command_usage = f"{command_usage}{edit_and_export_options}"
 
             if command == "export":
@@ -940,9 +936,7 @@ def get_command_usage(command: str, office_app: str) -> str:
         case "check":
             command_usage = f"{command_usage} [all]"
 
-    command_usage = f"{command_usage}{common_command_options2}"
-
-    return command_usage
+    return f"{command_usage}{common_command_options2}"
 
 
 EXAMPLE_FILENAME_MAX_LEN = 24
@@ -953,7 +947,7 @@ def _cap_example_filename(example_filename: str, max_len: int = EXAMPLE_FILENAME
     """Cap example filename length to keep example alignment stable."""
     if len(example_filename) <= max_len:
         return example_filename
-    return example_filename[: max_len - 1] + "…"
+    return f"{example_filename[: max_len - 1]}…"
 
 
 def _format_example_line(command: str, comment: str, col_width: int = EXAMPLE_COMMAND_COL_WIDTH) -> str:
