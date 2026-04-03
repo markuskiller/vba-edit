@@ -1815,8 +1815,12 @@ class OfficeVBAHandler(ABC):
                 f.write(code + "\n")
             logger.debug(f"Saved code file: {code_file}")
 
-    def watch_changes(self) -> None:
-        """Watch for changes in VBA files and update the document."""
+    def watch_changes(self, *, watch_references: bool = False) -> None:
+        """Watch for changes in VBA files and update the document.
+
+        Args:
+            watch_references: If True, also watch refs.toml for changes and re-import.
+        """
         try:
             logger.info(f"Watching for changes in {self.vba_dir}...")
             last_check_time = time.time()
@@ -1834,6 +1838,9 @@ class OfficeVBAHandler(ABC):
 
             # Define VBA file extensions we want to watch
             vba_extensions = {".bas", ".cls", ".frm"}
+
+            # Derive the expected refs.toml filename for this document
+            refs_toml_name = f"{self.doc_path.stem}_refs.toml"
 
             # Use yield_on_timeout=True so watch yields even without file changes
             # This allows us to check document state periodically
@@ -1854,15 +1861,34 @@ class OfficeVBAHandler(ABC):
 
                     # Filter changes to only include VBA files (exclude temp files)
                     vba_changes = []
+                    toml_changes = []
                     for change_type, file_path in changes:
                         path = Path(file_path)
                         # Only include files with VBA extensions, but exclude temp files
                         # Temp files have pattern: *_temp.{bas,cls,frm}
                         if path.suffix.lower() in vba_extensions and not path.stem.endswith("_temp"):
                             vba_changes.append((change_type, file_path))
+                        elif watch_references and path.name == refs_toml_name and change_type == Change.modified:
+                            toml_changes.append((change_type, file_path))
 
                     if vba_changes:
                         logger.debug(f"Watchfiles detected VBA changes: {vba_changes}")
+                    if toml_changes:
+                        logger.debug(f"Watchfiles detected refs.toml change: {toml_changes}")
+
+                    # Handle refs.toml changes — re-import references
+                    for _change_type, toml_path in toml_changes:
+                        try:
+                            from vba_edit.reference_manager import ReferenceManager
+
+                            manager = ReferenceManager(self.doc)
+                            stats = manager.import_from_toml(str(toml_path))
+                            added = stats.get("added", 0)
+                            skipped = stats.get("skipped", 0)
+                            failed = stats.get("failed", 0)
+                            logger.info(f"References re-imported: {added} added, {skipped} skipped, {failed} failed")
+                        except Exception as e:
+                            logger.warning(f"Could not re-import references: {e}")
 
                     for change_type, path in vba_changes:
                         try:

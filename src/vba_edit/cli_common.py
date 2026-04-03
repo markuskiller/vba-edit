@@ -551,6 +551,12 @@ def add_exporting_arguments(parser: argparse.ArgumentParser) -> None:
         action="store_true",
         help="Skip modules with no code (e.g. empty worksheet modules)",
     )
+    exporting_group.add_argument(
+        "--with-references",
+        action="store_true",
+        default=False,
+        help="Also export VBA references to a TOML file",
+    )
 
 
 def add_importing_arguments(parser: argparse.ArgumentParser) -> None:
@@ -565,6 +571,12 @@ def add_importing_arguments(parser: argparse.ArgumentParser) -> None:
         dest=CONFIG_KEY_SKIP_EMPTY,
         action="store_true",
         help="Skip files with no code (e.g. empty worksheet module files)",
+    )
+    importing_group.add_argument(
+        "--with-references",
+        action="store_true",
+        default=False,
+        help="Also import VBA references from a TOML file",
     )
 
 

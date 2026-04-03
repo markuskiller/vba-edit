@@ -512,6 +512,42 @@ Simple usage:
             keep_open=keep_open,
         )
 
+    def _get_refs_file(self, handler) -> Path:
+        """Derive the refs.toml path from the handler's document path."""
+        return handler.vba_dir / f"{handler.doc_path.stem}_refs.toml"
+
+    def _auto_export_references(self, handler) -> None:
+        """Export VBA references alongside VBA code."""
+        from vba_edit.console import info
+
+        try:
+            refs_file = self._get_refs_file(handler)
+            manager = ReferenceManager(handler.doc)
+            manager.export_to_toml(str(refs_file))
+            info(f"References exported to: {refs_file.name}")
+        except Exception as e:
+            self.logger.warning(f"Could not export references: {e}")
+
+    def _auto_import_references(self, handler) -> None:
+        """Import VBA references from refs.toml if it exists."""
+        from vba_edit.console import info, warning
+
+        try:
+            refs_file = self._get_refs_file(handler)
+            if not refs_file.exists():
+                self.logger.debug(f"No references file found at {refs_file}, skipping")
+                return
+            manager = ReferenceManager(handler.doc)
+            stats = manager.import_from_toml(str(refs_file))
+            added = stats.get("added", 0)
+            skipped = stats.get("skipped", 0)
+            failed = stats.get("failed", 0)
+            info(f"References imported: {added} added, {skipped} skipped, {failed} failed")
+            if failed:
+                warning(f"{failed} reference(s) could not be added — check log for details")
+        except Exception as e:
+            self.logger.warning(f"Could not import references: {e}")
+
     def handle_office_vba_command(self, args: argparse.Namespace) -> None:
         """Handle the office-vba command execution."""
         try:
@@ -601,8 +637,13 @@ Simple usage:
                         keep_open=True,  # CRITICAL: Must keep document open for edit mode
                     )
                     # endregion
+                    # Auto-export references for edit mode initial export
+                    if getattr(args, "with_references", False):
+                        self._auto_export_references(handler)
                     try:
-                        handler.watch_changes()
+                        handler.watch_changes(
+                            watch_references=getattr(args, "with_references", False),
+                        )
                     except (DocumentClosedError, RPCError) as e:
                         self.logger.error(str(e))
                         app_name = self.config["app_name"]
@@ -611,6 +652,9 @@ Simple usage:
                         )
                         sys.exit(1)
                 elif args.command == "import":
+                    # Auto-import references before VBA import
+                    if getattr(args, "with_references", False):
+                        self._auto_import_references(handler)
                     handler.import_vba()
                 elif args.command == "export":
                     handle_export_with_warnings(
@@ -621,6 +665,9 @@ Simple usage:
                         force_overwrite=getattr(args, "force_overwrite", False),
                         keep_open=getattr(args, "keep_open", False),
                     )
+                    # Auto-export references after VBA export
+                    if getattr(args, "with_references", False):
+                        self._auto_export_references(handler)
             except (DocumentClosedError, RPCError) as e:
                 self.logger.error(str(e))
                 sys.exit(1)

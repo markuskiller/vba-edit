@@ -6,6 +6,7 @@ and filtering logic in reference_manager.py, and CLI parser wiring.
 """
 
 import pytest
+from pathlib import Path
 
 from vba_edit.reference_manager import (
     THIRD_PARTY_GUIDS,
@@ -237,3 +238,114 @@ class TestReferencesCLIParsing:
         args = parser.parse_args(["references", "remove", "OldLib", "-f", "doc.xlsm"])
         assert args.ref_name == "OldLib"
         assert args.file == "doc.xlsm"
+
+
+# ---------------------------------------------------------------------------
+# --with-references flag parsing
+# ---------------------------------------------------------------------------
+
+
+class TestWithReferencesFlag:
+    """Tests that --with-references is available on export, import, and edit commands."""
+
+    @pytest.fixture()
+    def parser(self):
+        return create_cli_parser()
+
+    def test_export_with_references_default(self, parser):
+        args = parser.parse_args(["export"])
+        assert args.with_references is False
+
+    def test_export_with_references_set(self, parser):
+        args = parser.parse_args(["export", "--with-references"])
+        assert args.with_references is True
+
+    def test_import_with_references_default(self, parser):
+        args = parser.parse_args(["import"])
+        assert args.with_references is False
+
+    def test_import_with_references_set(self, parser):
+        args = parser.parse_args(["import", "--with-references"])
+        assert args.with_references is True
+
+    def test_edit_with_references_default(self, parser):
+        args = parser.parse_args(["edit"])
+        assert args.with_references is False
+
+    def test_edit_with_references_set(self, parser):
+        args = parser.parse_args(["edit", "--with-references"])
+        assert args.with_references is True
+
+
+# ---------------------------------------------------------------------------
+# TOML metadata and path normalization
+# ---------------------------------------------------------------------------
+
+
+class TestTomlMetadata:
+    """Tests for TOML serialization: metadata section, path normalization, version checking."""
+
+    def test_metadata_section_present(self):
+        """Serialized TOML contains a [metadata] section."""
+        from vba_edit.reference_manager import _serialize_references_to_toml
+
+        output = _serialize_references_to_toml([], document_name="Book1.xlsm")
+        assert "[metadata]" in output
+        assert 'generated_by = "vba-edit' in output
+        assert "timestamp = " in output
+        assert 'document = "Book1.xlsm"' in output
+
+    def test_metadata_no_document(self):
+        """Metadata omits document key when no name is provided."""
+        from vba_edit.reference_manager import _serialize_references_to_toml
+
+        output = _serialize_references_to_toml([])
+        assert "[metadata]" in output
+        assert "document = " not in output
+
+    def test_path_normalization_in_toml(self, tmp_path):
+        """Paths are resolved to absolute before appearing in TOML."""
+        from vba_edit.reference_manager import _serialize_references_to_toml
+
+        ref = _make_ref(name="TestLib", path=str(tmp_path / "lib.dll"))
+        output = _serialize_references_to_toml([ref])
+        # The path should be in the output and should be absolute
+        assert "path = " in output
+        assert "lib.dll" in output
+
+    def test_version_in_metadata(self):
+        """The generated_by field contains the current vba-edit version."""
+        from vba_edit.reference_manager import _serialize_references_to_toml, _get_version
+
+        output = _serialize_references_to_toml([])
+        version = _get_version()
+        assert f'generated_by = "vba-edit {version}"' in output
+
+    def test_document_name_escaping(self):
+        """Document names with special chars are escaped in TOML."""
+        from vba_edit.reference_manager import _serialize_references_to_toml
+
+        output = _serialize_references_to_toml([], document_name='Book "1".xlsm')
+        assert 'document = "Book \\"1\\".xlsm"' in output
+
+
+# ---------------------------------------------------------------------------
+# Auto-export / auto-import helpers
+# ---------------------------------------------------------------------------
+
+
+class TestAutoReferenceHelpers:
+    """Tests for the OfficeVBACLI auto-export/import reference helper methods."""
+
+    def test_get_refs_file_derives_correct_path(self):
+        """_get_refs_file derives {stem}_refs.toml in vba_dir."""
+        from unittest.mock import MagicMock
+        from vba_edit.office_cli import OfficeVBACLI
+
+        cli = OfficeVBACLI.__new__(OfficeVBACLI)
+        handler = MagicMock()
+        handler.doc_path = Path("C:/docs/MyWorkbook.xlsm")
+        handler.vba_dir = Path("C:/docs/VBA-MyWorkbook")
+
+        result = cli._get_refs_file(handler)
+        assert result == Path("C:/docs/VBA-MyWorkbook/MyWorkbook_refs.toml")

@@ -165,11 +165,20 @@ class TestWordReferenceManagerIntegration:
             assert scripting_guid in content
             assert "[[references]]" in content
 
+            # Verify metadata section is present
+            assert "[metadata]" in content
+            assert "generated_by" in content
+
+            # When builtins are excluded, they should not appear
+            toml_no_builtins = Path(tmpdir) / "word_refs_no_builtins.toml"
+            manager.export_to_toml(toml_no_builtins, no_builtins=True)
+            filtered_content = toml_no_builtins.read_text(encoding="utf-8")
+
             refs = manager.list_references()
             builtin_refs = [r for r in refs if r["builtin"]]
 
             for builtin_ref in builtin_refs:
-                assert builtin_ref["guid"] not in content, (
+                assert builtin_ref["guid"] not in filtered_content, (
                     f"Built-in reference {builtin_ref['name']} should be filtered from export"
                 )
 
