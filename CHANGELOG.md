@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Skip Empty Modules** (`--skip-empty`): New flag for `export` and `import` commands to skip modules with no code ([Issue #63](https://github.com/markuskiller/vba-edit/issues/63))
+  - Particularly useful for Excel workbooks where every worksheet creates a module — even empty ones
+  - On `export`: modules with no code (e.g. `Sheet2`, `Sheet3`) are not written to files
+  - On `import`: files that contain only a module header and no actual code are skipped
+  - Has no effect on `edit` mode
+
 ### Changed
 
 ### Fixed

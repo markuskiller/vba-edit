@@ -841,6 +841,7 @@ class OfficeVBAHandler(ABC):
         use_rubberduck_folders: bool = False,
         open_folder: bool = False,
         in_file_headers: bool = False,
+        skip_empty: bool = False,
     ):
         """Initialize the VBA handler."""
         try:
@@ -854,6 +855,7 @@ class OfficeVBAHandler(ABC):
             self.use_rubberduck_folders = use_rubberduck_folders
             self.open_folder = open_folder
             self.in_file_headers = in_file_headers
+            self.skip_empty = skip_empty
             self.app = None
             self.doc = None
             self.component_handler = VBAComponentHandler(use_rubberduck_folders)
@@ -869,6 +871,7 @@ class OfficeVBAHandler(ABC):
             logger.debug(f"In-file headers: {in_file_headers}")
             logger.debug(f"Rubberduck folders: {use_rubberduck_folders}")
             logger.debug(f"Open folder after export: {open_folder}")
+            logger.debug(f"Skip empty modules: {skip_empty}")
 
         except DocumentNotFoundError:
             raise  # Let it propagate
@@ -1907,6 +1910,20 @@ class OfficeVBAHandler(ABC):
         finally:
             logger.info("VBA editor stopped.")
 
+    def _is_empty_vba_file(self, vba_file: Path) -> bool:
+        """Check if a VBA file contains no code (only a module header).
+
+        Returns True if the file's code section is empty after stripping the header.
+        Used by import_vba to skip empty module files when skip_empty is set.
+        """
+        try:
+            with open(vba_file, "r", encoding=self.encoding, errors="replace") as f:
+                content = f.read()
+            _, code = self.component_handler.split_vba_content(content)
+            return not code.strip()
+        except Exception:
+            return False
+
     def import_vba(self) -> None:
         """Import VBA content into the Office document."""
         try:
@@ -1941,6 +1958,9 @@ class OfficeVBAHandler(ABC):
             # Import components
             for vba_file in vba_files:
                 try:
+                    if self.skip_empty and self._is_empty_vba_file(vba_file):
+                        logger.info(f"Skipping empty VBA file: {vba_file.name}")
+                        continue
                     self.import_component(vba_file, components)
                 except Exception as e:
                     logger.error(f"Failed to import {vba_file.name}: {str(e)}")
@@ -2039,6 +2059,12 @@ class OfficeVBAHandler(ABC):
                 try:
                     info = self.component_handler.get_component_info(component)
                     base_name = info["name"]
+
+                    # Skip modules with no code if requested
+                    if self.skip_empty and info["code_lines"] == 0:
+                        logger.info(f"Skipping empty module: {base_name}")
+                        continue
+
                     final_file = resolve_path(f"{base_name}{info['extension']}", self.vba_dir)
                     header_file = resolve_path(f"{base_name}.header", self.vba_dir) if self.save_headers else None
 
@@ -2248,6 +2274,7 @@ class AccessVBAHandler(OfficeVBAHandler):
         use_rubberduck_folders: bool = False,
         open_folder: bool = False,
         in_file_headers: bool = False,
+        skip_empty: bool = False,
     ):
         """Initialize the Access VBA handler.
 
@@ -2272,6 +2299,7 @@ class AccessVBAHandler(OfficeVBAHandler):
                 use_rubberduck_folders=use_rubberduck_folders,
                 open_folder=open_folder,
                 in_file_headers=in_file_headers,
+                skip_empty=skip_empty,
             )
 
             # Handle Access-specific initialization

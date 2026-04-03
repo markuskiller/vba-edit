@@ -155,6 +155,7 @@ CONFIG_KEY_INVISIBLE_MODE = "invisible_mode"
 CONFIG_KEY_OPEN_FOLDER = "open_folder"
 CONFIG_KEY_FORCE_OVERWRITE = "force_overwrite"
 CONFIG_KEY_KEEP_OPEN = "keep_open"
+CONFIG_KEY_SKIP_EMPTY = "skip_empty"
 CONFIG_KEY_NO_COLOR = "no_color"
 CONFIG_KEY_XLWINGS = "xlwings"
 
@@ -543,6 +544,27 @@ def add_exporting_arguments(parser: argparse.ArgumentParser) -> None:
         dest=CONFIG_KEY_OPEN_FOLDER,
         action="store_true",
         help="Open export directory in file explorer after export",
+    )
+    exporting_group.add_argument(
+        "--skip-empty",
+        dest=CONFIG_KEY_SKIP_EMPTY,
+        action="store_true",
+        help="Skip modules with no code (e.g. empty worksheet modules)",
+    )
+
+
+def add_importing_arguments(parser: argparse.ArgumentParser) -> None:
+    """Add import-specific arguments to a parser.
+
+    Args:
+        parser: The argument parser to add arguments to
+    """
+    importing_group = parser.add_argument_group("Import Options")
+    importing_group.add_argument(
+        "--skip-empty",
+        dest=CONFIG_KEY_SKIP_EMPTY,
+        action="store_true",
+        help="Skip files with no code (e.g. empty worksheet module files)",
     )
 
 

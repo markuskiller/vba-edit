@@ -79,6 +79,7 @@ from vba_edit.cli_common import (
     add_command_arguments,
     add_vba_files_arguments,
     add_exporting_arguments,
+    add_importing_arguments,
     add_excel_specific_arguments,
     add_references_file_arguments,
     add_references_output_arguments,
@@ -285,6 +286,7 @@ class OfficeVBACLI:
         )
         add_command_arguments(import_parser)
         add_vba_files_arguments(import_parser)
+        add_importing_arguments(import_parser)
         add_config_arguments(import_parser)  # Add config file options to import command
         add_common_option_group(import_parser)  # Add common options to import command
 
@@ -523,6 +525,7 @@ Simple usage:
                     use_rubberduck_folders=getattr(args, "rubberduck_folders", False),
                     open_folder=getattr(args, "open_folder", False),
                     in_file_headers=getattr(args, "in_file_headers", True),
+                    skip_empty=getattr(args, "skip_empty", False),
                 )
             except VBAError as e:
                 app_name = self.config["app_name"]
