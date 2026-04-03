@@ -16,6 +16,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Robust Config Merging**: Command-line arguments now reliably override configuration file settings for all option types, including boolean flags like `--verbose` and `--rubberduck-folders`
 
+### Removed
+
+- **Legacy Configuration Placeholders**: Removed deprecated placeholders `{general.file.name}`, `{general.file.fullname}`, `{general.file.path}`, and `{vbaproject}` — use `{file.name}`, `{file.fullname}`, `{file.path}`, and `{file.vbaproject}` instead (deprecated since v0.4.1)
+
 ### Fixed
 
 ## [0.5.0b2] - 2026-04-03

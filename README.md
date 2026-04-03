@@ -446,12 +446,6 @@ Configuration values support dynamic placeholders for flexible path management.
 - `{file.path}` - Directory containing the document
 - `{file.vbaproject}` - VBA project name (resolved at runtime)
 
-**Legacy placeholders (deprecated in v0.4.1, removed in v0.5.0):**
-- `{general.file.name}` → use `{file.name}`
-- `{general.file.fullname}` → use `{file.fullname}`
-- `{general.file.path}` → use `{file.path}`
-- `{vbaproject}` → use `{file.vbaproject}`
-
 **Example with placeholders:**
 
 ```toml

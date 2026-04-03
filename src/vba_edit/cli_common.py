@@ -47,22 +47,6 @@ def add_common_arguments(parser: argparse.ArgumentParser) -> None:
     )
 
 
-PLACEHOLDER_FILE_NAME_LEGACY = "{general.file.name}"
-PLACEHOLDER_FILE_FULLNAME_LEGACY = "{general.file.fullname}"
-PLACEHOLDER_FILE_PATH_LEGACY = "{general.file.path}"
-PLACEHOLDER_VBA_PROJECT_LEGACY = "{vbaproject}"
-PLACEHOLDER_VBA_PROJECT = PLACEHOLDER_VBA_PROJECT_LEGACY
-
-
-def _placeholder_compatibility_stub(placeholders: Dict[str, str]) -> Dict[str, str]:
-    placeholders[PLACEHOLDER_FILE_NAME_LEGACY] = placeholders[PLACEHOLDER_FILE_NAME]
-    placeholders[PLACEHOLDER_FILE_FULLNAME_LEGACY] = placeholders[PLACEHOLDER_FILE_FULLNAME]
-    placeholders[PLACEHOLDER_FILE_PATH_LEGACY] = placeholders[PLACEHOLDER_FILE_PATH]
-    placeholders[PLACEHOLDER_VBA_PROJECT] = placeholders[PLACEHOLDER_FILE_VBAPROJECT]
-    placeholders[PLACEHOLDER_VBA_PROJECT_LEGACY] = placeholders[PLACEHOLDER_FILE_VBAPROJECT]
-    return placeholders
-
-
 # endregion
 
 
@@ -302,7 +286,6 @@ def get_placeholder_values(config_file_path: Optional[str] = None, file_path: Op
             placeholders[PLACEHOLDER_FILE_FULLNAME] = file_fullname
             placeholders[PLACEHOLDER_FILE_PATH] = file_path_str
 
-    placeholders = _placeholder_compatibility_stub(placeholders)
     return placeholders
 
 

@@ -15,7 +15,7 @@ from vba_edit.cli_common import (
     PLACEHOLDER_CONFIG_PATH,
     PLACEHOLDER_FILE_NAME,
     PLACEHOLDER_FILE_PATH,
-    PLACEHOLDER_VBA_PROJECT,
+    PLACEHOLDER_FILE_VBAPROJECT,
 )
 from vba_edit.office_vba import OFFICE_MACRO_EXTENSIONS
 
@@ -267,7 +267,7 @@ class TestCLIOptionsDebugging:
 
 [advanced]
 backup_directory = "{backup_path}"
-output_template = "{PLACEHOLDER_VBA_PROJECT}_exported"
+output_template = "{PLACEHOLDER_FILE_VBAPROJECT}_exported"
 """
         config_file = config_dir / "project-config.toml"
         config_file.write_text(config_content, encoding="utf-8")
@@ -301,7 +301,7 @@ output_template = "{PLACEHOLDER_VBA_PROJECT}_exported"
             "template_config_path": PLACEHOLDER_CONFIG_PATH,
             "template_file_path": PLACEHOLDER_FILE_PATH,
             "template_file_name": PLACEHOLDER_FILE_NAME,
-            "template_vba_project": PLACEHOLDER_VBA_PROJECT,
+            "template_vba_project": PLACEHOLDER_FILE_VBAPROJECT,
             "placeholder_resolution_note": "Placeholders should be resolved by CLI during actual execution",
             **cli_info,
         }
@@ -380,7 +380,7 @@ output_template = "{PLACEHOLDER_VBA_PROJECT}_exported"
         cli = CLITester(f"{vba_app}-vba")
 
         # Create config with placeholders for real document
-        vba_path_template = f"{PLACEHOLDER_FILE_PATH}/{PLACEHOLDER_VBA_PROJECT}-{PLACEHOLDER_FILE_NAME}"
+        vba_path_template = f"{PLACEHOLDER_FILE_PATH}/{PLACEHOLDER_FILE_VBAPROJECT}-{PLACEHOLDER_FILE_NAME}"
 
         config_content = f"""
 [{CONFIG_SECTION_GENERAL}]

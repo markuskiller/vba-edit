@@ -14,7 +14,7 @@ from vba_edit.cli_common import (
     PLACEHOLDER_CONFIG_PATH,
     PLACEHOLDER_FILE_NAME,
     PLACEHOLDER_FILE_PATH,
-    PLACEHOLDER_VBA_PROJECT,
+    PLACEHOLDER_FILE_VBAPROJECT,
 )
 from vba_edit.office_vba import OFFICE_MACRO_EXTENSIONS
 
@@ -257,7 +257,7 @@ backup_directory = "{backup_path}"
         extension = OFFICE_MACRO_EXTENSIONS[vba_app]
         test_file = tmp_path / f"TestFile{extension}"
 
-        vba_directory_path = f"{PLACEHOLDER_FILE_PATH}/{PLACEHOLDER_VBA_PROJECT}-modules"
+        vba_directory_path = f"{PLACEHOLDER_FILE_PATH}/{PLACEHOLDER_FILE_VBAPROJECT}-modules"
 
         config_content = f"""
 [{CONFIG_SECTION_GENERAL}]
