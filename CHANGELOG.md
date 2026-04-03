@@ -9,30 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **Configuration File Support for References**: All reference-related options (`--with-references`, `--refs-file`, `--no-builtins`, `--no-third-party`, `--no-custom`) can now be set in configuration files using a new `[references]` section
-- **Extended Configuration Keys**: Added `skip_empty`, `force_overwrite`, `save_metadata`, `detect_encoding`, and `with_references` to the `[general]` section of configuration files
-
-### Changed
-
-- **Robust Config Merging**: Command-line arguments now reliably override configuration file settings for all option types, including boolean flags like `--verbose` and `--rubberduck-folders`
-
-### Removed
-
-- **Legacy Configuration Placeholders**: Removed deprecated placeholders `{general.file.name}`, `{general.file.fullname}`, `{general.file.path}`, and `{vbaproject}` — use `{file.name}`, `{file.fullname}`, `{file.path}`, and `{file.vbaproject}` instead (deprecated since v0.4.1)
-
-### Fixed
-
-## [0.5.0b2] - 2026-04-03
-
-> **Beta release** — adds reference classification, management subcommands, and supply chain security hardening.
-
-### Added
-
-- **Skip Empty Modules** (`--skip-empty`): New flag for `export` and `import` commands to skip modules with no code ([Issue #63](https://github.com/markuskiller/vba-edit/issues/63))
-  - Particularly useful for Excel workbooks where every worksheet creates a module — even empty ones
-  - On `export`: modules with no code (e.g. `Sheet2`, `Sheet3`) are not written to files
-  - On `import`: files that contain only a module header and no actual code are skipped
-  - Has no effect on `edit` mode
+- **VBA Reference Manager**: New `references` command to manage VBA library references across all Office apps
+  - `references list` — Display all references with name, GUID, version, path, and status
+  - `references export` — Save all non-built-in references to a shareable TOML file (default: `{document}_refs.toml`)
+  - `references import` — Add references from a TOML file to replicate setups across documents or machines
+  - Use `--refs-file / -r` to specify a custom TOML file path
+  - Works with all four Office apps: Excel, Word, PowerPoint, and Access
+  - Makes reference dependencies trackable in version control alongside VBA code
 - **Reference Classification & Filtering**: References are now classified as `builtin`, `third-party`, or `custom` with composable filters
   - `--no-builtins` — Hide built-in references (VBA, Excel, Word, Office, etc.)
   - `--no-third-party` — Hide third-party COM add-in references
@@ -47,41 +30,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - On `import`: restores references from the TOML file before importing code
   - On `edit`: watches the TOML file for changes and syncs references back to Office on save
   - TOML file includes metadata (version, timestamp, source document) for traceability
-
-### Changed
-
-- **Development Status**: Project classifier updated from Alpha to Beta on PyPI, reflecting growing stability and adoption
-
-### Security
-
-- **Trusted Publishers**: PyPI and TestPyPI uploads now use OpenID Connect (OIDC) authentication — no more stored API tokens
-- **PEP 740 Attestations**: Every published package now includes cryptographically signed provenance, proving it was built by the official GitHub Actions workflow
-- **Supply Chain Hardening**: Added `pip-audit` security scan to the publish pipeline and `--no-upx` to binary builds to reduce antivirus false positives
-
-## [0.5.0b1] - 2026-03-08
-
-> **Beta release** — focused on early testing of the new VBA Reference Manager.
-> Download the pre-built binaries from the [Assets section](https://github.com/markuskiller/vba-edit/releases/tag/v0.5.0b1) below to test without a Python installation.
-
-### Added
-
-- **VBA Reference Manager**: New `references` command to manage VBA library references across all Office apps
-  - `references list` — Display all references with name, GUID, version, path, and status
-  - `references export` — Save all non-built-in references to a shareable TOML file (default: `{document}_refs.toml`)
-  - `references import` — Add references from a TOML file to replicate setups across documents or machines
-  - Use `--refs-file / -r` to specify a custom TOML file path
-  - Works with all four Office apps: Excel, Word, PowerPoint, and Access
-  - Makes reference dependencies trackable in version control alongside VBA code
+- **Skip Empty Modules** (`--skip-empty`): New flag for `export` and `import` commands to skip modules with no code ([Issue #63](https://github.com/markuskiller/vba-edit/issues/63))
+  - Particularly useful for Excel workbooks where every worksheet creates a module — even empty ones
+  - On `export`: modules with no code (e.g. `Sheet2`, `Sheet3`) are not written to files
+  - On `import`: files that contain only a module header and no actual code are skipped
+  - Has no effect on `edit` mode
+- **Configuration File Support for References**: All reference-related options (`--with-references`, `--refs-file`, `--no-builtins`, `--no-third-party`, `--no-custom`) can now be set in configuration files using a new `[references]` section
+- **Extended Configuration Keys**: Added `skip_empty`, `force_overwrite`, `save_metadata`, `detect_encoding`, and `with_references` to the `[general]` section of configuration files
 - **`uvx` Support via Satellite Entry-Point Packages**: All four tools are now available on PyPI as standalone packages — `excel-vba`, `word-vba`, `powerpoint-vba`, `access-vba`
   - Run any tool instantly without installing: `uvx excel-vba edit`, `uvx word-vba edit`, etc.
   - Each package automatically pulls in the `vba-edit` core — no separate install step needed
   - Ideal for one-off use, scripts, and CI/CD pipelines
+
+### Changed
+
+- **Development Status**: Project classifier updated from Alpha to Beta on PyPI, reflecting growing stability and adoption
+- **Robust Config Merging**: Command-line arguments now reliably override configuration file settings for all option types, including boolean flags like `--verbose` and `--rubberduck-folders`
+
+### Removed
+
+- **Legacy Configuration Placeholders**: Removed deprecated placeholders `{general.file.name}`, `{general.file.fullname}`, `{general.file.path}`, and `{vbaproject}` — use `{file.name}`, `{file.fullname}`, `{file.path}`, and `{file.vbaproject}` instead (deprecated since v0.4.1)
 
 ### Fixed
 
 - **Encoding Detection**: ASCII-only VBA files are no longer misidentified as UTF-8
   - Files containing only ASCII characters (the majority of English-language VBA code) now correctly report the Windows system code page (e.g. `cp1252`) rather than `utf-8`
   - Prevents potential encoding mismatches when files are shared or re-imported
+
+### Security
+
+- **Trusted Publishers**: PyPI and TestPyPI uploads now use OpenID Connect (OIDC) authentication — no more stored API tokens
+- **PEP 740 Attestations**: Every published package now includes cryptographically signed provenance, proving it was built by the official GitHub Actions workflow
+- **Supply Chain Hardening**: Added `pip-audit` security scan to the publish pipeline and `--no-upx` to binary builds to reduce antivirus false positives
 
 ## [0.4.3] - 2026-03-07
 
@@ -186,13 +166,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **CI/CD Reliability**: Improved test stability on GitHub Actions
   - Added subprocess timeouts to prevent intermittent hangs
   - Increased test timeouts for slower CI runners
-
-### Deprecated
-
-- **Old placeholder format**: `{general.file.*}` and `{vbaproject}`
-  - Still supported for backward compatibility
-  - Will be removed in v0.5.0
-  - Use new `{file.*}` format instead
 
 ### Security
 
