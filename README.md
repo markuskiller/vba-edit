@@ -408,14 +408,25 @@ excel-vba export --conf vba-config.toml
 - `file` - Path to Office document
 - `vba_directory` - Directory for VBA files
 - `encoding` - Character encoding (e.g., "utf-8", "cp1252")
+- `detect_encoding` - Auto-detect file encoding (true/false)
 - `verbose` - Enable verbose logging (true/false)
 - `logfile` - Path to log file
 - `rubberduck_folders` - Use RubberduckVBA @Folder annotations (true/false)
 - `save_headers` - Save headers to separate .header files (true/false)
 - `in_file_headers` - Embed headers in code files (true/false)
+- `save_metadata` - Save module metadata for reliable reimport (true/false)
 - `open_folder` - Open export directory after export (true/false)
 - `keep_open` - Keep document open after export (true/false)
+- `skip_empty` - Skip modules with no meaningful code (true/false)
+- `force_overwrite` - Overwrite existing files without prompting (true/false)
+- `with_references` - Include VBA references in export/import (true/false)
 - `no_color` - Disable colorized terminal output (true/false)
+
+**[references] section:**
+- `refs_file` - Path to VBA references file (default: `vba-references.toml`)
+- `no_builtins` - Exclude built-in references from listing (true/false)
+- `no_third_party` - Exclude third-party references from listing (true/false)
+- `no_custom` - Exclude custom/project references from listing (true/false)
 
 **Other sections (reserved for future use):**
 - `[office]` - Office-wide settings

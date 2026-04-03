@@ -64,7 +64,9 @@ from vba_edit import __version__ as package_version
 from vba_edit.cli_common import (
     CONFIG_KEY_VBA_DIRECTORY,
     CONFIG_SECTION_GENERAL,
+    CONFIG_SECTION_REFERENCES,
     PLACEHOLDER_FILE_VBAPROJECT,
+    _get_cli_explicit_args,
     add_after_export_arguments,
     add_common_option_group,
     add_config_arguments,
@@ -226,15 +228,23 @@ class OfficeVBACLI:
 
     def _get_config_defaults(self, parser: argparse.ArgumentParser, config: dict) -> dict:
         defaults = {}
-        general_config = config.get(CONFIG_SECTION_GENERAL, {})
-        if not isinstance(general_config, dict):
-            return defaults
-
         known_dests = self._collect_parser_dests(parser)
-        for key, value in general_config.items():
-            arg_key = key.replace("-", "_")
-            if arg_key in known_dests:
-                defaults[arg_key] = value
+
+        # Read [general] section
+        general_config = config.get(CONFIG_SECTION_GENERAL, {})
+        if isinstance(general_config, dict):
+            for key, value in general_config.items():
+                arg_key = key.replace("-", "_")
+                if arg_key in known_dests:
+                    defaults[arg_key] = value
+
+        # Read [references] section
+        refs_config = config.get(CONFIG_SECTION_REFERENCES, {})
+        if isinstance(refs_config, dict):
+            for key, value in refs_config.items():
+                arg_key = key.replace("-", "_")
+                if arg_key in known_dests:
+                    defaults[arg_key] = value
 
         return defaults
 
@@ -920,7 +930,7 @@ Simple usage:
             config_load_failed = False
             command = getattr(pre_args, "command", None)
             config_path = getattr(pre_args, "conf", None)
-            if command in {"edit", "import", "export"} and config_path:
+            if command in {"edit", "import", "export", "references"} and config_path:
                 try:
                     config = load_config_file(config_path)
                 except Exception as e:
@@ -944,10 +954,19 @@ Simple usage:
 
             args = parser.parse_args()
 
+            # Determine which args were explicitly set on the CLI
+            # for robust config merging (handles store_true with defaults correctly)
+            cli_explicit = None
+            if config:
+                try:
+                    cli_explicit = _get_cli_explicit_args(parser, args)
+                except (SystemExit, Exception):
+                    pass  # Fall back to legacy is-None check
+
             # Apply configuration and resolve placeholders BEFORE setting up logging
             if not config_load_failed:
                 if config and getattr(args, "conf", None):
-                    args = merge_config_with_args(args, config)
+                    args = merge_config_with_args(args, config, cli_explicit=cli_explicit)
                     args = resolve_all_placeholders(args, args.conf)
                 else:
                     args = resolve_all_placeholders(args, None)

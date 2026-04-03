@@ -9,7 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Configuration File Support for References**: All reference-related options (`--with-references`, `--refs-file`, `--no-builtins`, `--no-third-party`, `--no-custom`) can now be set in configuration files using a new `[references]` section
+- **Extended Configuration Keys**: Added `skip_empty`, `force_overwrite`, `save_metadata`, `detect_encoding`, and `with_references` to the `[general]` section of configuration files
+
 ### Changed
+
+- **Robust Config Merging**: Command-line arguments now reliably override configuration file settings for all option types, including boolean flags like `--verbose` and `--rubberduck-folders`
 
 ### Fixed
 

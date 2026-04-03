@@ -138,6 +138,7 @@ CONFIG_SECTION_WORD = "word"
 CONFIG_SECTION_ACCESS = "access"
 CONFIG_SECTION_POWERPOINT = "powerpoint"
 CONFIG_SECTION_ADVANCED = "advanced"
+CONFIG_SECTION_REFERENCES = "references"
 
 # TOML configuration keys (general section) and argument namespace attributes
 CONFIG_KEY_FILE = "file"
@@ -158,6 +159,13 @@ CONFIG_KEY_KEEP_OPEN = "keep_open"
 CONFIG_KEY_SKIP_EMPTY = "skip_empty"
 CONFIG_KEY_NO_COLOR = "no_color"
 CONFIG_KEY_XLWINGS = "xlwings"
+CONFIG_KEY_WITH_REFERENCES = "with_references"
+
+# TOML configuration keys (references section)
+CONFIG_KEY_REFS_FILE = "refs_file"
+CONFIG_KEY_NO_BUILTINS = "no_builtins"
+CONFIG_KEY_NO_THIRD_PARTY = "no_third_party"
+CONFIG_KEY_NO_CUSTOM = "no_custom"
 
 # Placeholder constants for use in arguments and configuration values
 PLACEHOLDER_CONFIG_PATH = "{config.path}"
@@ -389,15 +397,49 @@ def load_config_file(config_path: str) -> Dict[str, Any]:
         raise ValueError(_enhance_toml_error_message(config_path, text, e)) from e
 
 
-def merge_config_with_args(args: argparse.Namespace, config: Dict[str, Any]) -> argparse.Namespace:
+def _get_cli_explicit_args(parser: argparse.ArgumentParser, args: argparse.Namespace) -> set:
+    """Determine which argument dest names were explicitly passed on the command line.
+
+    Compares parsed arg values against parser defaults to identify which were
+    explicitly set by the user. This is more robust than checking for None,
+    which fails for store_true arguments with explicit defaults.
+
+    Args:
+        parser: The argument parser used to parse args
+        args: The parsed arguments namespace
+
+    Returns:
+        Set of dest names that were explicitly provided on the CLI
+    """
+    explicit = set()
+    defaults = parser.parse_args([])  # Parse with no args to get pure defaults
+    for key, value in vars(args).items():
+        if key.startswith("_"):
+            continue
+        default_value = getattr(defaults, key, None)
+        if value != default_value:
+            explicit.add(key)
+    return explicit
+
+
+def merge_config_with_args(
+    args: argparse.Namespace,
+    config: Dict[str, Any],
+    cli_explicit: set | None = None,
+) -> argparse.Namespace:
     """Merge configuration from a file with command-line arguments.
 
     Command-line arguments take precedence over configuration file values.
-    Configuration structure is preserved (e.g., general.file remains as nested structure).
+    When cli_explicit is provided, only args NOT in that set are overridden
+    by config values. This handles all argument types correctly, including
+    store_true flags with explicit defaults.
+
+    Falls back to the legacy "is None" check when cli_explicit is not provided.
 
     Args:
         args: Command-line arguments
         config: Configuration from file
+        cli_explicit: Set of dest names explicitly passed on CLI (optional)
 
     Returns:
         Updated arguments with values from configuration
@@ -405,20 +447,46 @@ def merge_config_with_args(args: argparse.Namespace, config: Dict[str, Any]) -> 
     # Create a copy of the args namespace as a dictionary
     args_dict = vars(args).copy()
 
-    # Handle 'general' section - these map directly to CLI args
-    if CONFIG_SECTION_GENERAL in config:
-        general_config = config[CONFIG_SECTION_GENERAL]
-        for key, value in general_config.items():
-            # Convert dashes to underscores for argument names
-            arg_key = key.replace("-", "_")
+    # Merge [general] section — these map directly to CLI args
+    _merge_config_section(args_dict, config, CONFIG_SECTION_GENERAL, cli_explicit)
 
-            # Only update if the arg wasn't explicitly set (is None)
-            if arg_key in args_dict and args_dict[arg_key] is None:
-                args_dict[arg_key] = value
+    # Merge [references] section — for reference-specific options
+    _merge_config_section(args_dict, config, CONFIG_SECTION_REFERENCES, cli_explicit)
 
     # Store the full config for later access by handlers if needed
     args_dict["_config"] = config
     args_dict["_config_file_path"] = getattr(args, "_config_file_path", None)
+
+    # Convert back to a Namespace
+    return argparse.Namespace(**args_dict)
+
+
+def _merge_config_section(args_dict: dict, config: Dict[str, Any], section: str, cli_explicit: set | None) -> None:
+    """Merge a single config section into the args dictionary.
+
+    Args:
+        args_dict: Mutable dictionary of argument values
+        config: Full configuration dictionary
+        section: Section name to read (e.g. "general", "references")
+        cli_explicit: Set of dest names explicitly passed on CLI (optional)
+    """
+    if section not in config:
+        return
+    section_config = config[section]
+    if not isinstance(section_config, dict):
+        return
+    for key, value in section_config.items():
+        arg_key = key.replace("-", "_")
+        if arg_key not in args_dict:
+            continue
+        if cli_explicit is not None:
+            # Robust path: only apply if user didn't explicitly set this arg
+            if arg_key not in cli_explicit:
+                args_dict[arg_key] = value
+        else:
+            # Legacy fallback: only apply if value is None
+            if args_dict[arg_key] is None:
+                args_dict[arg_key] = value
 
     # Convert back to a Namespace
     return argparse.Namespace(**args_dict)
@@ -553,8 +621,8 @@ def add_exporting_arguments(parser: argparse.ArgumentParser) -> None:
     )
     exporting_group.add_argument(
         "--with-references",
+        dest=CONFIG_KEY_WITH_REFERENCES,
         action="store_true",
-        default=False,
         help="Also export VBA references to a TOML file",
     )
 
@@ -574,8 +642,8 @@ def add_importing_arguments(parser: argparse.ArgumentParser) -> None:
     )
     importing_group.add_argument(
         "--with-references",
+        dest=CONFIG_KEY_WITH_REFERENCES,
         action="store_true",
-        default=False,
         help="Also import VBA references from a TOML file",
     )
 
@@ -973,7 +1041,7 @@ def add_references_output_arguments(parser: argparse.ArgumentParser) -> None:
     refs_group.add_argument(
         "--refs-file",
         "-r",
-        dest="refs_file",
+        dest=CONFIG_KEY_REFS_FILE,
         metavar="FILE",
         help="TOML file for references (default: {document}_refs.toml)",
     )
@@ -984,20 +1052,20 @@ def add_references_filter_arguments(parser: argparse.ArgumentParser) -> None:
     filter_group = parser.add_argument_group("Filter Options")
     filter_group.add_argument(
         "--no-builtins",
+        dest=CONFIG_KEY_NO_BUILTINS,
         action="store_true",
-        default=False,
         help="Exclude built-in references (VBA, Excel, Word, Office, etc.)",
     )
     filter_group.add_argument(
         "--no-third-party",
+        dest=CONFIG_KEY_NO_THIRD_PARTY,
         action="store_true",
-        default=False,
         help="Exclude third-party COM add-in references (e.g. Adobe Acrobat)",
     )
     filter_group.add_argument(
         "--no-custom",
+        dest=CONFIG_KEY_NO_CUSTOM,
         action="store_true",
-        default=False,
         help="Exclude custom (project-specific) references",
     )
 
