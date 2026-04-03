@@ -137,7 +137,7 @@ class TestReferenceManagerIntegration:
         builtin_ref = next((r for r in refs if r["builtin"]), None)
         assert builtin_ref is not None
 
-        with pytest.raises(ReferenceError, match="Cannot remove built-in reference"):
+        with pytest.raises(VBAReferenceError, match="Cannot remove built-in reference"):
             manager.remove_reference(guid=builtin_ref["guid"])
 
     def test_export_import_toml_roundtrip(self, test_workbook):

@@ -486,8 +486,13 @@ class ReferenceManager:
         try:
             references = self.list_references()
 
-            # Filter out built-in references
-            user_refs = [ref for ref in references if not ref["builtin"]]
+            # Filter out built-in references AND project/template references that
+            # lack a valid GUID (e.g. Word's Normal.dotm appears as a non-built-in
+            # reference but has an empty GUID and cannot be re-added by GUID).
+            user_refs = [
+                ref for ref in references
+                if not ref["builtin"] and self.GUID_PATTERN.match(ref.get("guid", ""))
+            ]
 
             if not user_refs:
                 logger.warning("No user references to export (only built-in references found)")

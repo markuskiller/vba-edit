@@ -119,12 +119,19 @@ class TestWordReferenceManagerIntegration:
         doc = word_app.Documents.Add()
 
         try:
-            manager = ReferenceManager(doc)
+            # Save as .docm first to properly initialize the macro-enabled format,
+            # then add the reference so the VBA project is serialized on the next save.
+            doc.SaveAs2(str(doc_path), FileFormat=13)  # wdFormatXMLDocumentMacroEnabled
 
+            manager = ReferenceManager(doc)
             scripting_guid = "{420B2830-E718-11CF-893D-00A0C9054228}"
             manager.add_reference(guid=scripting_guid, name="Scripting", major=1, minor=0)
 
-            doc.SaveAs2(str(doc_path), FileFormat=13)  # wdFormatXMLDocumentMacroEnabled
+            # Word does not serialize the vbaProject part of a .docm file unless at
+            # least one VBA component has been modified in the current session. Adding
+            # a module forces the VBA project to be written on the next Save().
+            doc.VBProject.VBComponents.Add(1)  # vbext_ct_StdModule
+            doc.Save()  # flush VBA project changes
             doc.Close()
 
             doc_reopened = word_app.Documents.Open(str(doc_path))
@@ -177,13 +184,6 @@ guid = "{420B2830-E718-11CF-893D-00A0C9054228}"
 major = 1
 minor = 0
 description = "Microsoft Scripting Runtime (FileSystemObject, Dictionary)"
-
-[[references]]
-name = "ADODB"
-guid = "{00000201-0000-0010-8000-00AA006D2EA4}"
-major = 2
-minor = 8
-description = "Microsoft ActiveX Data Objects 2.8 Library"
 """
         toml_file = tmp_path / "word_common_refs.toml"
         toml_file.write_text(toml_content, encoding="utf-8")
@@ -207,7 +207,6 @@ description = "Microsoft ActiveX Data Objects 2.8 Library"
 
         refs_to_add = [
             {"guid": "{420B2830-E718-11CF-893D-00A0C9054228}", "name": "Scripting", "major": 1, "minor": 0},
-            {"guid": "{00000201-0000-0010-8000-00AA006D2EA4}", "name": "ADODB", "major": 2, "minor": 8},
         ]
 
         for ref_info in refs_to_add:
