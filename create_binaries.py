@@ -215,6 +215,7 @@ Examples:
     python create_binaries.py --apps word excel # Build word-vba.exe and excel-vba.exe
     python create_binaries.py --list            # List available applications
     python create_binaries.py --debug           # Build with debug info (no UPX compression)
+    python create_binaries.py --no-upx          # Build without UPX (avoids antivirus false positives)
         """,
     )
 
@@ -233,6 +234,10 @@ Examples:
 
     parser.add_argument(
         "--debug", action="store_true", help="Build with debug information (larger executables, faster build)"
+    )
+
+    parser.add_argument(
+        "--no-upx", action="store_true", help="Disable UPX compression (avoids antivirus false positives)"
     )
 
     parser.add_argument("--output-dir", help="Specify output directory for executables (default: dist/)")
@@ -268,6 +273,9 @@ Examples:
 
     if args.debug:
         additional_args.extend(["--debug", "all", "--console"])
+
+    if args.no_upx:
+        additional_args.append("--noupx")
 
     # Build executables
     successful_builds = []

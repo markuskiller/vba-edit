@@ -54,6 +54,13 @@ Pinning third-party GitHub Actions to full commit SHAs is currently the **only w
 - **Used in**: build-binaries.yml only
 - **Notable change**: Fixes discussion category preservation on publish; recovery of concurrent asset metadata 404s
 
+### pypa/gh-action-pypi-publish
+- **Current Pin**: `ed0c53931b1dc9bd32cbe73a98c7f6766f8a527e`
+- **Version**: v1.13.0
+- **Release URL**: https://github.com/pypa/gh-action-pypi-publish/releases/tag/v1.13.0
+- **Used in**: publish.yaml (core + satellite packages)
+- **Notable change**: Trusted Publishers (OIDC), PEP 740 attestations, Sigstore signing. Fixes GHSA-vxmw-7h4f-hqxh.
+
 ## Updating Pinned Actions
 
 When updating to a new version:
