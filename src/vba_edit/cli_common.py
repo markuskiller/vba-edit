@@ -1025,6 +1025,34 @@ Handles duplicate detection, missing files, and invalid GUIDs.
 Examples:
   {ep} references import -r refs.toml         # Import from TOML file
   {ep} references import -f {ex} -r refs.toml"""
+        case "validate":
+            return f"""Check for broken (missing) references in a {ft}
+
+Scans all VBA references and reports any that point to files or
+libraries that are no longer available. Exits with code 1 if broken
+references are found.
+
+Examples:
+  {ep} references validate              # Validate active {ft}
+  {ep} references validate -f {ex}  # Validate specific file"""
+        case "add":
+            return f"""Add a reference to a library file
+
+Adds a VBA project reference by file path (e.g. .dotm, .xlam, .dll, .olb).
+Skips if a reference with the same name already exists.
+
+Examples:
+  {ep} references add SharedLib.xlam
+  {ep} references add C:\\Libs\\MyLib.dotm -f {ex}"""
+        case "remove":
+            return f"""Remove a reference by name
+
+Removes a non-built-in VBA reference from the document.
+Use '{ep} references list' to see available reference names.
+
+Examples:
+  {ep} references remove SharedLib
+  {ep} references remove OldLibrary -f {ex}"""
         case _:
             return f"Manage VBA library references in {ft}"
 

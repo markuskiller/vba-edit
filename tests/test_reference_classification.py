@@ -1,8 +1,8 @@
 """
-Unit tests for reference classification and filtering.
+Unit tests for reference classification, filtering, and CLI argument parsing.
 
 These tests do NOT require Office — they test the pure-Python classification
-and filtering logic in reference_manager.py.
+and filtering logic in reference_manager.py, and CLI parser wiring.
 """
 
 import pytest
@@ -13,6 +13,7 @@ from vba_edit.reference_manager import (
     classify_reference,
     filter_references,
 )
+from vba_edit.excel_vba import create_cli_parser
 
 
 # ---------------------------------------------------------------------------
@@ -154,3 +155,85 @@ class TestFilterReferences:
         ]
         result = filter_references(refs, no_builtins=True, no_third_party=True)
         assert len(result) == 2
+
+
+# ---------------------------------------------------------------------------
+# CLI argument parsing for references subcommands
+# ---------------------------------------------------------------------------
+
+
+class TestReferencesCLIParsing:
+    """Tests that references subcommand arguments are wired correctly."""
+
+    @pytest.fixture()
+    def parser(self):
+        return create_cli_parser()
+
+    def test_references_list_defaults(self, parser):
+        args = parser.parse_args(["references", "list"])
+        assert args.refs_subcommand == "list"
+        assert args.no_builtins is False
+        assert args.no_third_party is False
+        assert args.no_custom is False
+
+    def test_references_list_no_builtins(self, parser):
+        args = parser.parse_args(["references", "list", "--no-builtins"])
+        assert args.no_builtins is True
+
+    def test_references_list_no_third_party(self, parser):
+        args = parser.parse_args(["references", "list", "--no-third-party"])
+        assert args.no_third_party is True
+
+    def test_references_list_no_custom(self, parser):
+        args = parser.parse_args(["references", "list", "--no-custom"])
+        assert args.no_custom is True
+
+    def test_references_list_combined_filters(self, parser):
+        args = parser.parse_args(["references", "list", "--no-builtins", "--no-third-party"])
+        assert args.no_builtins is True
+        assert args.no_third_party is True
+        assert args.no_custom is False
+
+    def test_references_export_with_filters(self, parser):
+        args = parser.parse_args(["references", "export", "--no-builtins", "--no-third-party"])
+        assert args.refs_subcommand == "export"
+        assert args.no_builtins is True
+        assert args.no_third_party is True
+
+    def test_references_export_with_refs_file(self, parser):
+        args = parser.parse_args(["references", "export", "-r", "custom.toml"])
+        assert args.refs_file == "custom.toml"
+
+    def test_references_import_subcommand(self, parser):
+        args = parser.parse_args(["references", "import", "-r", "refs.toml"])
+        assert args.refs_subcommand == "import"
+        assert args.refs_file == "refs.toml"
+
+    def test_references_validate_subcommand(self, parser):
+        args = parser.parse_args(["references", "validate"])
+        assert args.refs_subcommand == "validate"
+
+    def test_references_validate_with_file(self, parser):
+        args = parser.parse_args(["references", "validate", "-f", "test.xlsm"])
+        assert args.refs_subcommand == "validate"
+        assert args.file == "test.xlsm"
+
+    def test_references_add_subcommand(self, parser):
+        args = parser.parse_args(["references", "add", "SharedLib.xlam"])
+        assert args.refs_subcommand == "add"
+        assert args.library == "SharedLib.xlam"
+
+    def test_references_add_with_file(self, parser):
+        args = parser.parse_args(["references", "add", "Lib.dotm", "-f", "doc.docm"])
+        assert args.library == "Lib.dotm"
+        assert args.file == "doc.docm"
+
+    def test_references_remove_subcommand(self, parser):
+        args = parser.parse_args(["references", "remove", "OldLibrary"])
+        assert args.refs_subcommand == "remove"
+        assert args.ref_name == "OldLibrary"
+
+    def test_references_remove_with_file(self, parser):
+        args = parser.parse_args(["references", "remove", "OldLib", "-f", "doc.xlsm"])
+        assert args.ref_name == "OldLib"
+        assert args.file == "doc.xlsm"

@@ -412,6 +412,52 @@ Simple usage:
         add_references_output_arguments(import_refs_parser)
         add_common_option_group(import_refs_parser)
 
+        # references validate
+        validate_refs_parser = refs_subparsers.add_parser(
+            "validate",
+            usage=f"{self.config['entry_point']} references validate [--file FILE] [options]",
+            help="Check for broken references",
+            description=get_references_command_description("validate", self.office_app),
+            formatter_class=EnhancedHelpFormatter,
+            add_help=False,
+        )
+        add_references_file_arguments(validate_refs_parser)
+        add_common_option_group(validate_refs_parser)
+
+        # references add
+        add_ref_parser = refs_subparsers.add_parser(
+            "add",
+            usage=f"{self.config['entry_point']} references add LIBRARY [--file FILE] [options]",
+            help="Add a reference by file path",
+            description=get_references_command_description("add", self.office_app),
+            formatter_class=EnhancedHelpFormatter,
+            add_help=False,
+        )
+        add_ref_parser.add_argument(
+            "library",
+            metavar="LIBRARY",
+            help="Path to library file (.dotm, .xlam, .dll, .olb, etc.)",
+        )
+        add_references_file_arguments(add_ref_parser)
+        add_common_option_group(add_ref_parser)
+
+        # references remove
+        remove_ref_parser = refs_subparsers.add_parser(
+            "remove",
+            usage=f"{self.config['entry_point']} references remove NAME [--file FILE] [options]",
+            help="Remove a reference by name",
+            description=get_references_command_description("remove", self.office_app),
+            formatter_class=EnhancedHelpFormatter,
+            add_help=False,
+        )
+        remove_ref_parser.add_argument(
+            "ref_name",
+            metavar="NAME",
+            help="Name of the reference to remove (as shown in 'references list')",
+        )
+        add_references_file_arguments(remove_ref_parser)
+        add_common_option_group(remove_ref_parser)
+
         return parser
 
     def validate_paths(self, args: argparse.Namespace) -> None:
@@ -745,6 +791,34 @@ Simple usage:
                 success(f"References imported: {added} added, {skipped} skipped, {failed} failed")
                 if failed:
                     warning(f"{failed} reference(s) could not be added — check log for details")
+
+            elif subcommand == "validate":
+                broken = manager.check_broken()
+                total = len(manager.list_references())
+                if broken:
+                    warning(f"Found {len(broken)} broken reference(s) in {Path(doc_path).name} ({total} total):\n")
+                    for ref in broken:
+                        path_str = f"  Path: {ref['path']}" if ref.get("path") else ""
+                        print(f"  ✗ {ref['name']} v{ref['major']}.{ref['minor']}")
+                        if path_str:
+                            print(f"    {path_str}")
+                    sys.exit(1)
+                else:
+                    success(f"All references are valid ({total} references checked)")
+
+            elif subcommand == "add":
+                library_path = args.library
+                added = manager.add_reference_by_path(library_path)
+                if added:
+                    success(f"Added reference: {Path(library_path).stem}")
+                else:
+                    info(f"Reference already exists: {Path(library_path).stem}")
+
+            elif subcommand == "remove":
+                ref_name = args.ref_name
+                removed = manager.remove_reference(name=ref_name, skip_if_missing=False)
+                if removed:
+                    success(f"Removed reference: {ref_name}")
 
         except VBAReferenceError as e:
             self.logger.error(f"Reference error: {e}")

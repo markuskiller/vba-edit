@@ -541,6 +541,56 @@ class ReferenceManager:
             logger.error(f"Failed to remove reference: {e}")
             raise VBAReferenceError(f"Unable to remove reference: {e}")
 
+    def add_reference_by_path(self, file_path: Union[str, Path], skip_if_exists: bool = True) -> bool:
+        """Add a VBA reference by file path (e.g. .dotm, .xlam, .dll, .olb).
+
+        Uses the COM ``AddFromFile`` method.  This is the correct way to
+        reference template libraries, add-ins, and other file-based references
+        that may not have a stable GUID.
+
+        Args:
+            file_path: Path to the library file.
+            skip_if_exists: If True, skip adding if a reference with the same
+                name already exists (default: True).
+
+        Returns:
+            True if reference was added, False if skipped.
+
+        Raises:
+            FileNotFoundError: If *file_path* does not exist.
+            VBAReferenceError: If the COM call fails.
+        """
+        resolved = Path(file_path).resolve()
+        if not resolved.exists():
+            raise FileNotFoundError(f"Library file not found: {resolved}")
+
+        lib_name = resolved.stem
+        logger.debug(f"Adding reference by path: {resolved}")
+
+        if skip_if_exists and self.reference_exists(name=lib_name):
+            logger.info(f"Reference already exists, skipping: {lib_name}")
+            return False
+
+        try:
+            self.vb_project.References.AddFromFile(str(resolved))
+            logger.info(f"Added reference from file: {resolved}")
+            return True
+        except pywintypes.com_error as e:
+            logger.error(f"Failed to add reference from {resolved}: {e}")
+            raise VBAReferenceError(f"Unable to add reference from {resolved}: {e}")
+
+    def check_broken(self) -> List[Dict[str, Any]]:
+        """Return all broken (missing / invalid) references.
+
+        A broken reference has ``IsBroken == True`` — typically because
+        the library file was moved, deleted, or is from a different Office
+        version.
+
+        Returns:
+            List of reference dictionaries for broken references only.
+        """
+        return [ref for ref in self.list_references() if ref["broken"]]
+
     def export_to_toml(
         self,
         output_file: Union[str, Path],
