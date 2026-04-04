@@ -9,8 +9,8 @@ import pytest
 from pathlib import Path
 
 from vba_edit.reference_manager import (
-    THIRD_PARTY_GUIDS,
-    THIRD_PARTY_NAME_PATTERNS,
+    DEFAULT_GUIDS,
+    DEFAULT_NAMES,
     classify_reference,
     filter_references,
 )
@@ -54,40 +54,63 @@ def _make_ref(
 class TestClassifyReference:
     """Tests for classify_reference()."""
 
-    def test_builtin_reference(self):
+    def test_com_builtin_flag_returns_default(self):
         ref = _make_ref(name="VBA", builtin=True)
-        assert classify_reference(ref) == "builtin"
+        assert classify_reference(ref) == "default"
 
-    def test_builtin_takes_precedence_over_guid(self):
-        """Even if the GUID happens to be in the third-party list, BuiltIn wins."""
-        guid = next(iter(THIRD_PARTY_GUIDS))
-        ref = _make_ref(name="VBA", guid=guid, builtin=True)
-        assert classify_reference(ref) == "builtin"
+    def test_com_builtin_flag_takes_precedence(self):
+        """COM BuiltIn flag always wins, even with arbitrary GUID."""
+        ref = _make_ref(name="VBA", guid="{99999999-9999-9999-9999-999999999999}", builtin=True)
+        assert classify_reference(ref) == "default"
 
-    @pytest.mark.parametrize("guid", list(THIRD_PARTY_GUIDS))
-    def test_third_party_by_guid(self, guid):
+    @pytest.mark.parametrize("guid", list(DEFAULT_GUIDS))
+    def test_default_by_guid(self, guid):
+        """References with well-known Office framework GUIDs are default."""
         ref = _make_ref(name="SomeLib", guid=guid, builtin=False)
-        assert classify_reference(ref) == "third-party"
+        assert classify_reference(ref) == "default"
 
-    def test_third_party_guid_case_insensitive(self):
-        guid = next(iter(THIRD_PARTY_GUIDS))
+    def test_default_guid_case_insensitive(self):
+        guid = next(iter(DEFAULT_GUIDS))
         ref = _make_ref(name="SomeLib", guid=guid.lower(), builtin=False)
-        assert classify_reference(ref) == "third-party"
+        assert classify_reference(ref) == "default"
 
-    @pytest.mark.parametrize("pattern", THIRD_PARTY_NAME_PATTERNS)
-    def test_third_party_by_name_pattern(self, pattern):
-        ref = _make_ref(name=f"My{pattern.title()}Lib", builtin=False)
-        assert classify_reference(ref) == "third-party"
+    @pytest.mark.parametrize("name", list(DEFAULT_NAMES))
+    def test_default_by_name(self, name):
+        """References with well-known Office framework names are default."""
+        ref = _make_ref(name=name, guid="", builtin=False)
+        assert classify_reference(ref) == "default"
 
-    def test_third_party_name_case_insensitive(self):
-        ref = _make_ref(name="ACROBAT", builtin=False)
-        assert classify_reference(ref) == "third-party"
+    def test_default_name_case_insensitive(self):
+        ref = _make_ref(name="STDOLE", guid="", builtin=False)
+        assert classify_reference(ref) == "default"
 
-    def test_custom_reference(self):
+    def test_stdole_by_guid(self):
+        """stdole (OLE Automation) should be classified as default."""
+        ref = _make_ref(name="stdole", guid="{00020430-0000-0000-C000-000000000046}", builtin=False)
+        assert classify_reference(ref) == "default"
+
+    def test_office_library_by_guid(self):
+        """Microsoft Office Object Library should be classified as default."""
+        ref = _make_ref(name="Office", guid="{2DF8D04C-5BFA-101B-BDE5-00AA0044DE52}", builtin=False)
+        assert classify_reference(ref) == "default"
+
+    def test_normal_template_by_name(self):
+        """Word Normal.dotm reference should be classified as default."""
+        ref = _make_ref(name="Normal", guid="", builtin=False)
+        assert classify_reference(ref) == "default"
+
+    def test_installed_reference_with_guid(self):
+        """COM library with a GUID (not in DEFAULT_GUIDS) is installed."""
         ref = _make_ref(name="Scripting", guid="{420B2830-E718-11CF-893D-00A0C9054228}", builtin=False)
-        assert classify_reference(ref) == "custom"
+        assert classify_reference(ref) == "installed"
+
+    def test_installed_reference_acrobat(self):
+        """COM library like Acrobat is classified as installed."""
+        ref = _make_ref(name="Acrobat", guid="{E64169B3-3592-47D2-816E-602C5C13F328}", builtin=False)
+        assert classify_reference(ref) == "installed"
 
     def test_custom_reference_no_guid(self):
+        """File-path reference without GUID is custom."""
         ref = _make_ref(name="MyProject", guid="", builtin=False)
         assert classify_reference(ref) == "custom"
 
@@ -109,53 +132,64 @@ class TestFilterReferences:
     def mixed_refs(self):
         """A list with one reference from each category."""
         return [
-            _make_ref(name="VBA", builtin=True),
-            _make_ref(name="Acrobat", guid=next(iter(THIRD_PARTY_GUIDS)), builtin=False),
-            _make_ref(name="Scripting", guid="{420B2830-E718-11CF-893D-00A0C9054228}", builtin=False),
+            _make_ref(name="VBA", builtin=True),  # default
+            _make_ref(name="Scripting", guid="{420B2830-E718-11CF-893D-00A0C9054228}", builtin=False),  # installed
+            _make_ref(name="MyTemplate", guid="", builtin=False),  # custom
         ]
 
     def test_no_filters_returns_all(self, mixed_refs):
         result = filter_references(mixed_refs)
         assert len(result) == 3
 
-    def test_no_builtins(self, mixed_refs):
-        result = filter_references(mixed_refs, no_builtins=True)
+    def test_no_default(self, mixed_refs):
+        result = filter_references(mixed_refs, no_default=True)
         names = [r["name"] for r in result]
         assert "VBA" not in names
         assert len(result) == 2
 
-    def test_no_third_party(self, mixed_refs):
-        result = filter_references(mixed_refs, no_third_party=True)
+    def test_no_installed(self, mixed_refs):
+        result = filter_references(mixed_refs, no_installed=True)
         names = [r["name"] for r in result]
-        assert "Acrobat" not in names
+        assert "Scripting" not in names
         assert len(result) == 2
 
     def test_no_custom(self, mixed_refs):
         result = filter_references(mixed_refs, no_custom=True)
         names = [r["name"] for r in result]
-        assert "Scripting" not in names
+        assert "MyTemplate" not in names
         assert len(result) == 2
 
-    def test_no_builtins_and_no_third_party(self, mixed_refs):
-        result = filter_references(mixed_refs, no_builtins=True, no_third_party=True)
+    def test_no_default_and_no_installed(self, mixed_refs):
+        result = filter_references(mixed_refs, no_default=True, no_installed=True)
         assert len(result) == 1
-        assert result[0]["name"] == "Scripting"
+        assert result[0]["name"] == "MyTemplate"
 
     def test_all_excluded_returns_empty(self, mixed_refs):
-        result = filter_references(mixed_refs, no_builtins=True, no_third_party=True, no_custom=True)
+        result = filter_references(mixed_refs, no_default=True, no_installed=True, no_custom=True)
         assert result == []
 
     def test_empty_input(self):
         result = filter_references([])
         assert result == []
 
-    def test_multiple_custom_refs(self):
+    def test_multiple_installed_refs(self):
         refs = [
-            _make_ref(name="Scripting", guid="{420B2830-E718-11CF-893D-00A0C9054228}"),
+            _make_ref(name="MyLib", guid="{AAAAAAAA-BBBB-CCCC-DDDD-EEEEEEEEEEEE}"),
             _make_ref(name="MSXML2", guid="{F5078F18-C551-11D3-89B9-0000F81FE221}"),
         ]
-        result = filter_references(refs, no_builtins=True, no_third_party=True)
+        result = filter_references(refs, no_default=True, no_custom=True)
         assert len(result) == 2
+
+    def test_default_guid_refs_filtered_by_no_default(self):
+        """References classified as default via DEFAULT_GUIDS should be filtered."""
+        refs = [
+            _make_ref(name="VBA", builtin=True),
+            _make_ref(name="stdole", guid="{00020430-0000-0000-C000-000000000046}", builtin=False),
+            _make_ref(name="MyLib", guid="{AAAAAAAA-BBBB-CCCC-DDDD-EEEEEEEEEEEE}"),
+        ]
+        result = filter_references(refs, no_default=True)
+        assert len(result) == 1
+        assert result[0]["name"] == "MyLib"
 
 
 # ---------------------------------------------------------------------------
@@ -173,33 +207,33 @@ class TestReferencesCLIParsing:
     def test_references_list_defaults(self, parser):
         args = parser.parse_args(["references", "list"])
         assert args.refs_subcommand == "list"
-        assert args.no_builtins is False
-        assert args.no_third_party is False
+        assert args.no_default is False
+        assert args.no_installed is False
         assert args.no_custom is False
 
-    def test_references_list_no_builtins(self, parser):
-        args = parser.parse_args(["references", "list", "--no-builtins"])
-        assert args.no_builtins is True
+    def test_references_list_no_default(self, parser):
+        args = parser.parse_args(["references", "list", "--no-default"])
+        assert args.no_default is True
 
-    def test_references_list_no_third_party(self, parser):
-        args = parser.parse_args(["references", "list", "--no-third-party"])
-        assert args.no_third_party is True
+    def test_references_list_no_installed(self, parser):
+        args = parser.parse_args(["references", "list", "--no-installed"])
+        assert args.no_installed is True
 
     def test_references_list_no_custom(self, parser):
         args = parser.parse_args(["references", "list", "--no-custom"])
         assert args.no_custom is True
 
     def test_references_list_combined_filters(self, parser):
-        args = parser.parse_args(["references", "list", "--no-builtins", "--no-third-party"])
-        assert args.no_builtins is True
-        assert args.no_third_party is True
+        args = parser.parse_args(["references", "list", "--no-default", "--no-installed"])
+        assert args.no_default is True
+        assert args.no_installed is True
         assert args.no_custom is False
 
     def test_references_export_with_filters(self, parser):
-        args = parser.parse_args(["references", "export", "--no-builtins", "--no-third-party"])
+        args = parser.parse_args(["references", "export", "--no-default", "--no-installed"])
         assert args.refs_subcommand == "export"
-        assert args.no_builtins is True
-        assert args.no_third_party is True
+        assert args.no_default is True
+        assert args.no_installed is True
 
     def test_references_export_with_refs_file(self, parser):
         args = parser.parse_args(["references", "export", "-r", "custom.toml"])

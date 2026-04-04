@@ -11,15 +11,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **VBA Reference Manager**: New `references` command to manage VBA library references across all Office apps
   - `references list` — Display all references with name, GUID, version, path, and status
-  - `references export` — Save all non-built-in references to a shareable TOML file (default: `{document}_refs.toml`)
+  - `references export` — Save references to a shareable TOML file (default: `{document}_refs.toml`)
   - `references import` — Add references from a TOML file to replicate setups across documents or machines
   - Use `--refs-file / -r` to specify a custom TOML file path
   - Works with all four Office apps: Excel, Word, PowerPoint, and Access
   - Makes reference dependencies trackable in version control alongside VBA code
-- **Reference Classification & Filtering**: References are now classified as `builtin`, `third-party`, or `custom` with composable filters
-  - `--no-builtins` — Hide built-in references (VBA, Excel, Word, Office, etc.)
-  - `--no-third-party` — Hide third-party COM add-in references
-  - `--no-custom` — Hide project-specific references
+- **Reference Classification & Filtering**: References are now classified as `default`, `installed`, or `custom` with composable filters
+  - `--no-default` — Hide default references (VBA, host app, stdole, Office, Normal)
+  - `--no-installed` — Hide installed COM library references (registered on the system)
+  - `--no-custom` — Hide custom file-path references (e.g. `.docm`/`.dotm` templates)
   - Category tags displayed next to each reference in `references list` output
 - **Reference Validation**: New `references validate` subcommand to check for broken or missing references
 - **Add & Remove References**: New subcommands for direct reference management
@@ -35,7 +35,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - On `export`: modules with no code (e.g. `Sheet2`, `Sheet3`) are not written to files
   - On `import`: files that contain only a module header and no actual code are skipped
   - Has no effect on `edit` mode
-- **Configuration File Support for References**: All reference-related options (`--with-references`, `--refs-file`, `--no-builtins`, `--no-third-party`, `--no-custom`) can now be set in configuration files using a new `[references]` section
+- **Configuration File Support for References**: Reference filter options (`--refs-file`, `--no-default`, `--no-installed`, `--no-custom`) can now be set in configuration files using a new `[references]` section
 - **Extended Configuration Keys**: Added `skip_empty`, `force_overwrite`, `save_metadata`, `detect_encoding`, and `with_references` to the `[general]` section of configuration files
 - **`uvx` Support via Satellite Entry-Point Packages**: All four tools are now available on PyPI as standalone packages — `excel-vba`, `word-vba`, `powerpoint-vba`, `access-vba`
   - Run any tool instantly without installing: `uvx excel-vba edit`, `uvx word-vba edit`, etc.

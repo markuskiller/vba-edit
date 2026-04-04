@@ -44,78 +44,84 @@ from vba_edit.exceptions import (
 logger = logging.getLogger(__name__)
 
 # --- Reference classification ---
-# Known third-party COM library GUIDs.  These are installed by external
-# software (e.g. Adobe Acrobat) and are NOT project-specific references
-# that a developer deliberately added.  The set is matched case-insensitively.
-THIRD_PARTY_GUIDS: set = {
-    # Adobe Acrobat
-    "{E64169B3-3592-47D2-816E-602C5C13F328}",  # Acrobat (older versions)
-    "{05BFD3F1-6319-4F30-B532-6B9BB480B9E5}",  # AFormAut 1.0 Type Library
-    "{B801CA65-A1FC-11D0-85AD-444553540000}",  # Adobe Acrobat 10.0+
-    "{1A184091-1B64-4B21-80E0-29657E7E09B2}",  # AcroPDFLib
+# GUIDs of standard Office framework libraries that ship with every Office
+# installation.  The COM ``BuiltIn`` flag is only ``True`` for the host
+# app library (e.g. Word, Excel) and the VBA runtime.  These additional
+# framework references are always present and should be treated as default.
+DEFAULT_GUIDS: set = {
+    # OLE Automation (stdole / stdole2)
+    "{00020430-0000-0000-C000-000000000046}",
+    # Microsoft Office Object Library (all versions)
+    "{2DF8D04C-5BFA-101B-BDE5-00AA0044DE52}",
+    # Microsoft Forms 2.0 Object Library
+    "{0D452EE1-E08F-101A-852E-02608C4D0BB4}",
 }
 
-# Name-based patterns for third-party references whose GUIDs vary across
-# versions.  Matched case-insensitively against the reference *name*.
-THIRD_PARTY_NAME_PATTERNS: list = [
-    "acrobat",
-    "acropdf",
-    "aformaut",
-]
+# Reference names that should also be classified as default regardless of
+# the COM BuiltIn flag.  Matched case-insensitively.
+DEFAULT_NAMES: set = {
+    "stdole",
+    "office",
+    "normal",  # Word Normal.dotm template
+}
 
 
 def classify_reference(ref: Dict[str, Any]) -> str:
-    """Classify a reference as 'builtin', 'third-party', or 'custom'.
+    """Classify a reference as 'default', 'installed', or 'custom'.
 
     Classification rules (evaluated in order):
-    1. COM ``BuiltIn`` flag is True → ``'builtin'``
-    2. GUID is in ``THIRD_PARTY_GUIDS`` → ``'third-party'``
-    3. Name matches a ``THIRD_PARTY_NAME_PATTERNS`` entry → ``'third-party'``
-    4. Everything else → ``'custom'``
+    1. COM ``BuiltIn`` flag is True → ``'default'``
+    2. GUID is in ``DEFAULT_GUIDS`` → ``'default'``
+    3. Name is in ``DEFAULT_NAMES`` → ``'default'``
+    4. Reference has a GUID → ``'installed'`` (registered COM library)
+    5. No GUID (file-path reference) → ``'custom'``
 
     Args:
         ref: Reference dictionary as returned by ``list_references()``.
 
     Returns:
-        One of ``'builtin'``, ``'third-party'``, or ``'custom'``.
+        One of ``'default'``, ``'installed'``, or ``'custom'``.
     """
     if ref.get("builtin"):
-        return "builtin"
+        return "default"
 
     guid = (ref.get("guid") or "").upper()
-    if guid and guid in {g.upper() for g in THIRD_PARTY_GUIDS}:
-        return "third-party"
-
     name_lower = (ref.get("name") or "").lower()
-    return next(
-        ("third-party" for pattern in THIRD_PARTY_NAME_PATTERNS if pattern in name_lower),
-        "custom",
-    )
+
+    if guid and guid in {g.upper() for g in DEFAULT_GUIDS}:
+        return "default"
+    if name_lower in DEFAULT_NAMES:
+        return "default"
+
+    if guid:
+        return "installed"
+
+    return "custom"
 
 
 def filter_references(
     refs: List[Dict[str, Any]],
     *,
-    no_builtins: bool = False,
-    no_third_party: bool = False,
+    no_default: bool = False,
+    no_installed: bool = False,
     no_custom: bool = False,
 ) -> List[Dict[str, Any]]:
     """Filter a list of references by classification category.
 
     Args:
         refs: List of reference dictionaries.
-        no_builtins: Exclude built-in references.
-        no_third_party: Exclude third-party COM add-in references.
-        no_custom: Exclude custom (project-specific) references.
+        no_default: Exclude default references (VBA, host app, stdole, Office, Normal).
+        no_installed: Exclude installed COM library references (have a GUID).
+        no_custom: Exclude custom file-path references (no GUID).
 
     Returns:
         Filtered list of reference dictionaries.
     """
     excluded = set()
-    if no_builtins:
-        excluded.add("builtin")
-    if no_third_party:
-        excluded.add("third-party")
+    if no_default:
+        excluded.add("default")
+    if no_installed:
+        excluded.add("installed")
     if no_custom:
         excluded.add("custom")
 
@@ -347,7 +353,7 @@ class ReferenceManager:
                     references.append(ref_info)
 
                     status = "BROKEN" if ref_info["broken"] else "OK"
-                    builtin_str = " [BUILTIN]" if ref_info["builtin"] else ""
+                    builtin_str = " [DEFAULT]" if ref_info["builtin"] else ""
                     logger.debug(
                         f"{status} Reference {i}: {ref_info['name']} "
                         f"v{ref_info['major']}.{ref_info['minor']}{builtin_str}"
@@ -625,8 +631,8 @@ class ReferenceManager:
         self,
         output_file: Union[str, Path],
         *,
-        no_builtins: bool = False,
-        no_third_party: bool = False,
+        no_default: bool = False,
+        no_installed: bool = False,
         no_custom: bool = False,
     ) -> None:
         """Export VBA references to a TOML configuration file.
@@ -644,9 +650,9 @@ class ReferenceManager:
 
         Args:
             output_file: Path to output TOML file
-            no_builtins: Exclude built-in references.
-            no_third_party: Exclude third-party COM add-in references.
-            no_custom: Exclude custom (project-specific) references.
+            no_default: Exclude default references (VBA, host app, stdole, etc.).
+            no_installed: Exclude installed COM library references.
+            no_custom: Exclude custom file-path references.
 
         Raises:
             ReferenceError: If unable to export references
@@ -670,8 +676,8 @@ class ReferenceManager:
             # Apply category filters
             exportable_refs = filter_references(
                 exportable_refs,
-                no_builtins=no_builtins,
-                no_third_party=no_third_party,
+                no_default=no_default,
+                no_installed=no_installed,
                 no_custom=no_custom,
             )
 

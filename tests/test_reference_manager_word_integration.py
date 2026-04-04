@@ -169,17 +169,17 @@ class TestWordReferenceManagerIntegration:
             assert "[metadata]" in content
             assert "generated_by" in content
 
-            # When builtins are excluded, they should not appear
-            toml_no_builtins = Path(tmpdir) / "word_refs_no_builtins.toml"
-            manager.export_to_toml(toml_no_builtins, no_builtins=True)
-            filtered_content = toml_no_builtins.read_text(encoding="utf-8")
+            # When default refs are excluded, they should not appear
+            toml_no_default = Path(tmpdir) / "word_refs_no_default.toml"
+            manager.export_to_toml(toml_no_default, no_default=True)
+            filtered_content = toml_no_default.read_text(encoding="utf-8")
 
             refs = manager.list_references()
             builtin_refs = [r for r in refs if r["builtin"]]
 
             for builtin_ref in builtin_refs:
                 assert builtin_ref["guid"] not in filtered_content, (
-                    f"Built-in reference {builtin_ref['name']} should be filtered from export"
+                    f"Default reference {builtin_ref['name']} should be filtered from export"
                 )
 
     def test_import_references_to_new_word_document(self, word_app, tmp_path):

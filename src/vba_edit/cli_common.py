@@ -147,8 +147,8 @@ CONFIG_KEY_WITH_REFERENCES = "with_references"
 
 # TOML configuration keys (references section)
 CONFIG_KEY_REFS_FILE = "refs_file"
-CONFIG_KEY_NO_BUILTINS = "no_builtins"
-CONFIG_KEY_NO_THIRD_PARTY = "no_third_party"
+CONFIG_KEY_NO_DEFAULT = "no_default"
+CONFIG_KEY_NO_INSTALLED = "no_installed"
 CONFIG_KEY_NO_CUSTOM = "no_custom"
 
 # Placeholder constants for use in arguments and configuration values
@@ -1025,25 +1025,25 @@ def add_references_output_arguments(parser: argparse.ArgumentParser) -> None:
 
 
 def add_references_filter_arguments(parser: argparse.ArgumentParser) -> None:
-    """Add reference category filter arguments (--no-builtins, --no-third-party, --no-custom)."""
+    """Add reference category filter arguments (--no-default, --no-installed, --no-custom)."""
     filter_group = parser.add_argument_group("Filter Options")
     filter_group.add_argument(
-        "--no-builtins",
-        dest=CONFIG_KEY_NO_BUILTINS,
+        "--no-default",
+        dest=CONFIG_KEY_NO_DEFAULT,
         action="store_true",
-        help="Exclude built-in references (VBA, Excel, Word, Office, etc.)",
+        help="Exclude default references (VBA, Excel, Word, stdole, Office, Normal)",
     )
     filter_group.add_argument(
-        "--no-third-party",
-        dest=CONFIG_KEY_NO_THIRD_PARTY,
+        "--no-installed",
+        dest=CONFIG_KEY_NO_INSTALLED,
         action="store_true",
-        help="Exclude third-party COM add-in references (e.g. Adobe Acrobat)",
+        help="Exclude installed COM library references (registered on the system)",
     )
     filter_group.add_argument(
         "--no-custom",
         dest=CONFIG_KEY_NO_CUSTOM,
         action="store_true",
-        help="Exclude custom (project-specific) references",
+        help="Exclude custom file-path references (e.g. .docm/.dotm templates)",
     )
 
 

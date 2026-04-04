@@ -102,7 +102,7 @@ from vba_edit.exceptions import (
     VBAAccessError,
     VBAError,
 )
-from vba_edit.reference_manager import ReferenceManager, filter_references
+from vba_edit.reference_manager import ReferenceManager, classify_reference, filter_references
 from vba_edit.exceptions import VBAReferenceError
 from vba_edit.help_formatter import ColorizedArgumentParser, EnhancedHelpFormatter
 from vba_edit.office_vba import (
@@ -792,16 +792,16 @@ Simple usage:
             manager = ReferenceManager(doc)
 
             # Read filter flags (present on list and export subcommands)
-            no_builtins = getattr(args, "no_builtins", False)
-            no_third_party = getattr(args, "no_third_party", False)
+            no_default = getattr(args, "no_default", False)
+            no_installed = getattr(args, "no_installed", False)
             no_custom = getattr(args, "no_custom", False)
 
             if subcommand == "list":
                 refs = manager.list_references()
                 refs = filter_references(
                     refs,
-                    no_builtins=no_builtins,
-                    no_third_party=no_third_party,
+                    no_default=no_default,
+                    no_installed=no_installed,
                     no_custom=no_custom,
                 )
                 if not refs:
@@ -809,13 +809,13 @@ Simple usage:
                     sys.exit(0)
                 info(f"VBA references in {Path(doc_path).name} ({len(refs)} total):\n")
                 for ref in refs:
-                    category = ref.get("category", "custom")
+                    category = classify_reference(ref)
                     if ref["broken"]:
                         status = "[BROKEN]   "
-                    elif ref["builtin"]:
-                        status = "[BUILTIN]  "
-                    elif category == "third-party":
-                        status = "[3RD-PARTY]"
+                    elif category == "default":
+                        status = "[DEFAULT]  "
+                    elif category == "installed":
+                        status = "[INSTALLED]"
                     else:
                         status = "[CUSTOM]   "
                     path_str = f"\n      Path: {ref['path']}" if ref.get("path") else ""
@@ -828,8 +828,8 @@ Simple usage:
             elif subcommand == "export":
                 manager.export_to_toml(
                     refs_file,
-                    no_builtins=no_builtins,
-                    no_third_party=no_third_party,
+                    no_default=no_default,
+                    no_installed=no_installed,
                     no_custom=no_custom,
                 )
                 success(f"References exported to: {refs_file}")

@@ -185,7 +185,7 @@ excel-vba edit --rubberduck-folders --in-file-headers
 | `excel-vba export --force-overwrite` | Export without confirmation prompts |
 | `excel-vba check` | Verify status of *Trust access* to the VBA project object model |
 | `excel-vba references list` | List all VBA library references in the active workbook |
-| `excel-vba references list --no-builtins` | List only third-party and custom references |
+| `excel-vba references list --no-default` | List only installed and custom references |
 | `excel-vba references export` | Export references to a TOML file for sharing or version control |
 | `excel-vba references import -r refs.toml` | Restore references from a TOML file |
 | `excel-vba references validate` | Check for broken or missing references |
@@ -203,8 +203,8 @@ Manage VBA library references (e.g. Microsoft Scripting Runtime, ActiveX Data Ob
 # List all references in the active workbook
 excel-vba references list
 
-# List only custom and third-party references (hide built-ins)
-excel-vba references list --no-builtins
+# List only installed and custom references (hide defaults)
+excel-vba references list --no-default
 
 # Export references to a TOML file (default: {document}_refs.toml)
 excel-vba references export
@@ -243,11 +243,11 @@ References are classified into three categories for easy filtering:
 
 | Category | Description | Example |
 |----------|-------------|----------|
-| `builtin` | Built-in Office references | VBA, Excel, stdole |
-| `third-party` | Third-party COM add-ins | Adobe Acrobat, SAP |
-| `custom` | Project-specific references | Your `.xlam` add-ins |
+| `default` | Always present in new documents | VBA, Excel, stdole, Office, Normal |
+| `installed` | Registered COM libraries on the system | Scripting Runtime, Adobe Acrobat |
+| `custom` | File-path references (no GUID) | Your `.docm`/`.dotm` templates |
 
-Filter flags can be combined: `--no-builtins`, `--no-third-party`, `--no-custom`
+Filter flags can be combined: `--no-default`, `--no-installed`, `--no-custom`
 
 **Use cases:**
 - Track reference dependencies alongside VBA code in version control
@@ -424,9 +424,9 @@ excel-vba export --conf vba-config.toml
 
 **[references] section:**
 - `refs_file` - Path to VBA references file (default: `vba-references.toml`)
-- `no_builtins` - Exclude built-in references from listing (true/false)
-- `no_third_party` - Exclude third-party references from listing (true/false)
-- `no_custom` - Exclude custom/project references from listing (true/false)
+- `no_default` - Exclude default references from listing (true/false)
+- `no_installed` - Exclude installed COM library references from listing (true/false)
+- `no_custom` - Exclude custom file-path references from listing (true/false)
 
 **Other sections (reserved for future use):**
 - `[office]` - Office-wide settings

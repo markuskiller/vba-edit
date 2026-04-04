@@ -10,10 +10,10 @@ from vba_edit.cli_common import (
     CONFIG_KEY_DETECT_ENCODING,
     CONFIG_KEY_FILE,
     CONFIG_KEY_FORCE_OVERWRITE,
-    CONFIG_KEY_NO_BUILTINS,
-    CONFIG_KEY_NO_COLOR,
     CONFIG_KEY_NO_CUSTOM,
-    CONFIG_KEY_NO_THIRD_PARTY,
+    CONFIG_KEY_NO_COLOR,
+    CONFIG_KEY_NO_DEFAULT,
+    CONFIG_KEY_NO_INSTALLED,
     CONFIG_KEY_REFS_FILE,
     CONFIG_KEY_RUBBERDUCK_FOLDERS,
     CONFIG_KEY_SAVE_METADATA,
@@ -109,11 +109,11 @@ class TestGetCliExplicitArgs:
 
     def test_reference_filter_args_detected(self):
         parser = _make_references_parser()
-        args = parser.parse_args(["--no-builtins", "--no-custom"])
+        args = parser.parse_args(["--no-default", "--no-custom"])
         explicit = _get_cli_explicit_args(parser, args)
-        assert CONFIG_KEY_NO_BUILTINS in explicit
+        assert CONFIG_KEY_NO_DEFAULT in explicit
         assert CONFIG_KEY_NO_CUSTOM in explicit
-        assert CONFIG_KEY_NO_THIRD_PARTY not in explicit
+        assert CONFIG_KEY_NO_INSTALLED not in explicit
 
     def test_refs_file_detected(self):
         parser = _make_references_parser()
@@ -193,22 +193,22 @@ class TestMergeConfigSection:
         """[references] section keys are applied correctly."""
         args_dict = {
             CONFIG_KEY_REFS_FILE: None,
-            CONFIG_KEY_NO_BUILTINS: None,
-            CONFIG_KEY_NO_THIRD_PARTY: None,
+            CONFIG_KEY_NO_DEFAULT: None,
+            CONFIG_KEY_NO_INSTALLED: None,
             CONFIG_KEY_NO_CUSTOM: None,
         }
         config = {
             CONFIG_SECTION_REFERENCES: {
                 "refs_file": "my_refs.toml",
-                "no_builtins": True,
-                "no_third_party": False,
+                "no_default": True,
+                "no_installed": False,
                 "no_custom": True,
             }
         }
         _merge_config_section(args_dict, config, CONFIG_SECTION_REFERENCES, None)
         assert args_dict[CONFIG_KEY_REFS_FILE] == "my_refs.toml"
-        assert args_dict[CONFIG_KEY_NO_BUILTINS] is True
-        assert args_dict[CONFIG_KEY_NO_THIRD_PARTY] is False
+        assert args_dict[CONFIG_KEY_NO_DEFAULT] is True
+        assert args_dict[CONFIG_KEY_NO_INSTALLED] is False
         assert args_dict[CONFIG_KEY_NO_CUSTOM] is True
 
 
@@ -254,18 +254,18 @@ class TestMergeConfigWithArgs:
             verbose=None,
             file=None,
             refs_file=None,
-            no_builtins=None,
+            no_default=None,
             conf="test.toml",
         )
         config = {
             CONFIG_SECTION_GENERAL: {"verbose": True, "file": "doc.xlsm"},
-            CONFIG_SECTION_REFERENCES: {"refs_file": "refs.toml", "no_builtins": True},
+            CONFIG_SECTION_REFERENCES: {"refs_file": "refs.toml", "no_default": True},
         }
         result = merge_config_with_args(args, config)
         assert result.verbose is True
         assert result.file == "doc.xlsm"
         assert result.refs_file == "refs.toml"
-        assert result.no_builtins is True
+        assert result.no_default is True
 
     def test_stores_config_and_path(self):
         """_config and _config_file_path are stored on the result namespace."""
@@ -279,24 +279,24 @@ class TestMergeConfigWithArgs:
         """cli_explicit also protects reference args."""
         args = argparse.Namespace(
             refs_file="cli_refs.toml",
-            no_builtins=True,
-            no_third_party=False,
+            no_default=True,
+            no_installed=False,
             conf="test.toml",
         )
         config = {
             CONFIG_SECTION_REFERENCES: {
                 "refs_file": "config_refs.toml",
-                "no_builtins": False,
-                "no_third_party": True,
+                "no_default": False,
+                "no_installed": True,
             }
         }
-        cli_explicit = {CONFIG_KEY_REFS_FILE, CONFIG_KEY_NO_BUILTINS}
+        cli_explicit = {CONFIG_KEY_REFS_FILE, CONFIG_KEY_NO_DEFAULT}
         result = merge_config_with_args(args, config, cli_explicit=cli_explicit)
         # Explicit CLI args protected
         assert result.refs_file == "cli_refs.toml"
-        assert result.no_builtins is True
+        assert result.no_default is True
         # Non-explicit arg overridden by config
-        assert result.no_third_party is True
+        assert result.no_installed is True
 
 
 # ---------------------------------------------------------------------------
@@ -351,54 +351,54 @@ class TestReferencesConfigSection:
         """All four [references] keys should be applied."""
         args = argparse.Namespace(
             refs_file=None,
-            no_builtins=None,
-            no_third_party=None,
+            no_default=None,
+            no_installed=None,
             no_custom=None,
             conf="test.toml",
         )
         config = {
             CONFIG_SECTION_REFERENCES: {
                 "refs_file": "project_refs.toml",
-                "no_builtins": True,
-                "no_third_party": True,
+                "no_default": True,
+                "no_installed": True,
                 "no_custom": False,
             }
         }
         result = merge_config_with_args(args, config)
         assert result.refs_file == "project_refs.toml"
-        assert result.no_builtins is True
-        assert result.no_third_party is True
+        assert result.no_default is True
+        assert result.no_installed is True
         assert result.no_custom is False
 
     def test_references_section_with_hyphen_keys(self):
         """Hyphenated TOML keys should map to underscored dest names."""
         args = argparse.Namespace(
             refs_file=None,
-            no_builtins=None,
-            no_third_party=None,
+            no_default=None,
+            no_installed=None,
             no_custom=None,
             conf="test.toml",
         )
         config = {
             CONFIG_SECTION_REFERENCES: {
                 "refs-file": "hyphen_refs.toml",
-                "no-builtins": True,
-                "no-third-party": True,
+                "no-default": True,
+                "no-installed": True,
                 "no-custom": True,
             }
         }
         result = merge_config_with_args(args, config)
         assert result.refs_file == "hyphen_refs.toml"
-        assert result.no_builtins is True
-        assert result.no_third_party is True
+        assert result.no_default is True
+        assert result.no_installed is True
         assert result.no_custom is True
 
     def test_empty_references_section_is_noop(self):
-        args = argparse.Namespace(refs_file=None, no_builtins=None, conf="test.toml")
+        args = argparse.Namespace(refs_file=None, no_default=None, conf="test.toml")
         config = {CONFIG_SECTION_REFERENCES: {}}
         result = merge_config_with_args(args, config)
         assert result.refs_file is None
-        assert result.no_builtins is None
+        assert result.no_default is None
 
     def test_general_and_references_combined(self):
         """Both sections should be merged in a single call."""
@@ -406,7 +406,7 @@ class TestReferencesConfigSection:
             verbose=None,
             with_references=None,
             refs_file=None,
-            no_builtins=None,
+            no_default=None,
             conf="test.toml",
         )
         config = {
@@ -416,14 +416,14 @@ class TestReferencesConfigSection:
             },
             CONFIG_SECTION_REFERENCES: {
                 "refs_file": "combined.toml",
-                "no_builtins": True,
+                "no_default": True,
             },
         }
         result = merge_config_with_args(args, config)
         assert result.verbose is True
         assert result.with_references is True
         assert result.refs_file == "combined.toml"
-        assert result.no_builtins is True
+        assert result.no_default is True
 
 
 # ---------------------------------------------------------------------------
@@ -491,27 +491,27 @@ class TestStoreTrueConfigMerge:
         args = parser.parse_args([])
         config = {
             CONFIG_SECTION_REFERENCES: {
-                "no_builtins": True,
-                "no_third_party": True,
+                "no_default": True,
+                "no_installed": True,
                 "no_custom": False,
                 "refs_file": "project.toml",
             }
         }
         cli_explicit = _get_cli_explicit_args(parser, args)
         result = merge_config_with_args(args, config, cli_explicit=cli_explicit)
-        assert result.no_builtins is True
-        assert result.no_third_party is True
+        assert result.no_default is True
+        assert result.no_installed is True
         assert result.no_custom is False
         assert result.refs_file == "project.toml"
 
     def test_cli_filter_overrides_config(self):
-        """--no-builtins on CLI overrides config no_builtins=false."""
+        """--no-default on CLI overrides config no_default=false."""
         parser = _make_references_parser()
-        args = parser.parse_args(["--no-builtins"])
-        config = {CONFIG_SECTION_REFERENCES: {"no_builtins": False}}
+        args = parser.parse_args(["--no-default"])
+        config = {CONFIG_SECTION_REFERENCES: {"no_default": False}}
         cli_explicit = _get_cli_explicit_args(parser, args)
         result = merge_config_with_args(args, config, cli_explicit=cli_explicit)
-        assert result.no_builtins is True
+        assert result.no_default is True
 
 
 # ---------------------------------------------------------------------------
@@ -536,17 +536,17 @@ class TestGetConfigDefaults:
 
         cli = OfficeVBACLI("excel")
         parser = cli.create_cli_parser()
-        # references list subcommand has --refs-file, --no-builtins etc.
+        # references list subcommand has --refs-file, --no-default etc.
         # We need to find the subparser for 'references' — but references has sub-subparsers
         # Use the export subparser which also has --with-references
         subparser = cli._get_subparser(parser, "export")
         config = {
             CONFIG_SECTION_REFERENCES: {
-                "no_builtins": True,
+                "no_default": True,
             }
         }
         defaults = cli._get_config_defaults(subparser or parser, config)
-        # no_builtins is not on the export subparser — it's on references subcommands
+        # no_default is not on the export subparser — it's on references subcommands
         # So it may or may not be in defaults depending on the parser structure
         # The important thing is that the function doesn't crash
         assert isinstance(defaults, dict)
@@ -604,13 +604,13 @@ class TestReferencesCommandConfigLoading:
         from vba_edit.office_cli import OfficeVBACLI
         from vba_edit.cli_common import load_config_file
 
-        config_content = '[general]\nverbose = true\n\n[references]\nno_builtins = true\nrefs_file = "custom.toml"\n'
+        config_content = '[general]\nverbose = true\n\n[references]\nno_default = true\nrefs_file = "custom.toml"\n'
         config_file = tmp_path / "test-config.toml"
         config_file.write_text(config_content, encoding="utf-8")
 
         config = load_config_file(str(config_file))
         assert CONFIG_SECTION_REFERENCES in config
-        assert config[CONFIG_SECTION_REFERENCES]["no_builtins"] is True
+        assert config[CONFIG_SECTION_REFERENCES]["no_default"] is True
         assert config[CONFIG_SECTION_REFERENCES]["refs_file"] == "custom.toml"
 
         cli = OfficeVBACLI("excel")
