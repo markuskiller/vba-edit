@@ -877,7 +877,7 @@ def detect_vba_encoding(file_path: str) -> Tuple[str, float]:
     except EncodingError:
         raise
     except Exception as e:
-        raise EncodingError(f"Failed to detect encoding: {e}")
+        raise EncodingError(f"Failed to detect encoding: {e}") from e
 
 
 @error_handler

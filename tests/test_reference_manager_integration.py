@@ -72,10 +72,10 @@ class TestReferenceManagerIntegration:
         assert "broken" in first_ref
 
         builtin_refs = [r for r in refs if r["builtin"]]
-        assert len(builtin_refs) > 0
+        assert builtin_refs
 
         broken_refs = [r for r in refs if r["broken"]]
-        assert len(broken_refs) == 0
+        assert not broken_refs
 
     def test_add_and_remove_reference_real_excel(self, test_workbook):
         """Test adding and removing a reference with real Excel."""

@@ -1798,6 +1798,90 @@ class OfficeVBAHandler(ABC):
                 f.write(code + "\n")
             logger.debug(f"Saved code file: {code_file}")
 
+    def _handle_toml_change(self, toml_path: str) -> None:
+        """Re-import VBA references when a refs.toml file changes."""
+        try:
+            from vba_edit.reference_manager import ReferenceManager
+
+            manager = ReferenceManager(self.doc)
+            stats = manager.import_from_toml(str(toml_path))
+            added = stats.get("added", 0)
+            skipped = stats.get("skipped", 0)
+            failed = stats.get("failed", 0)
+            logger.info(f"References re-imported: {added} added, {skipped} skipped, {failed} failed")
+        except Exception as e:
+            logger.warning(f"Could not re-import references: {e}")
+
+    def _handle_vba_change(self, change_type: Any, path: Path) -> None:
+        """Handle a single VBA file change (added, modified, or deleted)."""
+        if change_type == Change.deleted:
+            logger.info(f"Detected deletion of {path.name}")
+            if not self.is_document_open():
+                raise DocumentClosedError(self.document_type)
+            vba_project = self.get_vba_project()
+            components = vba_project.VBComponents
+            try:
+                component = components(path.stem)
+                components.Remove(component)
+                logger.info(f"Removed component: {path.stem}")
+                self.doc.Save()
+            except Exception:
+                logger.debug(f"Component {path.stem} already removed or not found")
+        elif change_type in (Change.added, Change.modified):
+            action = "addition" if change_type == Change.added else "modification"
+            logger.debug(f"Processing {action} in {path}")
+            self.import_single_file(path)
+
+    def _process_changes_batch(
+        self,
+        changes: Any,
+        refs_toml_name: str,
+        watch_references: bool,
+        last_check_time: float,
+        check_interval: int,
+        vba_extensions: set,
+    ) -> float:
+        """Process one batch of file-system changes from the watcher.
+
+        Returns the (possibly updated) last_check_time.
+        """
+        current_time = time.time()
+        if current_time - last_check_time >= check_interval:
+            if not self.is_document_open():
+                raise DocumentClosedError(self.document_type)
+            last_check_time = current_time
+            logger.debug("Connection check passed")
+
+        vba_changes = []
+        toml_changes = []
+        for change_type, file_path in changes:
+            path = Path(file_path)
+            # Only include files with VBA extensions, but exclude temp files
+            # Temp files have pattern: *_temp.{bas,cls,frm}
+            if path.suffix.lower() in vba_extensions and not path.stem.endswith("_temp"):
+                vba_changes.append((change_type, file_path))
+            elif watch_references and path.name == refs_toml_name and change_type == Change.modified:
+                toml_changes.append((change_type, file_path))
+
+        if vba_changes:
+            logger.debug(f"Watchfiles detected VBA changes: {vba_changes}")
+        if toml_changes:
+            logger.debug(f"Watchfiles detected refs.toml change: {toml_changes}")
+
+        for _change_type, toml_path in toml_changes:
+            self._handle_toml_change(toml_path)
+
+        for change_type, path in vba_changes:
+            try:
+                self._handle_vba_change(change_type, Path(path))
+            except (DocumentClosedError, RPCError) as e:
+                raise e
+            except Exception as e:
+                logger.warning(f"Error handling changes (will retry): {str(e)}")
+                continue
+
+        return last_check_time
+
     def watch_changes(self, *, watch_references: bool = False) -> None:
         """Watch for changes in VBA files and update the document.
 
@@ -1809,22 +1893,11 @@ class OfficeVBAHandler(ABC):
             last_check_time = time.time()
             check_interval = 5  # Check connection every 5 seconds
 
-            # Setup file patterns for watchfiles
-            if self.use_rubberduck_folders:
-                recursive = True
-            else:
-                recursive = False
-
-            # Watch recursively
+            recursive = self.use_rubberduck_folders
             watch_path = self.vba_dir
-            # Define VBA file extensions we want to watch
             vba_extensions = {".bas", ".cls", ".frm"}
-
-            # Derive the expected refs.toml filename for this document
             refs_toml_name = f"{self.doc_path.stem}_refs.toml"
 
-            # Use yield_on_timeout=True so watch yields even without file changes
-            # This allows us to check document state periodically
             for changes in watch(
                 watch_path,
                 recursive=recursive,
@@ -1832,76 +1905,9 @@ class OfficeVBAHandler(ABC):
                 yield_on_timeout=True,
             ):
                 try:
-                    # Check connection periodically (now triggered by timeout or changes)
-                    current_time = time.time()
-                    if current_time - last_check_time >= check_interval:
-                        if not self.is_document_open():
-                            raise DocumentClosedError(self.document_type)
-                        last_check_time = current_time
-                        logger.debug("Connection check passed")
-
-                    # Filter changes to only include VBA files (exclude temp files)
-                    vba_changes = []
-                    toml_changes = []
-                    for change_type, file_path in changes:
-                        path = Path(file_path)
-                        # Only include files with VBA extensions, but exclude temp files
-                        # Temp files have pattern: *_temp.{bas,cls,frm}
-                        if path.suffix.lower() in vba_extensions and not path.stem.endswith("_temp"):
-                            vba_changes.append((change_type, file_path))
-                        elif watch_references and path.name == refs_toml_name and change_type == Change.modified:
-                            toml_changes.append((change_type, file_path))
-
-                    if vba_changes:
-                        logger.debug(f"Watchfiles detected VBA changes: {vba_changes}")
-                    if toml_changes:
-                        logger.debug(f"Watchfiles detected refs.toml change: {toml_changes}")
-
-                    # Handle refs.toml changes — re-import references
-                    for _change_type, toml_path in toml_changes:
-                        try:
-                            from vba_edit.reference_manager import ReferenceManager
-
-                            manager = ReferenceManager(self.doc)
-                            stats = manager.import_from_toml(str(toml_path))
-                            added = stats.get("added", 0)
-                            skipped = stats.get("skipped", 0)
-                            failed = stats.get("failed", 0)
-                            logger.info(f"References re-imported: {added} added, {skipped} skipped, {failed} failed")
-                        except Exception as e:
-                            logger.warning(f"Could not re-import references: {e}")
-
-                    for change_type, path in vba_changes:
-                        try:
-                            path = Path(path)
-                            if change_type == Change.deleted:
-                                # Handle deleted files
-                                logger.info(f"Detected deletion of {path.name}")
-                                if not self.is_document_open():
-                                    raise DocumentClosedError(self.document_type)
-
-                                vba_project = self.get_vba_project()
-                                components = vba_project.VBComponents
-                                try:
-                                    component = components(path.stem)
-                                    components.Remove(component)
-                                    logger.info(f"Removed component: {path.stem}")
-                                    self.doc.Save()
-                                except Exception:
-                                    logger.debug(f"Component {path.stem} already removed or not found")
-
-                            elif change_type in (Change.added, Change.modified):
-                                # Handle both added and modified files the same way
-                                action = "addition" if change_type == Change.added else "modification"
-                                logger.debug(f"Processing {action} in {path}")
-                                self.import_single_file(path)
-
-                        except (DocumentClosedError, RPCError) as e:
-                            raise e
-                        except Exception as e:
-                            logger.warning(f"Error handling changes (will retry): {str(e)}")
-                            continue
-
+                    last_check_time = self._process_changes_batch(
+                        changes, refs_toml_name, watch_references, last_check_time, check_interval, vba_extensions
+                    )
                 except (DocumentClosedError, RPCError) as error:
                     raise error
                 except Exception as error:
@@ -2007,6 +2013,69 @@ class OfficeVBAHandler(ABC):
             logger.error(f"Failed to process {file_path.name}: {str(e)}")
             raise VBAError(f"Failed to import {file_path.name}") from e
 
+    def _check_export_warnings(self, interactive: bool, overwrite: bool) -> None:
+        """Raise VBAExportWarning if user confirmation is needed before export.
+
+        Args:
+            interactive: Whether to prompt the user for confirmation.
+            overwrite: Whether overwriting existing files is intended.
+
+        Raises:
+            VBAExportWarning: When user confirmation is needed.
+        """
+        if interactive and overwrite:
+            existing_files = self._check_existing_vba_files()
+            if existing_files:
+                raise VBAExportWarning("existing_files", {"file_count": len(existing_files), "files": existing_files})
+        if interactive:
+            if self._check_header_mode_change():
+                old_mode, new_mode = self._get_header_modes()
+                raise VBAExportWarning("header_mode_changed", {"old_mode": old_mode, "new_mode": new_mode})
+
+    def _export_components(self, components: Any, overwrite: bool) -> Dict[str, Any]:
+        """Export all VBA components to the VBA directory.
+
+        Args:
+            components: VBA components collection.
+            overwrite: Whether to overwrite existing files.
+
+        Returns:
+            Dictionary mapping component names to encoding metadata.
+        """
+        encoding_data: Dict[str, Any] = {}
+        for component in components:
+            try:
+                info = self.component_handler.get_component_info(component)
+                base_name = info["name"]
+
+                if self.skip_empty and info["code_lines"] == 0:
+                    logger.info(f"Skipping empty module: {base_name}")
+                    continue
+
+                final_file = resolve_path(f"{base_name}{info['extension']}", self.vba_dir)
+                header_file = resolve_path(f"{base_name}.header", self.vba_dir) if self.save_headers else None
+
+                should_export = overwrite
+                if not overwrite:
+                    if self.in_file_headers:
+                        should_export = not final_file.exists()
+                    else:
+                        files_to_check = [final_file]
+                        if header_file:
+                            files_to_check.append(header_file)
+                        should_export = any(not f.exists() for f in files_to_check)
+
+                if should_export:
+                    self.export_component(component, self.vba_dir)
+                    encoding_data[info["name"]] = {"encoding": self.encoding, "type": info["type_name"]}
+                else:
+                    logger.debug(f"Skipping existing file: {final_file}")
+
+            except Exception as e:
+                logger.error(f"Failed to export component {component.Name}: {str(e)}")
+                continue
+        return encoding_data
+
     def export_vba(
         self, save_metadata: bool = False, overwrite: bool = True, interactive: bool = True, keep_open: bool = False
     ) -> None:
@@ -2035,70 +2104,16 @@ class OfficeVBAHandler(ABC):
                 logger.info(f"No VBA components found in the {self.document_type}.")
                 return
 
-            # Check if files already exist and raise warning if interactive
-            if interactive and overwrite:
-                existing_files = self._check_existing_vba_files()
-                if existing_files:
-                    raise VBAExportWarning(
-                        "existing_files", {"file_count": len(existing_files), "files": existing_files}
-                    )
+            # Raise warnings if user confirmation is needed
+            self._check_export_warnings(interactive, overwrite)
 
-            # Check if header mode has changed and raise warning if interactive
-            if interactive:
-                header_mode_changed = self._check_header_mode_change()
-                if header_mode_changed:
-                    old_mode, new_mode = self._get_header_modes()
-                    raise VBAExportWarning("header_mode_changed", {"old_mode": old_mode, "new_mode": new_mode})
-
-            # If we get here, either interactive=False or no warnings were triggered
             # Clean up old header files if header mode changed (for non-interactive retries)
             if self._check_header_mode_change():
                 overwrite = True
                 self._cleanup_old_header_files()
 
-            # Track exported files for metadata
-            encoding_data = {}
-
-            for component in components:
-                try:
-                    info = self.component_handler.get_component_info(component)
-                    base_name = info["name"]
-
-                    # Skip modules with no code if requested
-                    if self.skip_empty and info["code_lines"] == 0:
-                        logger.info(f"Skipping empty module: {base_name}")
-                        continue
-
-                    final_file = resolve_path(f"{base_name}{info['extension']}", self.vba_dir)
-                    header_file = resolve_path(f"{base_name}.header", self.vba_dir) if self.save_headers else None
-
-                    # When using in_file_headers, always export to ensure headers are embedded
-                    # When using save_headers, check both code and header files
-                    should_export = overwrite
-
-                    if not overwrite:
-                        if self.in_file_headers:
-                            # For in-file headers, only skip if the file exists
-                            # (we can't tell if it has headers without reading it, so safer to re-export)
-                            should_export = not final_file.exists()
-                        else:
-                            # For separate headers, check both code and header files
-                            files_to_check = [final_file]
-                            if header_file:
-                                files_to_check.append(header_file)
-
-                            # Export if any file is missing
-                            should_export = any(not f.exists() for f in files_to_check)
-
-                    if should_export:
-                        self.export_component(component, self.vba_dir)
-                        encoding_data[info["name"]] = {"encoding": self.encoding, "type": info["type_name"]}
-                    else:
-                        logger.debug(f"Skipping existing file: {final_file}")
-
-                except Exception as e:
-                    logger.error(f"Failed to export component {component.Name}: {str(e)}")
-                    continue
+            # Export all components and track metadata
+            encoding_data = self._export_components(components, overwrite)
 
             self._check_form_safety(self.vba_dir)  # Check for forms before proceeding
 
@@ -2121,23 +2136,11 @@ class OfficeVBAHandler(ABC):
             else:
                 logger.debug("Skipping metadata save (no forms and not requested)")
 
-            # Show exported files to user if requested
-
-            # Plattform independent way to open the directory commented out
-            # as only Windows is supported for now
-
-            # try:
             if self.open_folder:
                 logger.debug("Opening export directory...")
                 os.startfile(str(self.vba_dir))
             else:
                 logger.info(f"VBA modules exported to: {self.vba_dir}")
-            # except AttributeError:
-            #     # os.startfile is Windows only, use platform-specific alternatives
-            #     if sys.platform == "darwin":
-            #         subprocess.run(["open", str(self.vba_dir)])
-            #     else:
-            #         subprocess.run(["xdg-open", str(self.vba_dir)])
 
             # Close document after export unless --keep-open flag is set
             if not keep_open:

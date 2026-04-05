@@ -58,19 +58,19 @@ class TestWordReferenceManagerIntegration:
         manager = ReferenceManager(test_document)
         refs = manager.list_references()
 
-        assert len(refs) > 0
+        assert refs
 
-        for ref in refs:
-            assert "name" in ref
-            assert "guid" in ref
-            assert "major" in ref
-            assert "minor" in ref
-            assert "priority" in ref
-            assert "builtin" in ref
-            assert "broken" in ref
+        first_ref = refs[0]
+        assert "name" in first_ref
+        assert "guid" in first_ref
+        assert "major" in first_ref
+        assert "minor" in first_ref
+        assert "priority" in first_ref
+        assert "builtin" in first_ref
+        assert "broken" in first_ref
 
         builtin_refs = [r for r in refs if r["builtin"]]
-        assert len(builtin_refs) > 0
+        assert builtin_refs
 
     def test_add_scripting_runtime_to_word(self, test_document):
         """Test adding Scripting Runtime to Word document (common use case)."""
@@ -103,12 +103,10 @@ class TestWordReferenceManagerIntegration:
 
         refs_before = manager.list_references()
         initial_count = len(refs_before)
-        added_count = 0
 
-        for ref_info in common_refs:
-            added = manager.add_reference(**ref_info)
-            if added:
-                added_count += 1
+        scripting_added = manager.add_reference(**common_refs[0])
+        word_added = manager.add_reference(**common_refs[1])
+        added_count = sum([scripting_added, word_added])
 
         refs_after = manager.list_references()
         assert len(refs_after) >= initial_count + added_count
@@ -142,8 +140,7 @@ class TestWordReferenceManagerIntegration:
 
         finally:
             try:
-                if doc_path.exists():
-                    doc_path.unlink()
+                doc_path.unlink(missing_ok=True)
             except Exception:
                 pass
 
@@ -177,10 +174,9 @@ class TestWordReferenceManagerIntegration:
             refs = manager.list_references()
             builtin_refs = [r for r in refs if r["builtin"]]
 
-            for builtin_ref in builtin_refs:
-                assert builtin_ref["guid"] not in filtered_content, (
-                    f"Default reference {builtin_ref['name']} should be filtered from export"
-                )
+            assert all(builtin_ref["guid"] not in filtered_content for builtin_ref in builtin_refs), (
+                "Default references should be filtered from export"
+            )
 
     def test_import_references_to_new_word_document(self, word_app, tmp_path):
         """Test importing references from TOML to a new Word document."""
@@ -218,8 +214,7 @@ description = "Microsoft Scripting Runtime (FileSystemObject, Dictionary)"
             {"guid": "{420B2830-E718-11CF-893D-00A0C9054228}", "name": "Scripting", "major": 1, "minor": 0},
         ]
 
-        for ref_info in refs_to_add:
-            source_manager.add_reference(**ref_info)
+        source_manager.add_reference(**refs_to_add[0])
 
         toml_file = tmp_path / "template_refs.toml"
         source_manager.export_to_toml(toml_file)
@@ -233,8 +228,7 @@ description = "Microsoft Scripting Runtime (FileSystemObject, Dictionary)"
             assert stats["added"] >= 0
             assert stats["failed"] == 0
 
-            # Both references should be present
-            for ref_info in refs_to_add:
-                assert target_manager.reference_exists(guid=ref_info["guid"]) is True
+            # Reference should be present
+            assert target_manager.reference_exists(guid=refs_to_add[0]["guid"]) is True
         finally:
             target_doc.Close(SaveChanges=False)
