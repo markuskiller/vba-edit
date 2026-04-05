@@ -7,6 +7,7 @@ and filtering logic in reference_manager.py, and CLI parser wiring.
 
 import pytest
 from pathlib import Path
+from unittest.mock import MagicMock, patch
 
 from vba_edit.reference_manager import (
     DEFAULT_GUIDS,
@@ -383,3 +384,294 @@ class TestAutoReferenceHelpers:
 
         result = cli._get_refs_file(handler)
         assert result == Path("C:/docs/VBA-MyWorkbook/MyWorkbook_refs.toml")
+
+
+# ---------------------------------------------------------------------------
+# TOML filter metadata
+# ---------------------------------------------------------------------------
+
+
+class TestTomlFilterMetadata:
+    """Tests for filter metadata in exported TOML files."""
+
+    def test_no_filters_omits_key(self):
+        """When no filters are active, the filters key is absent."""
+        from vba_edit.reference_manager import _serialize_references_to_toml
+
+        output = _serialize_references_to_toml([], document_name="Book1.xlsm")
+        assert "filters" not in output
+
+    def test_single_filter_recorded(self):
+        """A single active filter is recorded in metadata."""
+        from vba_edit.reference_manager import _serialize_references_to_toml
+
+        output = _serialize_references_to_toml([], filters=["no_default"])
+        assert 'filters = ["no_default"]' in output
+
+    def test_multiple_filters_recorded(self):
+        """Multiple active filters are recorded."""
+        from vba_edit.reference_manager import _serialize_references_to_toml
+
+        output = _serialize_references_to_toml([], filters=["no_default", "no_installed"])
+        assert 'filters = ["no_default", "no_installed"]' in output
+
+    def test_filters_none_omits_key(self):
+        """Passing filters=None omits the key."""
+        from vba_edit.reference_manager import _serialize_references_to_toml
+
+        output = _serialize_references_to_toml([], filters=None)
+        assert "filters" not in output
+
+    def test_filters_parseable_as_toml(self):
+        """The serialized filters value can be parsed back as valid TOML."""
+        from vba_edit.reference_manager import _serialize_references_to_toml, _load_toml
+        import tempfile
+
+        output = _serialize_references_to_toml(
+            [_make_ref()],
+            document_name="Test.xlsm",
+            filters=["no_default", "no_custom"],
+        )
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".toml", delete=False, encoding="utf-8") as f:
+            f.write(output)
+            f.flush()
+            data = _load_toml(Path(f.name))
+
+        assert data["metadata"]["filters"] == ["no_default", "no_custom"]
+
+
+# ---------------------------------------------------------------------------
+# --sync CLI argument parsing
+# ---------------------------------------------------------------------------
+
+
+class TestSyncCLIParsing:
+    """Tests that --sync and --force-overwrite are wired on references import."""
+
+    @pytest.fixture()
+    def parser(self):
+        return create_cli_parser()
+
+    def test_import_sync_default_false(self, parser):
+        args = parser.parse_args(["references", "import", "-r", "refs.toml"])
+        assert args.sync is False
+
+    def test_import_sync_flag(self, parser):
+        args = parser.parse_args(["references", "import", "-r", "refs.toml", "--sync"])
+        assert args.sync is True
+
+    def test_import_force_overwrite_default_false(self, parser):
+        args = parser.parse_args(["references", "import", "-r", "refs.toml"])
+        assert args.force_overwrite is False
+
+    def test_import_force_overwrite_flag(self, parser):
+        args = parser.parse_args(["references", "import", "-r", "refs.toml", "--force-overwrite"])
+        assert args.force_overwrite is True
+
+    def test_import_sync_with_force_overwrite(self, parser):
+        args = parser.parse_args(["references", "import", "-r", "refs.toml", "--sync", "--force-overwrite"])
+        assert args.sync is True
+        assert args.force_overwrite is True
+
+    def test_references_no_subcommand_exits_with_help(self, parser):
+        """'references' without subcommand should exit (help display)."""
+        # With required=False, parse succeeds but refs_subcommand is None
+        args = parser.parse_args(["references"])
+        assert args.refs_subcommand is None
+
+
+# ---------------------------------------------------------------------------
+# sync_from_toml logic (mocked — no Office needed)
+# ---------------------------------------------------------------------------
+
+
+class TestSyncFromToml:
+    """Tests for ReferenceManager.sync_from_toml() with mocked COM objects."""
+
+    def _make_toml_file(self, tmp_path, refs, metadata=None):
+        """Create a TOML file with given references and optional metadata."""
+        from vba_edit.reference_manager import _serialize_references_to_toml
+
+        filters = metadata.get("filters") if metadata else None
+        content = _serialize_references_to_toml(refs, filters=filters)
+        toml_path = tmp_path / "refs.toml"
+        toml_path.write_text(content, encoding="utf-8")
+        return toml_path
+
+    def _make_mock_manager(self, existing_refs):
+        """Create a ReferenceManager with mocked COM objects."""
+        from vba_edit.reference_manager import ReferenceManager
+
+        manager = ReferenceManager.__new__(ReferenceManager)
+        manager.document = MagicMock()
+        manager.vb_project = MagicMock()
+
+        manager.list_references = MagicMock(return_value=existing_refs)
+        manager.add_reference = MagicMock(return_value=True)
+        manager.remove_reference = MagicMock(return_value=True)
+        manager.reference_exists = MagicMock(return_value=False)
+
+        return manager
+
+    def test_sync_adds_missing_references(self, tmp_path):
+        """Sync adds references present in TOML but not in document."""
+        toml_refs = [_make_ref(name="NewLib", guid="{AAAAAAAA-BBBB-CCCC-DDDD-EEEEEEEEEEEE}")]
+        toml_path = self._make_toml_file(tmp_path, toml_refs)
+
+        manager = self._make_mock_manager(existing_refs=[])
+        stats = manager.sync_from_toml(toml_path)
+
+        assert stats["added"] == 1
+        manager.add_reference.assert_called_once()
+
+    def test_sync_removes_extra_references(self, tmp_path):
+        """Sync removes references in document but not in TOML."""
+        toml_path = self._make_toml_file(tmp_path, [])  # Empty TOML
+
+        existing = [
+            _make_ref(
+                name="OldLib",
+                guid="{AAAAAAAA-BBBB-CCCC-DDDD-EEEEEEEEEEEE}",
+                builtin=False,
+            )
+        ]
+        manager = self._make_mock_manager(existing_refs=existing)
+        stats = manager.sync_from_toml(toml_path)
+
+        assert stats["removed"] == 1
+        manager.remove_reference.assert_called_once()
+
+    def test_sync_protects_default_references(self, tmp_path):
+        """Sync does not remove default references unless force_overwrite=True."""
+        toml_path = self._make_toml_file(tmp_path, [])  # Empty TOML
+
+        existing = [_make_ref(name="VBA", builtin=True)]
+        manager = self._make_mock_manager(existing_refs=existing)
+        stats = manager.sync_from_toml(toml_path)
+
+        assert stats["protected"] == 1
+        assert stats["removed"] == 0
+        manager.remove_reference.assert_not_called()
+
+    def test_sync_force_overwrite_removes_defaults(self, tmp_path):
+        """With force_overwrite, default references can be removed."""
+        # Need a TOML with a valid ref so it's not completely empty
+        toml_path = self._make_toml_file(tmp_path, [])
+
+        existing = [
+            _make_ref(
+                name="stdole",
+                guid="{00020430-0000-0000-C000-000000000046}",
+                builtin=False,
+            )
+        ]
+        manager = self._make_mock_manager(existing_refs=existing)
+        stats = manager.sync_from_toml(toml_path, force_overwrite=True)
+
+        assert stats["removed"] == 1
+
+    def test_sync_refuses_filtered_toml_without_force(self, tmp_path):
+        """Sync refuses when TOML was exported with filters."""
+        from vba_edit.exceptions import VBAReferenceError
+
+        toml_path = self._make_toml_file(tmp_path, [], metadata={"filters": ["no_default", "no_installed"]})
+        manager = self._make_mock_manager(existing_refs=[])
+
+        with pytest.raises(VBAReferenceError, match="exported with filters"):
+            manager.sync_from_toml(toml_path)
+
+    def test_sync_allows_filtered_toml_with_force(self, tmp_path):
+        """Sync proceeds on filtered TOML when force_overwrite=True."""
+        toml_path = self._make_toml_file(tmp_path, [], metadata={"filters": ["no_default"]})
+        manager = self._make_mock_manager(existing_refs=[])
+
+        stats = manager.sync_from_toml(toml_path, force_overwrite=True)
+        assert stats["added"] == 0  # Nothing to add
+
+    def test_sync_skips_existing_references(self, tmp_path):
+        """References already in the document are skipped (not re-added)."""
+        guid = "{AAAAAAAA-BBBB-CCCC-DDDD-EEEEEEEEEEEE}"
+        toml_refs = [_make_ref(name="MyLib", guid=guid)]
+        toml_path = self._make_toml_file(tmp_path, toml_refs)
+
+        existing = [_make_ref(name="MyLib", guid=guid)]
+        manager = self._make_mock_manager(existing_refs=existing)
+        manager.add_reference = MagicMock(return_value=False)  # Already exists
+
+        stats = manager.sync_from_toml(toml_path)
+
+        assert stats["skipped"] == 1
+        assert stats["removed"] == 0
+
+    def test_sync_file_not_found(self, tmp_path):
+        """Sync raises FileNotFoundError for missing files."""
+        manager = self._make_mock_manager(existing_refs=[])
+
+        with pytest.raises(FileNotFoundError):
+            manager.sync_from_toml(tmp_path / "nonexistent.toml")
+
+    def test_sync_skips_refs_without_guid(self, tmp_path):
+        """References without a GUID are protected (can't be managed by GUID)."""
+        toml_path = self._make_toml_file(tmp_path, [])
+
+        existing = [_make_ref(name="Normal", guid="", builtin=False)]
+        manager = self._make_mock_manager(existing_refs=existing)
+        stats = manager.sync_from_toml(toml_path)
+
+        assert stats["protected"] == 1
+        assert stats["removed"] == 0
+
+
+# ---------------------------------------------------------------------------
+# Import filter warning
+# ---------------------------------------------------------------------------
+
+
+class TestImportFilterWarning:
+    """Tests that import_from_toml warns about filtered TOML files."""
+
+    def _make_toml_with_filters(self, tmp_path, filters):
+        """Create a TOML file with filter metadata and one valid reference."""
+        from vba_edit.reference_manager import _serialize_references_to_toml
+
+        ref = _make_ref(name="TestLib", guid="{AAAAAAAA-BBBB-CCCC-DDDD-EEEEEEEEEEEE}")
+        content = _serialize_references_to_toml([ref], filters=filters)
+        toml_path = tmp_path / "filtered_refs.toml"
+        toml_path.write_text(content, encoding="utf-8")
+        return toml_path
+
+    def test_import_warns_on_filtered_toml(self, tmp_path, caplog):
+        """import_from_toml logs a warning when TOML has filter metadata."""
+        import logging
+        from vba_edit.reference_manager import ReferenceManager
+
+        toml_path = self._make_toml_with_filters(tmp_path, ["no_default", "no_installed"])
+
+        manager = ReferenceManager.__new__(ReferenceManager)
+        manager.document = MagicMock()
+        manager.vb_project = MagicMock()
+        manager.add_reference = MagicMock(return_value=True)
+        manager.reference_exists = MagicMock(return_value=False)
+
+        with caplog.at_level(logging.WARNING, logger="vba_edit.reference_manager"):
+            manager.import_from_toml(toml_path)
+
+        assert any("exported with filters" in msg for msg in caplog.messages)
+
+    def test_import_no_warning_on_unfiltered_toml(self, tmp_path, caplog):
+        """import_from_toml does not warn when TOML has no filter metadata."""
+        import logging
+        from vba_edit.reference_manager import ReferenceManager
+
+        toml_path = self._make_toml_with_filters(tmp_path, None)
+
+        manager = ReferenceManager.__new__(ReferenceManager)
+        manager.document = MagicMock()
+        manager.vb_project = MagicMock()
+        manager.add_reference = MagicMock(return_value=True)
+        manager.reference_exists = MagicMock(return_value=False)
+
+        with caplog.at_level(logging.WARNING, logger="vba_edit.reference_manager"):
+            manager.import_from_toml(toml_path)
+
+        assert not any("exported with filters" in msg for msg in caplog.messages)

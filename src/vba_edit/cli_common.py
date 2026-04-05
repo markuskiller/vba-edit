@@ -1073,8 +1073,14 @@ Examples:
 Adds references defined in a TOML file to the {ft}.
 Handles duplicate detection, missing files, and invalid GUIDs.
 
+Use --sync to make the document match the TOML file exactly:
+adds missing references AND removes references not listed in the file.
+Default references (VBA, host app, stdole) are protected unless
+--force-overwrite is also specified.
+
 Examples:
-  {ep} references import -r refs.toml         # Import from TOML file
+  {ep} references import -r refs.toml              # Add references (safe, additive)
+  {ep} references import -r refs.toml --sync       # Sync: add missing, remove extra
   {ep} references import -f {ex} -r refs.toml"""
         case "validate":
             return f"""Check for broken (missing) references in a {ft}

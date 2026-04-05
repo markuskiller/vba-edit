@@ -29,7 +29,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - On `export`: saves references to a TOML file alongside your VBA code files
   - On `import`: restores references from the TOML file before importing code
   - On `edit`: watches the TOML file for changes and syncs references back to Office on save
-  - TOML file includes metadata (version, timestamp, source document) for traceability
+  - TOML file includes metadata (version, timestamp, source document, active filters) for traceability
+- **Reference Sync Mode** (`--sync` on `references import`): Make a document's references match a TOML file exactly — adds missing references and removes extras
+  - Default references (VBA, host app, stdole) are protected and never removed unless `--force-overwrite` is also specified
+  - Refuses to sync from a filtered TOML export unless `--force-overwrite` is used, preventing accidental removal of excluded categories
 - **Skip Empty Modules** (`--skip-empty`): New flag for `export` and `import` commands to skip modules with no code ([Issue #63](https://github.com/markuskiller/vba-edit/issues/63))
   - Particularly useful for Excel workbooks where every worksheet creates a module — even empty ones
   - On `export`: modules with no code (e.g. `Sheet2`, `Sheet3`) are not written to files
@@ -56,6 +59,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Encoding Detection**: ASCII-only VBA files are no longer misidentified as UTF-8
   - Files containing only ASCII characters (the majority of English-language VBA code) now correctly report the Windows system code page (e.g. `cp1252`) rather than `utf-8`
   - Prevents potential encoding mismatches when files are shared or re-imported
+- **`references -h` help display**: Running `references` or `references -h` without a subcommand now shows the help message with available subcommands instead of an error
 
 ### Security
 

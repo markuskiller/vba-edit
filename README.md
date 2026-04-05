@@ -188,6 +188,7 @@ excel-vba edit --rubberduck-folders --in-file-headers
 | `excel-vba references list --no-default` | List only installed and custom references |
 | `excel-vba references export` | Export references to a TOML file for sharing or version control |
 | `excel-vba references import -r refs.toml` | Restore references from a TOML file |
+| `excel-vba references import -r refs.toml --sync` | Make document match the TOML file exactly (add missing, remove extra) |
 | `excel-vba references validate` | Check for broken or missing references |
 | `excel-vba references add lib.xlam` | Add a reference by file path |
 | `excel-vba references remove MyLib` | Remove a reference by name |
@@ -213,6 +214,10 @@ excel-vba references export -r shared_refs.toml
 # Import references from a TOML file
 excel-vba references import -r shared_refs.toml
 excel-vba references import -f myfile.xlsm -r shared_refs.toml
+
+# Sync references — make document match the TOML file exactly
+# Adds missing and removes extra references (default refs protected)
+excel-vba references import -r shared_refs.toml --sync
 
 # Validate references — check for broken or missing ones
 excel-vba references validate

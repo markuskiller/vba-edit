@@ -167,6 +167,7 @@ def _get_version() -> str:
 def _serialize_references_to_toml(
     refs: List[Dict[str, Any]],
     document_name: str = "",
+    filters: Optional[List[str]] = None,
 ) -> str:
     """Serialize a list of reference dicts to a TOML string with metadata."""
     lines: list = [
@@ -179,6 +180,10 @@ def _serialize_references_to_toml(
     if document_name:
         escaped_name = document_name.replace("\\", "\\\\").replace('"', '\\"')
         lines.append(f'document = "{escaped_name}"\n')
+    if filters:
+        # Record which categories were excluded during export
+        filter_strs = ", ".join(f'"{f}"' for f in filters)
+        lines.append(f"filters = [{filter_strs}]\n")
     lines.append("\n")
 
     for ref in refs:
@@ -691,9 +696,19 @@ class ReferenceManager:
                 f"(excluded {len(references) - len(exportable_refs)} by filter)"
             )
 
+            # Build filter metadata for the TOML file
+            active_filters = []
+            if no_default:
+                active_filters.append("no_default")
+            if no_installed:
+                active_filters.append("no_installed")
+            if no_custom:
+                active_filters.append("no_custom")
+
             toml_content = _serialize_references_to_toml(
                 exportable_refs,
                 document_name=self._get_document_name(),
+                filters=active_filters or None,
             )
 
             # Write to file
@@ -769,6 +784,15 @@ class ReferenceManager:
             if metadata := data.get("metadata", {}):
                 self._log_metadata_info(metadata)
 
+            # Warn if the TOML was exported with filters
+            filters = metadata.get("filters", []) if metadata else []
+            if filters:
+                filter_flags = ", ".join(f"--{f.replace('_', '-')}" for f in filters)
+                logger.warning(
+                    f"This references file was exported with filters ({filter_flags}). "
+                    "It may not contain all references from the source document."
+                )
+
             if "references" not in data:
                 raise VBAReferenceError(f"Invalid TOML file: missing 'references' section in {input_path}")
 
@@ -821,3 +845,133 @@ class ReferenceManager:
         except Exception as e:
             logger.error(f"Failed to import references from TOML: {e}")
             raise VBAReferenceError(f"Unable to import from {input_path}: {e}") from e
+
+    def sync_from_toml(
+        self,
+        input_file: Union[str, Path],
+        force_overwrite: bool = False,
+    ) -> Dict[str, int]:
+        """Synchronize VBA references to match a TOML file exactly.
+
+        Like ``import_from_toml``, but also **removes** references not listed
+        in the TOML file.  Default references (VBA, host app, stdole, Office)
+        are protected and never removed unless *force_overwrite* is ``True``.
+
+        If the TOML file was exported with filters (recorded in metadata),
+        the operation is refused unless *force_overwrite* is ``True`` — syncing
+        against a filtered subset would silently remove the excluded categories.
+
+        Args:
+            input_file: Path to input TOML file.
+            force_overwrite: If True, remove default references and allow
+                syncing from filtered exports.
+
+        Returns:
+            Dictionary with keys ``added``, ``skipped``, ``removed``, ``protected``, ``failed``.
+
+        Raises:
+            FileNotFoundError: If TOML file doesn't exist.
+            VBAReferenceError: If the TOML was exported with filters and
+                *force_overwrite* is False, or on COM errors.
+        """
+        input_path = Path(input_file)
+        logger.debug(f"Syncing references from TOML: {input_path}")
+
+        if not input_path.exists():
+            raise FileNotFoundError(f"TOML file not found: {input_path}")
+
+        try:
+            data = _load_toml(input_path)
+
+            metadata = data.get("metadata", {})
+            if metadata:
+                self._log_metadata_info(metadata)
+
+            # Refuse to sync from a filtered export unless forced
+            filters = metadata.get("filters", [])
+            if filters and not force_overwrite:
+                filter_flags = ", ".join(f"--{f.replace('_', '-')}" for f in filters)
+                raise VBAReferenceError(
+                    f"This references file was exported with filters ({filter_flags}). "
+                    "Syncing would remove references that were intentionally excluded from the export. "
+                    "Use --force-overwrite to sync anyway."
+                )
+
+            # An empty TOML (no [[references]] section) means "no references desired"
+            toml_refs = data.get("references", [])
+            logger.debug(f"Found {len(toml_refs)} references in TOML file")
+
+            stats: Dict[str, int] = {"added": 0, "skipped": 0, "removed": 0, "protected": 0, "failed": 0}
+
+            # Phase 1: Add missing references (same as import)
+            toml_guids = set()
+            for ref in toml_refs:
+                required_fields = ["name", "guid", "major", "minor"]
+                if missing := [f for f in required_fields if f not in ref]:
+                    logger.warning(
+                        f"Skipping invalid reference (missing {', '.join(missing)}): {ref.get('name', 'unknown')}"
+                    )
+                    stats["failed"] += 1
+                    continue
+
+                toml_guids.add(ref["guid"].upper())
+
+                try:
+                    if self.add_reference(
+                        guid=ref["guid"],
+                        name=ref["name"],
+                        major=ref["major"],
+                        minor=ref["minor"],
+                        skip_if_exists=True,
+                    ):
+                        stats["added"] += 1
+                    else:
+                        stats["skipped"] += 1
+                except (VBAReferenceError, ValueError) as e:
+                    logger.warning(f"Failed to add reference {ref['name']}: {e}")
+                    stats["failed"] += 1
+
+            # Phase 2: Remove references not in the TOML file
+            current_refs = self.list_references()
+            for ref in current_refs:
+                guid = (ref.get("guid") or "").upper()
+                if guid and guid in toml_guids:
+                    continue  # Present in TOML — keep
+
+                category = classify_reference(ref)
+                if category == "default" and not force_overwrite:
+                    logger.debug(f"Protected default reference: {ref['name']}")
+                    stats["protected"] += 1
+                    continue
+
+                # Skip references without a GUID (can't be managed by GUID)
+                if not guid:
+                    logger.debug(f"Skipping reference without GUID: {ref['name']}")
+                    stats["protected"] += 1
+                    continue
+
+                try:
+                    if self.remove_reference(guid=guid, skip_if_missing=True):
+                        logger.info(f"Removed reference not in TOML: {ref['name']}")
+                        stats["removed"] += 1
+                except VBAReferenceError as e:
+                    logger.warning(f"Could not remove reference {ref['name']}: {e}")
+                    stats["failed"] += 1
+
+            logger.info(
+                f"Sync complete: {stats['added']} added, {stats['skipped']} unchanged, "
+                f"{stats['removed']} removed, {stats['protected']} protected, {stats['failed']} failed"
+            )
+
+            return stats
+
+        except ImportError as e:
+            logger.error(f"TOML library not available: {e}")
+            raise VBAReferenceError(
+                "TOML parsing library not available. Please install tomli: pip install tomli"
+            ) from e
+        except VBAReferenceError:
+            raise
+        except Exception as e:
+            logger.error(f"Failed to sync references from TOML: {e}")
+            raise VBAReferenceError(f"Unable to sync from {input_path}: {e}") from e

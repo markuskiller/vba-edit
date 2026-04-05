@@ -382,10 +382,11 @@ Simple usage:
             formatter_class=EnhancedHelpFormatter,
             add_help=False,
         )
+        add_common_option_group(references_parser)
 
         refs_subparsers = references_parser.add_subparsers(
             dest="refs_subcommand",
-            required=True,
+            required=False,
             title="Commands",
             metavar="<command>",
         )
@@ -428,6 +429,19 @@ Simple usage:
         )
         add_references_file_arguments(import_refs_parser)
         add_references_output_arguments(import_refs_parser)
+        sync_group = import_refs_parser.add_argument_group("Sync Options")
+        sync_group.add_argument(
+            "--sync",
+            dest="sync",
+            action="store_true",
+            help="Make document match the TOML file exactly — add missing and remove extra references",
+        )
+        sync_group.add_argument(
+            "--force-overwrite",
+            dest="force_overwrite",
+            action="store_true",
+            help="Allow removing default references and syncing from filtered exports",
+        )
         add_common_option_group(import_refs_parser)
 
         # references validate
@@ -787,13 +801,31 @@ Simple usage:
                 self.logger.error(f"References file not found: {refs_file}")
                 self.logger.error("Use --refs-file to specify the TOML file.")
                 sys.exit(1)
-            stats = manager.import_from_toml(refs_file)
-            added = stats.get("added", 0)
-            skipped = stats.get("skipped", 0)
-            failed = stats.get("failed", 0)
-            success(f"References imported: {added} added, {skipped} skipped, {failed} failed")
-            if failed:
-                warning(f"{failed} reference(s) could not be added — check log for details")
+
+            sync_mode = getattr(args, "sync", False)
+            force_overwrite = getattr(args, "force_overwrite", False)
+
+            if sync_mode:
+                stats = manager.sync_from_toml(refs_file, force_overwrite=force_overwrite)
+                added = stats.get("added", 0)
+                skipped = stats.get("skipped", 0)
+                removed = stats.get("removed", 0)
+                protected = stats.get("protected", 0)
+                failed = stats.get("failed", 0)
+                success(
+                    f"References synced: {added} added, {skipped} unchanged, "
+                    f"{removed} removed, {protected} protected, {failed} failed"
+                )
+                if failed:
+                    warning(f"{failed} reference(s) could not be processed — check log for details")
+            else:
+                stats = manager.import_from_toml(refs_file)
+                added = stats.get("added", 0)
+                skipped = stats.get("skipped", 0)
+                failed = stats.get("failed", 0)
+                success(f"References imported: {added} added, {skipped} skipped, {failed} failed")
+                if failed:
+                    warning(f"{failed} reference(s) could not be added — check log for details")
 
         elif subcommand == "list":
             refs = manager.list_references()
@@ -862,6 +894,10 @@ Simple usage:
         setup_logging(verbose=getattr(args, "verbose", False), logfile=getattr(args, "logfile", None))
 
         subcommand = args.refs_subcommand
+        if not subcommand:
+            # User ran 'references' or 'references -h' without a subcommand
+            self.create_cli_parser().parse_args(["references", "--help"])
+            return  # pragma: no cover — parse_args(--help) exits
         file_arg = getattr(args, "file", None)
 
         # Resolve document path
