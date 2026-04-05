@@ -13,6 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `references list` — Display all references with name, GUID, version, path, and status
   - `references export` — Save references to a shareable TOML file (default: `{document}_refs.toml`)
   - `references import` — Add references from a TOML file to replicate setups across documents or machines
+  - Supports both GUID-based references (installed COM libraries) and file-path references (custom templates, add-ins)
+  - Default references without a GUID (like Word's Normal) are automatically excluded from export with a clear note
   - Use `--refs-file / -r` to specify a custom TOML file path
   - Works with all four Office apps: Excel, Word, PowerPoint, and Access
   - Makes reference dependencies trackable in version control alongside VBA code
@@ -21,6 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `--no-installed` — Hide installed COM library references (registered on the system)
   - `--no-custom` — Hide custom file-path references (e.g. `.docm`/`.dotm` templates)
   - Category tags displayed next to each reference in `references list` output
+  - When filters are active, output shows which filters are applied and how many references are hidden (e.g. "5 of 7 shown, filters: --no-default")
 - **Reference Validation**: New `references validate` subcommand to check for broken or missing references
 - **Add & Remove References**: New subcommands for direct reference management
   - `references add LIBRARY` — Add a reference by file path (e.g. `.xlam`, `.dotm`, `.dll`)
@@ -59,7 +62,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Encoding Detection**: ASCII-only VBA files are no longer misidentified as UTF-8
   - Files containing only ASCII characters (the majority of English-language VBA code) now correctly report the Windows system code page (e.g. `cp1252`) rather than `utf-8`
   - Prevents potential encoding mismatches when files are shared or re-imported
-- **`references -h` help display**: Running `references` or `references -h` without a subcommand now shows the help message with available subcommands instead of an error
 
 ### Security
 

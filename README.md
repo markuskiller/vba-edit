@@ -264,12 +264,20 @@ Filter flags can be combined: `--no-default`, `--no-installed`, `--no-custom`
 
 **TOML format** (exportable and hand-editable):
 ```toml
+# GUID-based reference (installed COM library)
 [[references]]
 name = "Scripting"
 guid = "{420B2830-E718-11CF-893D-00A0C9054228}"
 major = 1
 minor = 0
 description = "Microsoft Scripting Runtime"
+
+# Path-based reference (custom template / add-in)
+[[references]]
+name = "SharedMacros"
+path = "\\\\server\\share\\templates\\SharedMacros.dotm"
+major = 0
+minor = 0
 ```
 
 > Works with all four Office apps: `excel-vba`, `word-vba`, `powerpoint-vba`, `access-vba`

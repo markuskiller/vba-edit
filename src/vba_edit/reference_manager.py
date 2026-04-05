@@ -641,11 +641,14 @@ class ReferenceManager:
         no_default: bool = False,
         no_installed: bool = False,
         no_custom: bool = False,
-    ) -> None:
+    ) -> List[str]:
         """Export VBA references to a TOML configuration file.
 
-        By default, all references with a valid GUID are exported.
+        By default, all references with a valid GUID or a file path are exported.
         Use the filter flags to exclude specific categories.
+
+        Default references without a GUID (e.g. Word's Normal.dotm) are
+        automatically skipped because they cannot be re-added.
 
         TOML Format:
             [[references]]
@@ -661,6 +664,10 @@ class ReferenceManager:
             no_installed: Exclude installed COM library references.
             no_custom: Exclude custom file-path references.
 
+        Returns:
+            List of names of references skipped because they have no GUID
+            and no file path (e.g. Normal).
+
         Raises:
             ReferenceError: If unable to export references
             IOError: If unable to write to file
@@ -675,10 +682,25 @@ class ReferenceManager:
         try:
             references = self.list_references()
 
-            # Always exclude references that lack a valid GUID (e.g. Word's
-            # Normal.dotm appears as a non-built-in reference but has an
-            # empty GUID and cannot be re-added by GUID).
-            exportable_refs = [ref for ref in references if self.GUID_PATTERN.match(ref.get("guid", ""))]
+            # Exclude DEFAULT references that lack a valid GUID (e.g. Word's
+            # Normal.dotm has an empty GUID and cannot be re-added).
+            # CUSTOM file-path references without a GUID are kept — they
+            # can be re-added via AddFromFile using their path.
+            skipped_no_guid = []
+            exportable_refs = []
+            for ref in references:
+                has_guid = bool(self.GUID_PATTERN.match(ref.get("guid", "")))
+                if has_guid:
+                    exportable_refs.append(ref)
+                elif classify_reference(ref) == "custom" and ref.get("path"):
+                    # Custom file-path reference — exportable via path
+                    exportable_refs.append(ref)
+                else:
+                    skipped_no_guid.append(ref)
+
+            if skipped_no_guid:
+                names = ", ".join(ref.get("name", "unknown") for ref in skipped_no_guid)
+                logger.info(f"Skipped {len(skipped_no_guid)} reference(s) without GUID: {names}")
 
             # Apply category filters
             exportable_refs = filter_references(
@@ -716,6 +738,7 @@ class ReferenceManager:
             output_path.write_text(toml_content, encoding="utf-8")
 
             logger.info(f"Exported {len(exportable_refs)} references to: {output_path}")
+            return [ref.get("name", "unknown") for ref in skipped_no_guid]
 
         except VBAReferenceError:
             logger.error("Failed to export references")
@@ -802,23 +825,46 @@ class ReferenceManager:
             stats: Dict[str, int] = {"added": 0, "skipped": 0, "failed": 0}
 
             for ref in references:
-                # Validate required fields
-                required_fields = ["name", "guid", "major", "minor"]
+                guid = ref.get("guid", "")
+                has_guid = bool(self.GUID_PATTERN.match(guid))
+                has_path = bool(ref.get("path"))
+                name = ref.get("name", "unknown")
+
+                if not has_guid and not has_path:
+                    logger.warning(
+                        f"Skipping reference without GUID or path: {name}"
+                    )
+                    stats["failed"] += 1
+                    continue
+
+                # Validate minimum required fields
+                if has_guid:
+                    required_fields = ["name", "guid", "major", "minor"]
+                else:
+                    required_fields = ["name", "path"]
+
                 if missing := [f for f in required_fields if f not in ref]:
                     logger.warning(
-                        f"Skipping invalid reference (missing {', '.join(missing)}): {ref.get('name', 'unknown')}"
+                        f"Skipping invalid reference (missing {', '.join(missing)}): {name}"
                     )
                     stats["failed"] += 1
                     continue
 
                 try:
-                    added = self.add_reference(
-                        guid=ref["guid"],
-                        name=ref["name"],
-                        major=ref["major"],
-                        minor=ref["minor"],
-                        skip_if_exists=skip_existing,
-                    )
+                    if has_guid:
+                        added = self.add_reference(
+                            guid=ref["guid"],
+                            name=ref["name"],
+                            major=ref["major"],
+                            minor=ref["minor"],
+                            skip_if_exists=skip_existing,
+                        )
+                    else:
+                        # Path-based (custom) reference — use AddFromFile
+                        added = self.add_reference_by_path(
+                            file_path=ref["path"],
+                            skip_if_exists=skip_existing,
+                        )
 
                     if added:
                         stats["added"] += 1
@@ -905,38 +951,73 @@ class ReferenceManager:
 
             # Phase 1: Add missing references (same as import)
             toml_guids = set()
+            toml_names = set()
             for ref in toml_refs:
-                required_fields = ["name", "guid", "major", "minor"]
-                if missing := [f for f in required_fields if f not in ref]:
+                guid = ref.get("guid", "")
+                has_guid = bool(self.GUID_PATTERN.match(guid))
+                has_path = bool(ref.get("path"))
+                name = ref.get("name", "unknown")
+
+                if not has_guid and not has_path:
                     logger.warning(
-                        f"Skipping invalid reference (missing {', '.join(missing)}): {ref.get('name', 'unknown')}"
+                        f"Skipping reference without GUID or path: {name}"
                     )
                     stats["failed"] += 1
                     continue
 
-                toml_guids.add(ref["guid"].upper())
+                # Validate minimum required fields
+                if has_guid:
+                    required_fields = ["name", "guid", "major", "minor"]
+                else:
+                    required_fields = ["name", "path"]
+
+                if missing := [f for f in required_fields if f not in ref]:
+                    logger.warning(
+                        f"Skipping invalid reference (missing {', '.join(missing)}): {name}"
+                    )
+                    stats["failed"] += 1
+                    continue
+
+                if has_guid:
+                    toml_guids.add(guid.upper())
+                toml_names.add(name.lower())
 
                 try:
-                    if self.add_reference(
-                        guid=ref["guid"],
-                        name=ref["name"],
-                        major=ref["major"],
-                        minor=ref["minor"],
-                        skip_if_exists=True,
-                    ):
-                        stats["added"] += 1
+                    if has_guid:
+                        if self.add_reference(
+                            guid=ref["guid"],
+                            name=ref["name"],
+                            major=ref["major"],
+                            minor=ref["minor"],
+                            skip_if_exists=True,
+                        ):
+                            stats["added"] += 1
+                        else:
+                            stats["skipped"] += 1
                     else:
-                        stats["skipped"] += 1
+                        # Path-based (custom) reference — use AddFromFile
+                        if self.add_reference_by_path(
+                            file_path=ref["path"],
+                            skip_if_exists=True,
+                        ):
+                            stats["added"] += 1
+                        else:
+                            stats["skipped"] += 1
                 except (VBAReferenceError, ValueError) as e:
-                    logger.warning(f"Failed to add reference {ref['name']}: {e}")
+                    logger.warning(f"Failed to add reference {name}: {e}")
                     stats["failed"] += 1
 
             # Phase 2: Remove references not in the TOML file
             current_refs = self.list_references()
             for ref in current_refs:
                 guid = (ref.get("guid") or "").upper()
+                name_lower = (ref.get("name") or "").lower()
+
+                # Keep references present in TOML (by GUID or by name for path-based refs)
                 if guid and guid in toml_guids:
-                    continue  # Present in TOML — keep
+                    continue
+                if name_lower in toml_names:
+                    continue
 
                 category = classify_reference(ref)
                 if category == "default" and not force_overwrite:

@@ -797,8 +797,10 @@ IMPORTANT: Requires "Trust access to the VBA project object model" enabled in {s
                 info(f"Reference already exists: {Path(library_path).stem}")
 
         elif subcommand == "export":
-            manager.export_to_toml(refs_file, no_default=no_default, no_installed=no_installed, no_custom=no_custom)
+            skipped = manager.export_to_toml(refs_file, no_default=no_default, no_installed=no_installed, no_custom=no_custom)
             success(f"References exported to: {refs_file}")
+            if skipped:
+                info(f"NOTE: Skipped {len(skipped)} reference(s) without GUID: {', '.join(skipped)}")
 
         elif subcommand == "import":
             if not refs_file or not Path(refs_file).exists():
@@ -833,11 +835,20 @@ IMPORTANT: Requires "Trust access to the VBA project object model" enabled in {s
 
         elif subcommand == "list":
             refs = manager.list_references()
+            total_count = len(refs)
             refs = filter_references(refs, no_default=no_default, no_installed=no_installed, no_custom=no_custom)
+            active_filters = [name for name, active in [("--no-default", no_default), ("--no-installed", no_installed), ("--no-custom", no_custom)] if active]
             if not refs:
-                info("No VBA references found.")
+                if active_filters:
+                    info(f"No VBA references match the active filters ({total_count} total in document).")
+                    info(f"Active filters: {', '.join(active_filters)}")
+                else:
+                    info("No VBA references found.")
                 sys.exit(0)
-            info(f"VBA references in {Path(doc_path).name} ({len(refs)} total):\n")
+            if active_filters:
+                info(f"VBA references in {Path(doc_path).name} ({len(refs)} of {total_count} shown, filters: {', '.join(active_filters)}):\n")
+            else:
+                info(f"VBA references in {Path(doc_path).name} ({len(refs)} total):\n")
             for ref in refs:
                 category = classify_reference(ref)
                 if ref["broken"]:
@@ -861,8 +872,9 @@ IMPORTANT: Requires "Trust access to the VBA project object model" enabled in {s
                 success(f"Removed reference: {ref_name}")
 
         elif subcommand == "validate":
-            broken = manager.check_broken()
-            total = len(manager.list_references())
+            refs = manager.list_references()
+            total = len(refs)
+            broken = [ref for ref in refs if ref["broken"]]
             if broken:
                 warning(f"Found {len(broken)} broken reference(s) in {Path(doc_path).name} ({total} total):\n")
                 for ref in broken:
