@@ -11,7 +11,7 @@
 
 This is a thin entry-point package for [vba-edit](https://pypi.org/project/vba-edit/). Installing `access-vba` gives you the `access-vba` command and automatically installs the `vba-edit` core package.
 
-[![Downloads](https://img.shields.io/pypi/dm/access-vba)](https://www.pypiplus.com/project/access-vba/)
+[![access-vba downloads](https://img.shields.io/pypi/dm/access-vba?label=access-vba%20downloads)](https://www.pypiplus.com/project/access-vba/)
 
 ## Quick Start
 
@@ -45,8 +45,9 @@ uvx access-vba edit
 |  (Office VBA-    |          EXPORT      --->  |   .bas           |  <- AI coding-  
 |    Editor)       |                            |   .cls           |     assistants
 |                  |   <---   IMPORT            |                  |   
-|                  |                            |                  | 
-|                  |                            |                  | 
+|                  |                            |                  |     optional
+|                  |                            |  [.toml]         |  <- support for 
+|                  |                            |                  |     references
 +------------------+                            +------------------+
                                                          v
                                                 +------------------+
@@ -78,6 +79,7 @@ pip install access-vba
 | `access-vba import` | One-time import |
 | `access-vba export --open-folder --keep-open` | Export and open folder in explorer, keep document open for inspection |
 | `access-vba export --force-overwrite` | Export without confirmation prompts |
+| `access-vba references list` | List VBA library references |
 | `access-vba check` | Verify status of *Trust access* to the VBA project object model |
 
 > 💡 **Complete Option Matrix**: available **[here](https://langui.ch/current-projects/vba-edit/#OptionMatrix)**

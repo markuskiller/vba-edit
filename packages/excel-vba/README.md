@@ -11,7 +11,7 @@
 
 This is a thin entry-point package for [vba-edit](https://pypi.org/project/vba-edit/). Installing `excel-vba` gives you the `excel-vba` command and automatically installs the `vba-edit` core package.
 
-[![Downloads](https://img.shields.io/pypi/dm/excel-vba)](https://www.pypiplus.com/project/excel-vba/)
+[![excel-vba downloads](https://img.shields.io/pypi/dm/excel-vba?label=excel-vba%20downloads)](https://www.pypiplus.com/project/excel-vba/)
 
 ## Quick Start
 
@@ -46,7 +46,9 @@ uvx excel-vba edit
 |    Editor)       |                            |   .cls           |     assistants
 |                  |   <---   IMPORT            |   .frm           |   
 |                  |                            |  (.frx binary)   | 
-|                  |                            |                  | 
+|                  |                            |                  |     optional
+|                  |                            |  [.toml]         |  <- support for 
+|                  |                            |                  |     references
 +------------------+                            +------------------+
                                                          v
                                                 +------------------+
@@ -78,6 +80,7 @@ pip install excel-vba
 | `excel-vba import` | One-time import |
 | `excel-vba export --open-folder --keep-open` | Export and open folder in explorer, keep document open for inspection |
 | `excel-vba export --force-overwrite` | Export without confirmation prompts |
+| `excel-vba references list` | List VBA library references |
 | `excel-vba check` | Verify status of *Trust access* to the VBA project object model |
 
 > 💡 **Complete Option Matrix**: available **[here](https://langui.ch/current-projects/vba-edit/#OptionMatrix)**
