@@ -1007,6 +1007,16 @@ IMPORTANT: Requires "Trust access to the VBA project object model" enabled in {s
                     if getattr(pre_args, "in_file_headers", False):
                         config_defaults.pop("save_headers", None)
                     target_parser.set_defaults(**config_defaults)
+                    # For commands with nested sub-parsers (e.g. references list),
+                    # set_defaults on the parent doesn't propagate to sub-parsers.
+                    # Apply matching defaults to each sub-parser as well.
+                    for action in target_parser._actions:
+                        if isinstance(action, argparse._SubParsersAction):
+                            for sub in action.choices.values():
+                                sub_dests = self._collect_parser_dests(sub)
+                                sub_defaults = {k: v for k, v in config_defaults.items() if k in sub_dests}
+                                if sub_defaults:
+                                    sub.set_defaults(**sub_defaults)
         return config, config_load_failed
 
     def main(self) -> None:

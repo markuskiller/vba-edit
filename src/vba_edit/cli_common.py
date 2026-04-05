@@ -393,7 +393,20 @@ def _get_cli_explicit_args(parser: argparse.ArgumentParser, args: argparse.Names
         Set of dest names that were explicitly provided on the CLI
     """
     explicit = set()
-    defaults = parser.parse_args([])  # Parse with no args to get pure defaults
+    # parse_args([]) triggers an error message on parsers that require a
+    # subcommand.  Redirect stderr to suppress the spurious output and
+    # re-raise so the caller can fall back to the is-None check.
+    import io
+    import sys as _sys
+    _stderr = _sys.stderr
+    try:
+        _sys.stderr = io.StringIO()
+        defaults = parser.parse_args([])  # Parse with no args to get pure defaults
+    except SystemExit:
+        _sys.stderr = _stderr
+        raise
+    finally:
+        _sys.stderr = _stderr
     for key, value in vars(args).items():
         if key.startswith("_"):
             continue

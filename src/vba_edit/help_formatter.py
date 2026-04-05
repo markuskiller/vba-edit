@@ -100,10 +100,15 @@ class ColorizedArgumentParser(argparse.ArgumentParser):
 
         Args:
             message: Message to print
-            file: Output file (ignored when using rich)
+            file: Output file — stderr messages are written directly to
+                  avoid interfering with stderr redirection.
         """
         if message:
-            print_help_with_rich(message)
+            import sys
+            if file is sys.stderr:
+                file.write(message)
+            else:
+                print_help_with_rich(message)
 
 
 class EnhancedHelpFormatter(argparse.RawDescriptionHelpFormatter):
