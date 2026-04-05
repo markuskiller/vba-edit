@@ -379,6 +379,10 @@ Simple usage:
   {self.config["entry_point"]} references list                    # List refs in active {self.config["file_type"]}
   {self.config["entry_point"]} references export                  # Export to {{document}}_refs.toml
   {self.config["entry_point"]} references import -r refs.toml     # Import from TOML file""",
+            epilog=f"""Use '{self.config["entry_point"]} references <sub-command> --help' for more information on a specific sub-command.
+
+IMPORTANT: Requires "Trust access to the VBA project object model" enabled in {self.config["app_name"]}.
+           Early release - backup important files before use!""",
             formatter_class=EnhancedHelpFormatter,
             add_help=False,
         )
