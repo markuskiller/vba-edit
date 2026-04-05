@@ -771,6 +771,54 @@ class ReferenceManager:
             except (ValueError, IndexError):
                 pass  # Non-standard version string, skip check
 
+    def _validate_ref_entry(self, ref: Dict[str, Any]) -> Optional[List[str]]:
+        """Validate a single reference entry from a TOML file.
+
+        Returns None if the entry is valid, or a list of missing field names
+        if validation fails. Returns an empty list if the entry has neither
+        a GUID nor a path (fundamentally invalid).
+        """
+        guid = ref.get("guid", "")
+        has_guid = bool(self.GUID_PATTERN.match(guid))
+        has_path = bool(ref.get("path"))
+
+        if not has_guid and not has_path:
+            return []  # No GUID and no path — fundamentally invalid
+
+        required = ["name", "guid", "major", "minor"] if has_guid else ["name", "path"]
+        if missing := [f for f in required if f not in ref]:
+            return missing
+        return None
+
+    def _add_ref_from_entry(self, ref: Dict[str, Any], skip_if_exists: bool = True) -> str:
+        """Add a single reference from a parsed TOML entry.
+
+        Returns "added", "skipped", or "failed".
+        Assumes the entry has already been validated.
+        """
+        guid = ref.get("guid", "")
+        has_guid = bool(self.GUID_PATTERN.match(guid))
+        name = ref.get("name", "unknown")
+
+        try:
+            if has_guid:
+                added = self.add_reference(
+                    guid=ref["guid"],
+                    name=ref["name"],
+                    major=ref["major"],
+                    minor=ref["minor"],
+                    skip_if_exists=skip_if_exists,
+                )
+            else:
+                added = self.add_reference_by_path(
+                    file_path=ref["path"],
+                    skip_if_exists=skip_if_exists,
+                )
+            return "added" if added else "skipped"
+        except (VBAReferenceError, ValueError) as e:
+            logger.warning(f"Failed to add reference {name}: {e}")
+            return "failed"
+
     def import_from_toml(self, input_file: Union[str, Path], skip_existing: bool = True) -> Dict[str, int]:
         """Import VBA references from a TOML configuration file.
 
@@ -825,55 +873,18 @@ class ReferenceManager:
             stats: Dict[str, int] = {"added": 0, "skipped": 0, "failed": 0}
 
             for ref in references:
-                guid = ref.get("guid", "")
-                has_guid = bool(self.GUID_PATTERN.match(guid))
-                has_path = bool(ref.get("path"))
                 name = ref.get("name", "unknown")
-
-                if not has_guid and not has_path:
-                    logger.warning(
-                        f"Skipping reference without GUID or path: {name}"
-                    )
+                validation = self._validate_ref_entry(ref)
+                if validation is not None:
+                    if not validation:
+                        logger.warning(f"Skipping reference without GUID or path: {name}")
+                    else:
+                        logger.warning(f"Skipping invalid reference (missing {', '.join(validation)}): {name}")
                     stats["failed"] += 1
                     continue
 
-                # Validate minimum required fields
-                if has_guid:
-                    required_fields = ["name", "guid", "major", "minor"]
-                else:
-                    required_fields = ["name", "path"]
-
-                if missing := [f for f in required_fields if f not in ref]:
-                    logger.warning(
-                        f"Skipping invalid reference (missing {', '.join(missing)}): {name}"
-                    )
-                    stats["failed"] += 1
-                    continue
-
-                try:
-                    if has_guid:
-                        added = self.add_reference(
-                            guid=ref["guid"],
-                            name=ref["name"],
-                            major=ref["major"],
-                            minor=ref["minor"],
-                            skip_if_exists=skip_existing,
-                        )
-                    else:
-                        # Path-based (custom) reference — use AddFromFile
-                        added = self.add_reference_by_path(
-                            file_path=ref["path"],
-                            skip_if_exists=skip_existing,
-                        )
-
-                    if added:
-                        stats["added"] += 1
-                    else:
-                        stats["skipped"] += 1
-
-                except (VBAReferenceError, ValueError) as e:
-                    logger.warning(f"Failed to add reference {ref['name']}: {e}")
-                    stats["failed"] += 1
+                result = self._add_ref_from_entry(ref, skip_if_exists=skip_existing)
+                stats[result] += 1
 
             logger.info(
                 f"Import complete: {stats['added']} added, {stats['skipped']} skipped, {stats['failed']} failed"
@@ -891,6 +902,74 @@ class ReferenceManager:
         except Exception as e:
             logger.error(f"Failed to import references from TOML: {e}")
             raise VBAReferenceError(f"Unable to import from {input_path}: {e}") from e
+
+    def _sync_add_phase(self, toml_refs: List[Dict[str, Any]], stats: Dict[str, int]) -> tuple:
+        """Phase 1 of sync: validate and add references from the TOML file.
+
+        Returns (toml_guids, toml_names) sets for use in the remove phase.
+        """
+        toml_guids: set = set()
+        toml_names: set = set()
+        for ref in toml_refs:
+            guid = ref.get("guid", "")
+            has_guid = bool(self.GUID_PATTERN.match(guid))
+            name = ref.get("name", "unknown")
+
+            validation = self._validate_ref_entry(ref)
+            if validation is not None:
+                if not validation:
+                    logger.warning(f"Skipping reference without GUID or path: {name}")
+                else:
+                    logger.warning(f"Skipping invalid reference (missing {', '.join(validation)}): {name}")
+                stats["failed"] += 1
+                continue
+
+            if has_guid:
+                toml_guids.add(guid.upper())
+            toml_names.add(name.lower())
+
+            result = self._add_ref_from_entry(ref, skip_if_exists=True)
+            stats[result] += 1
+        return toml_guids, toml_names
+
+    def _sync_remove_phase(
+        self,
+        toml_guids: set,
+        toml_names: set,
+        force_overwrite: bool,
+        stats: Dict[str, int],
+    ) -> None:
+        """Phase 2 of sync: remove references not listed in the TOML file."""
+        current_refs = self.list_references()
+        for ref in current_refs:
+            guid = (ref.get("guid") or "").upper()
+            name_lower = (ref.get("name") or "").lower()
+
+            # Keep references present in TOML (by GUID or by name for path-based refs)
+            if guid and guid in toml_guids:
+                continue
+            if name_lower in toml_names:
+                continue
+
+            category = classify_reference(ref)
+            if category == "default" and not force_overwrite:
+                logger.debug(f"Protected default reference: {ref['name']}")
+                stats["protected"] += 1
+                continue
+
+            # Skip references without a GUID (can't be managed by GUID)
+            if not guid:
+                logger.debug(f"Skipping reference without GUID: {ref['name']}")
+                stats["protected"] += 1
+                continue
+
+            try:
+                if self.remove_reference(guid=guid, skip_if_missing=True):
+                    logger.info(f"Removed reference not in TOML: {ref['name']}")
+                    stats["removed"] += 1
+            except VBAReferenceError as e:
+                logger.warning(f"Could not remove reference {ref['name']}: {e}")
+                stats["failed"] += 1
 
     def sync_from_toml(
         self,
@@ -950,94 +1029,10 @@ class ReferenceManager:
             stats: Dict[str, int] = {"added": 0, "skipped": 0, "removed": 0, "protected": 0, "failed": 0}
 
             # Phase 1: Add missing references (same as import)
-            toml_guids = set()
-            toml_names = set()
-            for ref in toml_refs:
-                guid = ref.get("guid", "")
-                has_guid = bool(self.GUID_PATTERN.match(guid))
-                has_path = bool(ref.get("path"))
-                name = ref.get("name", "unknown")
-
-                if not has_guid and not has_path:
-                    logger.warning(
-                        f"Skipping reference without GUID or path: {name}"
-                    )
-                    stats["failed"] += 1
-                    continue
-
-                # Validate minimum required fields
-                if has_guid:
-                    required_fields = ["name", "guid", "major", "minor"]
-                else:
-                    required_fields = ["name", "path"]
-
-                if missing := [f for f in required_fields if f not in ref]:
-                    logger.warning(
-                        f"Skipping invalid reference (missing {', '.join(missing)}): {name}"
-                    )
-                    stats["failed"] += 1
-                    continue
-
-                if has_guid:
-                    toml_guids.add(guid.upper())
-                toml_names.add(name.lower())
-
-                try:
-                    if has_guid:
-                        if self.add_reference(
-                            guid=ref["guid"],
-                            name=ref["name"],
-                            major=ref["major"],
-                            minor=ref["minor"],
-                            skip_if_exists=True,
-                        ):
-                            stats["added"] += 1
-                        else:
-                            stats["skipped"] += 1
-                    else:
-                        # Path-based (custom) reference — use AddFromFile
-                        if self.add_reference_by_path(
-                            file_path=ref["path"],
-                            skip_if_exists=True,
-                        ):
-                            stats["added"] += 1
-                        else:
-                            stats["skipped"] += 1
-                except (VBAReferenceError, ValueError) as e:
-                    logger.warning(f"Failed to add reference {name}: {e}")
-                    stats["failed"] += 1
+            toml_guids, toml_names = self._sync_add_phase(toml_refs, stats)
 
             # Phase 2: Remove references not in the TOML file
-            current_refs = self.list_references()
-            for ref in current_refs:
-                guid = (ref.get("guid") or "").upper()
-                name_lower = (ref.get("name") or "").lower()
-
-                # Keep references present in TOML (by GUID or by name for path-based refs)
-                if guid and guid in toml_guids:
-                    continue
-                if name_lower in toml_names:
-                    continue
-
-                category = classify_reference(ref)
-                if category == "default" and not force_overwrite:
-                    logger.debug(f"Protected default reference: {ref['name']}")
-                    stats["protected"] += 1
-                    continue
-
-                # Skip references without a GUID (can't be managed by GUID)
-                if not guid:
-                    logger.debug(f"Skipping reference without GUID: {ref['name']}")
-                    stats["protected"] += 1
-                    continue
-
-                try:
-                    if self.remove_reference(guid=guid, skip_if_missing=True):
-                        logger.info(f"Removed reference not in TOML: {ref['name']}")
-                        stats["removed"] += 1
-                except VBAReferenceError as e:
-                    logger.warning(f"Could not remove reference {ref['name']}: {e}")
-                    stats["failed"] += 1
+            self._sync_remove_phase(toml_guids, toml_names, force_overwrite, stats)
 
             logger.info(
                 f"Sync complete: {stats['added']} added, {stats['skipped']} unchanged, "

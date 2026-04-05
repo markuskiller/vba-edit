@@ -789,7 +789,7 @@ IMPORTANT: Requires "Trust access to the VBA project object model" enabled in {s
         refs_file: Optional[str],
     ) -> None:
         """Execute the specific references subcommand against the given manager."""
-        from vba_edit.console import info, success, warning
+        from vba_edit.console import info, success
 
         no_default = getattr(args, "no_default", False)
         no_installed = getattr(args, "no_installed", False)
@@ -797,80 +797,24 @@ IMPORTANT: Requires "Trust access to the VBA project object model" enabled in {s
 
         if subcommand == "add":
             library_path = args.library
-            if added := manager.add_reference_by_path(library_path):
+            if manager.add_reference_by_path(library_path):
                 success(f"Added reference: {Path(library_path).stem}")
             else:
                 info(f"Reference already exists: {Path(library_path).stem}")
 
         elif subcommand == "export":
-            skipped = manager.export_to_toml(refs_file, no_default=no_default, no_installed=no_installed, no_custom=no_custom)
+            skipped = manager.export_to_toml(
+                refs_file, no_default=no_default, no_installed=no_installed, no_custom=no_custom
+            )
             success(f"References exported to: {refs_file}")
             if skipped:
                 info(f"NOTE: Skipped {len(skipped)} reference(s) without GUID: {', '.join(skipped)}")
 
         elif subcommand == "import":
-            if not refs_file or not Path(refs_file).exists():
-                self.logger.error(f"References file not found: {refs_file}")
-                self.logger.error("Use --refs-file to specify the TOML file.")
-                sys.exit(1)
-
-            sync_mode = getattr(args, "sync", False)
-            force_overwrite = getattr(args, "force_overwrite", False)
-
-            if sync_mode:
-                stats = manager.sync_from_toml(refs_file, force_overwrite=force_overwrite)
-                added = stats.get("added", 0)
-                skipped = stats.get("skipped", 0)
-                removed = stats.get("removed", 0)
-                protected = stats.get("protected", 0)
-                failed = stats.get("failed", 0)
-                success(
-                    f"References synced: {added} added, {skipped} unchanged, "
-                    f"{removed} removed, {protected} protected, {failed} failed"
-                )
-                if failed:
-                    warning(f"{failed} reference(s) could not be processed — check log for details")
-            else:
-                stats = manager.import_from_toml(refs_file)
-                added = stats.get("added", 0)
-                skipped = stats.get("skipped", 0)
-                failed = stats.get("failed", 0)
-                success(f"References imported: {added} added, {skipped} skipped, {failed} failed")
-                if failed:
-                    warning(f"{failed} reference(s) could not be added — check log for details")
+            self._dispatch_refs_import(manager, args, refs_file)
 
         elif subcommand == "list":
-            refs = manager.list_references()
-            total_count = len(refs)
-            refs = filter_references(refs, no_default=no_default, no_installed=no_installed, no_custom=no_custom)
-            active_filters = [name for name, active in [("--no-default", no_default), ("--no-installed", no_installed), ("--no-custom", no_custom)] if active]
-            if not refs:
-                if active_filters:
-                    info(f"No VBA references match the active filters ({total_count} total in document).")
-                    info(f"Active filters: {', '.join(active_filters)}")
-                else:
-                    info("No VBA references found.")
-                sys.exit(0)
-            if active_filters:
-                info(f"VBA references in {Path(doc_path).name} ({len(refs)} of {total_count} shown, filters: {', '.join(active_filters)}):\n")
-            else:
-                info(f"VBA references in {Path(doc_path).name} ({len(refs)} total):\n")
-            for ref in refs:
-                category = classify_reference(ref)
-                if ref["broken"]:
-                    status = "[BROKEN]   "
-                elif category == "default":
-                    status = "[DEFAULT]  "
-                elif category == "installed":
-                    status = "[INSTALLED]"
-                else:
-                    status = "[CUSTOM]   "
-                path_str = f"\n      Path: {ref['path']}" if ref.get("path") else ""
-                desc_str = f"\n      Desc: {ref['description']}" if ref.get("description") else ""
-                print(
-                    f"  {status}  {ref['name']} v{ref['major']}.{ref['minor']}\n"
-                    f"      GUID: {ref['guid']}{path_str}{desc_str}"
-                )
+            self._dispatch_refs_list(manager, doc_path, no_default, no_installed, no_custom)
 
         elif subcommand == "remove":
             ref_name = args.ref_name
@@ -878,19 +822,111 @@ IMPORTANT: Requires "Trust access to the VBA project object model" enabled in {s
                 success(f"Removed reference: {ref_name}")
 
         elif subcommand == "validate":
-            refs = manager.list_references()
-            total = len(refs)
-            broken = [ref for ref in refs if ref["broken"]]
-            if broken:
-                warning(f"Found {len(broken)} broken reference(s) in {Path(doc_path).name} ({total} total):\n")
-                for ref in broken:
-                    path_str = f"  Path: {ref['path']}" if ref.get("path") else ""
-                    print(f"  ✗ {ref['name']} v{ref['major']}.{ref['minor']}")
-                    if path_str:
-                        print(f"    {path_str}")
-                sys.exit(1)
+            self._dispatch_refs_validate(manager, doc_path)
+
+    def _dispatch_refs_import(self, manager: Any, args: argparse.Namespace, refs_file: Optional[str]) -> None:
+        """Handle the 'references import' subcommand."""
+        from vba_edit.console import success, warning
+
+        if not refs_file or not Path(refs_file).exists():
+            self.logger.error(f"References file not found: {refs_file}")
+            self.logger.error("Use --refs-file to specify the TOML file.")
+            sys.exit(1)
+
+        sync_mode = getattr(args, "sync", False)
+        force_overwrite = getattr(args, "force_overwrite", False)
+
+        if sync_mode:
+            stats = manager.sync_from_toml(refs_file, force_overwrite=force_overwrite)
+            added = stats.get("added", 0)
+            skipped = stats.get("skipped", 0)
+            removed = stats.get("removed", 0)
+            protected = stats.get("protected", 0)
+            failed = stats.get("failed", 0)
+            success(
+                f"References synced: {added} added, {skipped} unchanged, "
+                f"{removed} removed, {protected} protected, {failed} failed"
+            )
+            if failed:
+                warning(f"{failed} reference(s) could not be processed — check log for details")
+        else:
+            stats = manager.import_from_toml(refs_file)
+            added = stats.get("added", 0)
+            skipped = stats.get("skipped", 0)
+            failed = stats.get("failed", 0)
+            success(f"References imported: {added} added, {skipped} skipped, {failed} failed")
+            if failed:
+                warning(f"{failed} reference(s) could not be added — check log for details")
+
+    def _dispatch_refs_list(
+        self,
+        manager: Any,
+        doc_path: str,
+        no_default: bool,
+        no_installed: bool,
+        no_custom: bool,
+    ) -> None:
+        """Handle the 'references list' subcommand."""
+        from vba_edit.console import info
+
+        refs = manager.list_references()
+        total_count = len(refs)
+        refs = filter_references(refs, no_default=no_default, no_installed=no_installed, no_custom=no_custom)
+        active_filters = [
+            name
+            for name, active in [
+                ("--no-default", no_default),
+                ("--no-installed", no_installed),
+                ("--no-custom", no_custom),
+            ]
+            if active
+        ]
+        if not refs:
+            if active_filters:
+                info(f"No VBA references match the active filters ({total_count} total in document).")
+                info(f"Active filters: {', '.join(active_filters)}")
             else:
-                success(f"All references are valid ({total} references checked)")
+                info("No VBA references found.")
+            sys.exit(0)
+        if active_filters:
+            info(
+                f"VBA references in {Path(doc_path).name} ({len(refs)} of {total_count} shown, filters: {', '.join(active_filters)}):\n"
+            )
+        else:
+            info(f"VBA references in {Path(doc_path).name} ({len(refs)} total):\n")
+        for ref in refs:
+            category = classify_reference(ref)
+            if ref["broken"]:
+                status = "[BROKEN]   "
+            elif category == "default":
+                status = "[DEFAULT]  "
+            elif category == "installed":
+                status = "[INSTALLED]"
+            else:
+                status = "[CUSTOM]   "
+            path_str = f"\n      Path: {ref['path']}" if ref.get("path") else ""
+            desc_str = f"\n      Desc: {ref['description']}" if ref.get("description") else ""
+            print(
+                f"  {status}  {ref['name']} v{ref['major']}.{ref['minor']}\n"
+                f"      GUID: {ref['guid']}{path_str}{desc_str}"
+            )
+
+    def _dispatch_refs_validate(self, manager: Any, doc_path: str) -> None:
+        """Handle the 'references validate' subcommand."""
+        from vba_edit.console import success, warning
+
+        refs = manager.list_references()
+        total = len(refs)
+        if broken := [ref for ref in refs if ref["broken"]]:
+            warning(f"Found {len(broken)} broken reference(s) in {Path(doc_path).name} ({total} total):\n")
+            for ref in broken:
+                path_str = f"  Path: {ref['path']}" if ref.get("path") else ""
+                print(f"  ✗ {ref['name']} v{ref['major']}.{ref['minor']}")
+                if path_str:
+                    print(f"    {path_str}")
+            sys.exit(1)
+        else:
+            success(f"All references are valid ({total} references checked)")
 
     def _close_refs_doc(self, opened_doc: bool, doc: Any, app: Any) -> None:
         """Close the document opened for a references operation, if we opened it."""
@@ -1014,8 +1050,7 @@ IMPORTANT: Requires "Trust access to the VBA project object model" enabled in {s
                         if isinstance(action, argparse._SubParsersAction):
                             for sub in action.choices.values():
                                 sub_dests = self._collect_parser_dests(sub)
-                                sub_defaults = {k: v for k, v in config_defaults.items() if k in sub_dests}
-                                if sub_defaults:
+                                if sub_defaults := {k: v for k, v in config_defaults.items() if k in sub_dests}:
                                     sub.set_defaults(**sub_defaults)
         return config, config_load_failed
 

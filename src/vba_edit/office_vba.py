@@ -1804,7 +1804,7 @@ class OfficeVBAHandler(ABC):
             from vba_edit.reference_manager import ReferenceManager
 
             manager = ReferenceManager(self.doc)
-            stats = manager.import_from_toml(str(toml_path))
+            stats = manager.import_from_toml(toml_path)
             added = stats.get("added", 0)
             skipped = stats.get("skipped", 0)
             failed = stats.get("failed", 0)
@@ -2023,11 +2023,12 @@ class OfficeVBAHandler(ABC):
         Raises:
             VBAExportWarning: When user confirmation is needed.
         """
-        if interactive and overwrite:
-            existing_files = self._check_existing_vba_files()
-            if existing_files:
-                raise VBAExportWarning("existing_files", {"file_count": len(existing_files), "files": existing_files})
         if interactive:
+            if overwrite:
+                if existing_files := self._check_existing_vba_files():
+                    raise VBAExportWarning(
+                        "existing_files", {"file_count": len(existing_files), "files": existing_files}
+                    )
             if self._check_header_mode_change():
                 old_mode, new_mode = self._get_header_modes()
                 raise VBAExportWarning("header_mode_changed", {"old_mode": old_mode, "new_mode": new_mode})
