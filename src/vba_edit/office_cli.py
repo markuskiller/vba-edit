@@ -316,6 +316,12 @@ class OfficeVBACLI:
         )
         add_command_arguments(export_parser)
         add_exporting_arguments(export_parser)
+        export_parser.add_argument(
+            "--skip-empty",
+            dest="skip_empty",
+            action="store_true",
+            help="Skip modules with no code (e.g. empty worksheet modules)",
+        )
         add_after_export_arguments(export_parser)
         add_vba_files_arguments(export_parser)
         add_config_arguments(export_parser)  # Add config file options to export command

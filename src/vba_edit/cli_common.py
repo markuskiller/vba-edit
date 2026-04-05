@@ -593,12 +593,6 @@ def add_exporting_arguments(parser: argparse.ArgumentParser) -> None:
         help="Open export directory in file explorer after export",
     )
     exporting_group.add_argument(
-        "--skip-empty",
-        dest=CONFIG_KEY_SKIP_EMPTY,
-        action="store_true",
-        help="Skip modules with no code (e.g. empty worksheet modules)",
-    )
-    exporting_group.add_argument(
         "--with-references",
         dest=CONFIG_KEY_WITH_REFERENCES,
         action="store_true",
