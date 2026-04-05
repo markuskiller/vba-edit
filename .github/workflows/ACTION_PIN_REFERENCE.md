@@ -1,6 +1,6 @@
 # GitHub Actions SHA Pinning Reference
 
-**Last Updated**: 2025-10-20  
+**Last Updated**: 2026-03-20  
 **Branch**: dev (synced with main)
 **Reason**: Security best practice - pinning actions to commit SHAs prevents supply chain attacks
 
@@ -17,49 +17,49 @@ Pinning third-party GitHub Actions to full commit SHAs is currently the **only w
 ## Pinned Actions Reference
 
 ### actions/checkout
-- **Current Pin**: `08c6903cd8c0fde910a37f88322edcfb5dd907a8`
-- **Version**: v5.0.0
-- **Release Date**: August 11, 2024
-- **Release URL**: https://github.com/actions/checkout/releases/tag/v5.0.0
+- **Current Pin**: `de0fac2e4500dabe0009e67214ff5f5447ce83dd`
+- **Version**: v6.0.2
+- **Release URL**: https://github.com/actions/checkout/releases/tag/v6.0.2
 - **Used in**: All workflows (build-binaries.yml, test.yaml, lint.yaml, publish.yaml)
-- **Breaking Change**: Requires runner v2.327.1+ (uses node24)
 
 ### actions/setup-python
-- **Current Pin**: `e797f83bcb11b83ae66e0230d6156d7c80228e7c`
-- **Version**: v6.0.0
-- **Release Date**: September 4, 2024
-- **Release URL**: https://github.com/actions/setup-python/releases/tag/v6.0.0
+- **Current Pin**: `a309ff8b426b58ec0e2a45f0f869d46889d02405`
+- **Version**: v6.2.0
+- **Release URL**: https://github.com/actions/setup-python/releases/tag/v6.2.0
 - **Used in**: All workflows (build-binaries.yml, test.yaml, lint.yaml, publish.yaml)
-- **Breaking Change**: Requires runner v2.327.1+ (uses node24)
 
 ### astral-sh/setup-uv
-- **Current Pin**: `eb1897b8dc4b5d5bfe39a428a8f2304605e0983c`
-- **Version**: v7.0.0
-- **Release Date**: October 2025 (2 weeks ago as of 2025-10-20)
-- **Release URL**: https://github.com/astral-sh/setup-uv/releases/tag/v7.0.0
+- **Current Pin**: `e06108dd0aef18192324c70427afc47652e63a82`
+- **Version**: v7.5.0
+- **Release URL**: https://github.com/astral-sh/setup-uv/releases/tag/v7.5.0
 - **Used in**: build-binaries.yml only
-- **Breaking Change**: Uses node24 instead of node20, removed deprecated `server-url` input
+- **Notable change**: Uses `astral-sh/versions` as version provider (no more GitHub API rate-limits on version resolution)
 
 ### actions/attest-build-provenance
-- **Current Pin**: `977bb373ede98d70efdf65b84cb5f73e068dcc2a`
-- **Version**: v3.0.0
-- **Release Date**: August 28, 2024
-- **Release URL**: https://github.com/actions/attest-build-provenance/releases/tag/v3.0.0
+- **Current Pin**: `a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32`
+- **Version**: v4.1.0
+- **Release URL**: https://github.com/actions/attest-build-provenance/releases/tag/v4.1.0
 - **Used in**: build-binaries.yml only
 
 ### actions/upload-artifact
-- **Current Pin**: `c7d193f32edcb7bfad88892161225aeda64e9392`
-- **Version**: v4.0.0
-- **Release Date**: December 14, 2023
-- **Release URL**: https://github.com/actions/upload-artifact/releases/tag/v4.0.0
+- **Current Pin**: `bbbca2ddaa5d8feaa63e36b76fdaad77386f024f`
+- **Version**: v7.0.0
+- **Release URL**: https://github.com/actions/upload-artifact/releases/tag/v7.0.0
 - **Used in**: build-binaries.yml only
 
 ### softprops/action-gh-release
-- **Current Pin**: `a6c7483a42ee9d5daced968f6c217562cd680f7f`
-- **Version**: v2.0.0
-- **Release Date**: March 8, 2024
-- **Release URL**: https://github.com/softprops/action-gh-release/releases/tag/v2.0.0
+- **Current Pin**: `153bb8e04406b158c6c84fc1615b65b24149a1fe`
+- **Version**: v2.6.1
+- **Release URL**: https://github.com/softprops/action-gh-release/releases/tag/v2.6.1
 - **Used in**: build-binaries.yml only
+- **Notable change**: Fixes discussion category preservation on publish; recovery of concurrent asset metadata 404s
+
+### pypa/gh-action-pypi-publish
+- **Current Pin**: `ed0c53931b1dc9bd32cbe73a98c7f6766f8a527e`
+- **Version**: v1.13.0
+- **Release URL**: https://github.com/pypa/gh-action-pypi-publish/releases/tag/v1.13.0
+- **Used in**: publish.yaml (core + satellite packages)
+- **Notable change**: Trusted Publishers (OIDC), PEP 740 attestations, Sigstore signing. Fixes GHSA-vxmw-7h4f-hqxh.
 
 ## Updating Pinned Actions
 

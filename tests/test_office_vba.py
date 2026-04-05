@@ -863,3 +863,220 @@ def test_handle_form_binary_import_skips_same_file(temp_dir):
         with patch("shutil.copy2") as mock_copy:
             handler._handle_form_binary_import("UserForm1")
             mock_copy.assert_not_called()
+
+
+# region skip_empty tests
+
+
+class TestIsEmptyVbaFile:
+    """Tests for _is_empty_vba_file helper."""
+
+    def test_empty_bas_file(self, temp_dir):
+        """A .bas file with only the attribute header is considered empty."""
+        doc_path = temp_dir / "test.docm"
+        doc_path.touch()
+        with patch("win32com.client.Dispatch"):
+            handler = WordVBAHandler(doc_path=str(doc_path), vba_dir=str(temp_dir))
+
+        bas_file = temp_dir / "Sheet1.bas"
+        bas_file.write_text('Attribute VB_Name = "Sheet1"\n')
+        assert handler._is_empty_vba_file(bas_file) is True
+
+    def test_non_empty_bas_file(self, temp_dir):
+        """A .bas file with actual code is not considered empty."""
+        doc_path = temp_dir / "test.docm"
+        doc_path.touch()
+        with patch("win32com.client.Dispatch"):
+            handler = WordVBAHandler(doc_path=str(doc_path), vba_dir=str(temp_dir))
+
+        bas_file = temp_dir / "Module1.bas"
+        bas_file.write_text('Attribute VB_Name = "Module1"\nSub Test()\nEnd Sub\n')
+        assert handler._is_empty_vba_file(bas_file) is False
+
+    def test_cls_header_only(self, temp_dir):
+        """A .cls file with only the class header is considered empty."""
+        doc_path = temp_dir / "test.docm"
+        doc_path.touch()
+        with patch("win32com.client.Dispatch"):
+            handler = WordVBAHandler(doc_path=str(doc_path), vba_dir=str(temp_dir))
+
+        cls_file = temp_dir / "Sheet1.cls"
+        cls_file.write_text(
+            "VERSION 1.0 CLASS\n"
+            "BEGIN\n"
+            "  MultiUse = -1\n"
+            "END\n"
+            'Attribute VB_Name = "Sheet1"\n'
+            "Attribute VB_GlobalNameSpace = False\n"
+        )
+        assert handler._is_empty_vba_file(cls_file) is True
+
+    def test_cls_with_code(self, temp_dir):
+        """A .cls file with code after the header is not empty."""
+        doc_path = temp_dir / "test.docm"
+        doc_path.touch()
+        with patch("win32com.client.Dispatch"):
+            handler = WordVBAHandler(doc_path=str(doc_path), vba_dir=str(temp_dir))
+
+        cls_file = temp_dir / "Class1.cls"
+        cls_file.write_text(
+            "VERSION 1.0 CLASS\n"
+            "BEGIN\n"
+            "  MultiUse = -1\n"
+            "END\n"
+            'Attribute VB_Name = "Class1"\n'
+            "Attribute VB_GlobalNameSpace = False\n"
+            "Public Sub DoSomething()\nEnd Sub\n"
+        )
+        assert handler._is_empty_vba_file(cls_file) is False
+
+    def test_unreadable_file_returns_false(self, temp_dir):
+        """An unreadable file is treated as non-empty (safe default)."""
+        doc_path = temp_dir / "test.docm"
+        doc_path.touch()
+        with patch("win32com.client.Dispatch"):
+            handler = WordVBAHandler(doc_path=str(doc_path), vba_dir=str(temp_dir))
+
+        missing = temp_dir / "nonexistent.bas"
+        assert handler._is_empty_vba_file(missing) is False
+
+
+class TestSkipEmptyExport:
+    """Tests for --skip-empty in export_vba."""
+
+    def test_skip_empty_skips_zero_code_lines(self, temp_dir):
+        """Components with code_lines == 0 are skipped when skip_empty=True."""
+        doc_path = temp_dir / "test.xlsm"
+        doc_path.touch()
+
+        with patch("win32com.client.Dispatch"):
+            handler = ExcelVBAHandler(doc_path=str(doc_path), vba_dir=str(temp_dir), skip_empty=True)
+
+        handler.is_document_open = Mock(return_value=True)
+
+        # Two components: one empty worksheet, one with code
+        empty_comp = Mock()
+        empty_comp.Name = "Sheet1"
+        empty_comp.Type = 100  # VBEXT_CT_DOCUMENT
+        empty_comp.CodeModule.CountOfLines = 0
+
+        real_comp = Mock()
+        real_comp.Name = "Module1"
+        real_comp.Type = 1  # VBEXT_CT_STDMODULE
+        real_comp.CodeModule.CountOfLines = 5
+
+        mock_components = Mock()
+        mock_components.Count = 2
+        mock_components.__iter__ = Mock(return_value=iter([empty_comp, real_comp]))
+
+        mock_vbproject = Mock()
+        mock_vbproject.VBComponents = mock_components
+        handler.get_vba_project = Mock(return_value=mock_vbproject)
+        handler.export_component = Mock()
+        handler._check_existing_vba_files = Mock(return_value=[])
+        handler._check_header_mode_change = Mock(return_value=False)
+        handler._check_form_safety = Mock()
+        handler._save_metadata = Mock()
+        handler.close_document = Mock()
+
+        handler.export_vba(save_metadata=False, overwrite=True, interactive=False)
+
+        # Only Module1 should have been exported
+        assert handler.export_component.call_count == 1
+        exported_component = handler.export_component.call_args[0][0]
+        assert exported_component.Name == "Module1"
+
+    def test_no_skip_when_flag_off(self, temp_dir):
+        """Empty components are exported normally when skip_empty=False."""
+        doc_path = temp_dir / "test.xlsm"
+        doc_path.touch()
+
+        with patch("win32com.client.Dispatch"):
+            handler = ExcelVBAHandler(doc_path=str(doc_path), vba_dir=str(temp_dir), skip_empty=False)
+
+        handler.is_document_open = Mock(return_value=True)
+
+        empty_comp = Mock()
+        empty_comp.Name = "Sheet1"
+        empty_comp.Type = 100
+        empty_comp.CodeModule.CountOfLines = 0
+
+        mock_components = Mock()
+        mock_components.Count = 1
+        mock_components.__iter__ = Mock(return_value=iter([empty_comp]))
+
+        mock_vbproject = Mock()
+        mock_vbproject.VBComponents = mock_components
+        handler.get_vba_project = Mock(return_value=mock_vbproject)
+        handler.export_component = Mock()
+        handler._check_existing_vba_files = Mock(return_value=[])
+        handler._check_header_mode_change = Mock(return_value=False)
+        handler._check_form_safety = Mock()
+        handler._save_metadata = Mock()
+        handler.close_document = Mock()
+
+        handler.export_vba(save_metadata=False, overwrite=True, interactive=False)
+
+        assert handler.export_component.call_count == 1
+
+
+class TestSkipEmptyImport:
+    """Tests for --skip-empty in import_vba."""
+
+    def test_skip_empty_skips_header_only_files(self, temp_dir):
+        """Files with no code after the header are skipped when skip_empty=True."""
+        doc_path = temp_dir / "test.xlsm"
+        doc_path.touch()
+
+        # Write an empty cls (header only) and a real bas file
+        (temp_dir / "Sheet1.cls").write_text(
+            'VERSION 1.0 CLASS\nBEGIN\n  MultiUse = -1\nEND\nAttribute VB_Name = "Sheet1"\n'
+        )
+        (temp_dir / "Module1.bas").write_text('Attribute VB_Name = "Module1"\nSub Hello()\nEnd Sub\n')
+
+        with patch("win32com.client.Dispatch"):
+            handler = ExcelVBAHandler(doc_path=str(doc_path), vba_dir=str(temp_dir), skip_empty=True)
+
+        handler.doc = Mock()
+        handler.doc.Name = "test.xlsm"
+        mock_vbproject = Mock()
+        mock_vbproject.VBComponents = Mock()
+        handler.get_vba_project = Mock(return_value=mock_vbproject)
+        handler.import_component = Mock()
+        handler.save_document = Mock()
+        handler.is_document_open = Mock(return_value=True)
+
+        handler.import_vba()
+
+        # Only Module1.bas should be imported
+        assert handler.import_component.call_count == 1
+        imported_file = handler.import_component.call_args[0][0]
+        assert imported_file.name == "Module1.bas"
+
+    def test_no_skip_when_flag_off(self, temp_dir):
+        """Empty files are imported normally when skip_empty=False."""
+        doc_path = temp_dir / "test.xlsm"
+        doc_path.touch()
+
+        (temp_dir / "Sheet1.cls").write_text(
+            'VERSION 1.0 CLASS\nBEGIN\n  MultiUse = -1\nEND\nAttribute VB_Name = "Sheet1"\n'
+        )
+
+        with patch("win32com.client.Dispatch"):
+            handler = ExcelVBAHandler(doc_path=str(doc_path), vba_dir=str(temp_dir), skip_empty=False)
+
+        handler.doc = Mock()
+        handler.doc.Name = "test.xlsm"
+        mock_vbproject = Mock()
+        mock_vbproject.VBComponents = Mock()
+        handler.get_vba_project = Mock(return_value=mock_vbproject)
+        handler.import_component = Mock()
+        handler.save_document = Mock()
+        handler.is_document_open = Mock(return_value=True)
+
+        handler.import_vba()
+
+        assert handler.import_component.call_count == 1
+
+
+# endregion skip_empty tests

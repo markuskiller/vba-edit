@@ -64,7 +64,9 @@ from vba_edit import __version__ as package_version
 from vba_edit.cli_common import (
     CONFIG_KEY_VBA_DIRECTORY,
     CONFIG_SECTION_GENERAL,
+    CONFIG_SECTION_REFERENCES,
     PLACEHOLDER_FILE_VBAPROJECT,
+    _get_cli_explicit_args,
     add_after_export_arguments,
     add_common_option_group,
     add_config_arguments,
@@ -79,7 +81,13 @@ from vba_edit.cli_common import (
     add_command_arguments,
     add_vba_files_arguments,
     add_exporting_arguments,
+    add_importing_arguments,
     add_excel_specific_arguments,
+    add_references_file_arguments,
+    add_references_filter_arguments,
+    add_references_output_arguments,
+    get_references_command_description,
+    get_references_command_usage,
     create_office_cli_description,
     create_office_cli_examples,
     get_help_string,
@@ -94,6 +102,8 @@ from vba_edit.exceptions import (
     VBAAccessError,
     VBAError,
 )
+from vba_edit.reference_manager import ReferenceManager, classify_reference, filter_references
+from vba_edit.exceptions import VBAReferenceError
 from vba_edit.help_formatter import ColorizedArgumentParser, EnhancedHelpFormatter
 from vba_edit.office_vba import (
     ExcelVBAHandler,
@@ -105,7 +115,7 @@ from vba_edit.path_utils import get_document_paths
 from vba_edit.utils import get_active_office_document, setup_logging
 from vba_edit.console import error
 
-from typing import Callable, Type
+from typing import Any, Callable, Optional, Tuple, Type
 
 
 # Eager mapping (backwards-compatible; values are classes)
@@ -211,22 +221,34 @@ class OfficeVBACLI:
         return dests
 
     def _get_subparser(self, parser: argparse.ArgumentParser, command: str) -> argparse.ArgumentParser | None:
-        for action in parser._actions:
-            if isinstance(action, argparse._SubParsersAction):
-                return action.choices.get(command)
-        return None
+        return next(
+            (
+                action.choices.get(command)
+                for action in parser._actions
+                if isinstance(action, argparse._SubParsersAction)
+            ),
+            None,
+        )
 
     def _get_config_defaults(self, parser: argparse.ArgumentParser, config: dict) -> dict:
         defaults = {}
-        general_config = config.get(CONFIG_SECTION_GENERAL, {})
-        if not isinstance(general_config, dict):
-            return defaults
-
         known_dests = self._collect_parser_dests(parser)
-        for key, value in general_config.items():
-            arg_key = key.replace("-", "_")
-            if arg_key in known_dests:
-                defaults[arg_key] = value
+
+        # Read [general] section
+        general_config = config.get(CONFIG_SECTION_GENERAL, {})
+        if isinstance(general_config, dict):
+            for key, value in general_config.items():
+                arg_key = key.replace("-", "_")
+                if arg_key in known_dests:
+                    defaults[arg_key] = value
+
+        # Read [references] section
+        refs_config = config.get(CONFIG_SECTION_REFERENCES, {})
+        if isinstance(refs_config, dict):
+            for key, value in refs_config.items():
+                arg_key = key.replace("-", "_")
+                if arg_key in known_dests:
+                    defaults[arg_key] = value
 
         return defaults
 
@@ -279,6 +301,7 @@ class OfficeVBACLI:
         )
         add_command_arguments(import_parser)
         add_vba_files_arguments(import_parser)
+        add_importing_arguments(import_parser)
         add_config_arguments(import_parser)  # Add config file options to import command
         add_common_option_group(import_parser)  # Add common options to import command
 
@@ -293,6 +316,12 @@ class OfficeVBACLI:
         )
         add_command_arguments(export_parser)
         add_exporting_arguments(export_parser)
+        export_parser.add_argument(
+            "--skip-empty",
+            dest="skip_empty",
+            action="store_true",
+            help="Skip modules with no code (e.g. empty worksheet modules)",
+        )
         add_after_export_arguments(export_parser)
         add_vba_files_arguments(export_parser)
         add_config_arguments(export_parser)  # Add config file options to export command
@@ -332,12 +361,144 @@ class OfficeVBACLI:
         )
         add_common_option_group(check_parser)  # Add common options to check command
 
-        # Add application specific arguments
-        extra_args_func = self._get_special_function("extra_arguments")
-        if extra_args_func:
+        if extra_args_func := self._get_special_function("extra_arguments"):
             extra_args_func(edit_parser)
             extra_args_func(import_parser)
             extra_args_func(export_parser)
+
+        # References command
+        references_parser = subparsers.add_parser(
+            "references",
+            usage=get_references_command_usage(self.office_app),
+            help=get_help_string("references", self.office_app),
+            description=f"""Manage VBA library references in {self.config["file_type"]}s
+
+VBA references are links to external type libraries (COM objects, DLLs, other Office documents).
+
+Simple usage:
+  {self.config["entry_point"]} references list                    # List refs in active {self.config["file_type"]}
+  {self.config["entry_point"]} references export                  # Export to {{document}}_refs.toml
+  {self.config["entry_point"]} references import -r refs.toml     # Import from TOML file""",
+            epilog=f"""Use '{self.config["entry_point"]} references <sub-command> --help' for more information on a specific sub-command.
+
+IMPORTANT: Requires "Trust access to the VBA project object model" enabled in {self.config["app_name"]}.
+           Early release - backup important files before use!""",
+            formatter_class=EnhancedHelpFormatter,
+            add_help=False,
+        )
+        add_common_option_group(references_parser)
+
+        refs_subparsers = references_parser.add_subparsers(
+            dest="refs_subcommand",
+            required=False,
+            title="Commands",
+            metavar="<command>",
+        )
+
+        # references list
+        list_refs_parser = refs_subparsers.add_parser(
+            "list",
+            usage=f"{self.config['entry_point']} references list [--file FILE] [options]",
+            help="List all references in document",
+            description=get_references_command_description("list", self.office_app),
+            formatter_class=EnhancedHelpFormatter,
+            add_help=False,
+        )
+        add_references_file_arguments(list_refs_parser)
+        add_references_filter_arguments(list_refs_parser)
+        add_config_arguments(list_refs_parser)
+        add_common_option_group(list_refs_parser)
+
+        # references export
+        export_refs_parser = refs_subparsers.add_parser(
+            "export",
+            usage=f"{self.config['entry_point']} references export [--file FILE] [--refs-file FILE] [options]",
+            help="Export references to TOML file",
+            description=get_references_command_description("export", self.office_app),
+            formatter_class=EnhancedHelpFormatter,
+            add_help=False,
+        )
+        add_references_file_arguments(export_refs_parser)
+        add_references_output_arguments(export_refs_parser)
+        add_references_filter_arguments(export_refs_parser)
+        add_config_arguments(export_refs_parser)
+        add_common_option_group(export_refs_parser)
+
+        # references import
+        import_refs_parser = refs_subparsers.add_parser(
+            "import",
+            usage=f"{self.config['entry_point']} references import --refs-file FILE [--file FILE] [options]",
+            help="Import references from TOML file",
+            description=get_references_command_description("import", self.office_app),
+            formatter_class=EnhancedHelpFormatter,
+            add_help=False,
+        )
+        add_references_file_arguments(import_refs_parser)
+        add_references_output_arguments(import_refs_parser)
+        sync_group = import_refs_parser.add_argument_group("Sync Options")
+        sync_group.add_argument(
+            "--sync",
+            dest="sync",
+            action="store_true",
+            help="Make document match the TOML file exactly — add missing and remove extra references",
+        )
+        sync_group.add_argument(
+            "--force-overwrite",
+            dest="force_overwrite",
+            action="store_true",
+            help="Allow removing default references and syncing from filtered exports",
+        )
+        add_config_arguments(import_refs_parser)
+        add_common_option_group(import_refs_parser)
+
+        # references validate
+        validate_refs_parser = refs_subparsers.add_parser(
+            "validate",
+            usage=f"{self.config['entry_point']} references validate [--file FILE] [options]",
+            help="Check for broken references",
+            description=get_references_command_description("validate", self.office_app),
+            formatter_class=EnhancedHelpFormatter,
+            add_help=False,
+        )
+        add_references_file_arguments(validate_refs_parser)
+        add_config_arguments(validate_refs_parser)
+        add_common_option_group(validate_refs_parser)
+
+        # references add
+        add_ref_parser = refs_subparsers.add_parser(
+            "add",
+            usage=f"{self.config['entry_point']} references add LIBRARY [--file FILE] [options]",
+            help="Add a reference by file path",
+            description=get_references_command_description("add", self.office_app),
+            formatter_class=EnhancedHelpFormatter,
+            add_help=False,
+        )
+        add_ref_parser.add_argument(
+            "library",
+            metavar="LIBRARY",
+            help="Path to library file (.dotm, .xlam, .dll, .olb, etc.)",
+        )
+        add_references_file_arguments(add_ref_parser)
+        add_config_arguments(add_ref_parser)
+        add_common_option_group(add_ref_parser)
+
+        # references remove
+        remove_ref_parser = refs_subparsers.add_parser(
+            "remove",
+            usage=f"{self.config['entry_point']} references remove NAME [--file FILE] [options]",
+            help="Remove a reference by name",
+            description=get_references_command_description("remove", self.office_app),
+            formatter_class=EnhancedHelpFormatter,
+            add_help=False,
+        )
+        remove_ref_parser.add_argument(
+            "ref_name",
+            metavar="NAME",
+            help="Name of the reference to remove (as shown in 'references list')",
+        )
+        add_references_file_arguments(remove_ref_parser)
+        add_config_arguments(remove_ref_parser)
+        add_common_option_group(remove_ref_parser)
 
         return parser
 
@@ -355,13 +516,15 @@ class OfficeVBACLI:
             file_type = self.config["file_type"]
             raise FileNotFoundError(f"{file_type.title()} not found: {args.file}")
 
-        if args.vba_directory:
-            # Only create the VBA directory if there's no PLACEHOLDER_FILE_VBAPROJECT value, or if it is already resolved
-            if PLACEHOLDER_FILE_VBAPROJECT not in args.vba_directory:
-                vba_dir = Path(args.vba_directory)
-                if not vba_dir.exists():
-                    self.logger.info(f"Creating VBA directory: {vba_dir}")
-                    vba_dir.mkdir(parents=True, exist_ok=True)
+        # The references command uses --file but not --vba-directory
+        if args.command == "references":
+            return
+
+        if args.vba_directory and PLACEHOLDER_FILE_VBAPROJECT not in args.vba_directory:
+            vba_dir = Path(args.vba_directory)
+            if not vba_dir.exists():
+                self.logger.info(f"Creating VBA directory: {vba_dir}")
+                vba_dir.mkdir(parents=True, exist_ok=True)
 
     def _call_handle_export_with_warnings(
         self,
@@ -389,6 +552,111 @@ class OfficeVBACLI:
             keep_open=keep_open,
         )
 
+    def _get_refs_file(self, handler) -> Path:
+        """Derive the refs.toml path from the handler's document path."""
+        return handler.vba_dir / f"{handler.doc_path.stem}_refs.toml"
+
+    def _auto_export_references(self, handler) -> None:
+        """Export VBA references alongside VBA code."""
+        from vba_edit.console import info
+
+        try:
+            refs_file = self._get_refs_file(handler)
+            manager = ReferenceManager(handler.doc)
+            manager.export_to_toml(str(refs_file))
+            info(f"References exported to: {refs_file.name}")
+        except Exception as e:
+            self.logger.warning(f"Could not export references: {e}")
+
+    def _auto_import_references(self, handler) -> None:
+        """Import VBA references from refs.toml if it exists."""
+        from vba_edit.console import info, warning
+
+        try:
+            refs_file = self._get_refs_file(handler)
+            if not refs_file.exists():
+                self.logger.debug(f"No references file found at {refs_file}, skipping")
+                return
+            manager = ReferenceManager(handler.doc)
+            stats = manager.import_from_toml(str(refs_file))
+            added = stats.get("added", 0)
+            skipped = stats.get("skipped", 0)
+            failed = stats.get("failed", 0)
+            info(f"References imported: {added} added, {skipped} skipped, {failed} failed")
+            if failed:
+                warning(f"{failed} reference(s) could not be added — check log for details")
+        except Exception as e:
+            self.logger.warning(f"Could not import references: {e}")
+
+    def _run_vba_command(self, handler: Any, args: argparse.Namespace) -> None:
+        """Execute the VBA edit/import/export command with error handling."""
+        try:
+            if args.command == "edit":
+                print("NOTE: Deleting a VBA module file will also delete it in the VBA editor!")
+
+                # Add office-specific notes
+                extra_notes = self.special_config.get("extra_notes", [])
+                for note in extra_notes:
+                    print(note)
+                # region Indirection to ensure test patches to handle_export_with_warnings are honored
+                # once test_excel_vba_cli.py::test_save_metadata_passed_to_handler_edit is adapted,
+                # this can be simplified to a direct call to handle_export_with_warnings
+                self._call_handle_export_with_warnings(
+                    handler,
+                    args,
+                    overwrite=False,
+                    interactive=True,
+                    keep_open=True,  # CRITICAL: Must keep document open for edit mode
+                )
+                # endregion
+                # Auto-export references for edit mode initial export
+                if getattr(args, "with_references", False):
+                    self._auto_export_references(handler)
+                try:
+                    handler.watch_changes(
+                        watch_references=getattr(args, "with_references", False),
+                    )
+                except (DocumentClosedError, RPCError) as e:
+                    self.logger.error(str(e))
+                    app_name = self.config["app_name"]
+                    self.logger.info(
+                        f"Edit session terminated. Please restart {app_name} and this tool to continue editing."
+                    )
+                    sys.exit(1)
+            elif args.command == "import":
+                # Auto-import references before VBA import
+                if getattr(args, "with_references", False):
+                    self._auto_import_references(handler)
+                handler.import_vba()
+            elif args.command == "export":
+                handle_export_with_warnings(
+                    handler,
+                    save_metadata=getattr(args, "save_metadata", False),
+                    overwrite=True,
+                    interactive=True,
+                    force_overwrite=getattr(args, "force_overwrite", False),
+                    keep_open=getattr(args, "keep_open", False),
+                )
+                # Auto-export references after VBA export
+                if getattr(args, "with_references", False):
+                    self._auto_export_references(handler)
+        except (DocumentClosedError, RPCError) as e:
+            self.logger.error(str(e))
+            sys.exit(1)
+        except VBAAccessError as e:
+            self.logger.error(str(e))
+            app_name = self.config["app_name"]
+            self.logger.error(f"Please check {app_name} Trust Center Settings and try again.")
+            sys.exit(1)
+        except VBAError as e:
+            self.logger.error(f"VBA operation failed: {str(e)}")
+            sys.exit(1)
+        except Exception as e:
+            self.logger.error(f"Unexpected error: {str(e)}")
+            if getattr(args, "verbose", False):
+                self.logger.exception("Detailed error information:")
+            sys.exit(1)
+
     def handle_office_vba_command(self, args: argparse.Namespace) -> None:
         """Handle the office-vba command execution."""
         try:
@@ -400,9 +668,7 @@ class OfficeVBACLI:
             # Ensure paths exist early (creates vba_directory if provided)
             self.validate_paths(args)
 
-            # Run application-specific pre-command hook
-            pre_hook = self._get_special_function("pre_command_hook")
-            if pre_hook:
+            if pre_hook := self._get_special_function("pre_command_hook"):
                 pre_hook(args)
 
             # Handle xlwings option if present (Excel only)
@@ -451,6 +717,7 @@ class OfficeVBACLI:
                     use_rubberduck_folders=getattr(args, "rubberduck_folders", False),
                     open_folder=getattr(args, "open_folder", False),
                     in_file_headers=getattr(args, "in_file_headers", True),
+                    skip_empty=getattr(args, "skip_empty", False),
                 )
             except VBAError as e:
                 app_name = self.config["app_name"]
@@ -459,60 +726,7 @@ class OfficeVBACLI:
 
             # Execute requested command
             self.logger.info(f"Executing command: {args.command}")
-            try:
-                if args.command == "edit":
-                    print("NOTE: Deleting a VBA module file will also delete it in the VBA editor!")
-
-                    # Add office-specific notes
-                    extra_notes = self.special_config.get("extra_notes", [])
-                    for note in extra_notes:
-                        print(note)
-                    # region Indirection to ensure test patches to handle_export_with_warnings are honored
-                    # once test_excel_vba_cli.py::test_save_metadata_passed_to_handler_edit is adapted, this can be simplified to a direct call to handle_export_with_warnings
-                    self._call_handle_export_with_warnings(
-                        handler,
-                        args,
-                        overwrite=False,
-                        interactive=True,
-                        keep_open=True,  # CRITICAL: Must keep document open for edit mode
-                    )
-                    # endregion
-                    try:
-                        handler.watch_changes()
-                    except (DocumentClosedError, RPCError) as e:
-                        self.logger.error(str(e))
-                        app_name = self.config["app_name"]
-                        self.logger.info(
-                            f"Edit session terminated. Please restart {app_name} and this tool to continue editing."
-                        )
-                        sys.exit(1)
-                elif args.command == "import":
-                    handler.import_vba()
-                elif args.command == "export":
-                    handle_export_with_warnings(
-                        handler,
-                        save_metadata=getattr(args, "save_metadata", False),
-                        overwrite=True,
-                        interactive=True,
-                        force_overwrite=getattr(args, "force_overwrite", False),
-                        keep_open=getattr(args, "keep_open", False),
-                    )
-            except (DocumentClosedError, RPCError) as e:
-                self.logger.error(str(e))
-                sys.exit(1)
-            except VBAAccessError as e:
-                self.logger.error(str(e))
-                app_name = self.config["app_name"]
-                self.logger.error(f"Please check {app_name} Trust Center Settings and try again.")
-                sys.exit(1)
-            except VBAError as e:
-                self.logger.error(f"VBA operation failed: {str(e)}")
-                sys.exit(1)
-            except Exception as e:
-                self.logger.error(f"Unexpected error: {str(e)}")
-                if getattr(args, "verbose", False):
-                    self.logger.exception("Detailed error information:")
-                sys.exit(1)
+            self._run_vba_command(handler, args)
 
         except KeyboardInterrupt:
             self.logger.info("\nOperation interrupted by user")
@@ -524,6 +738,321 @@ class OfficeVBACLI:
             sys.exit(1)
         finally:
             self.logger.debug("Command execution completed")
+
+    def _open_doc_for_references(
+        self, app: Any, file_arg: Optional[str], doc_path: str, file_type: str
+    ) -> Tuple[Any, bool]:
+        """Open or get the active document for reference operations.
+
+        Returns:
+            Tuple of (doc, opened_doc) where opened_doc is True if this method opened it.
+        """
+        opened_doc = False
+        doc = None
+
+        if self.office_app == "excel":
+            if file_arg:
+                doc = app.Workbooks.Open(doc_path)
+                opened_doc = True
+            else:
+                doc = app.ActiveWorkbook
+        elif self.office_app == "word":
+            if file_arg:
+                doc = app.Documents.Open(doc_path)
+                opened_doc = True
+            else:
+                doc = app.ActiveDocument
+        elif self.office_app == "access":
+            if file_arg:
+                app.OpenCurrentDatabase(doc_path)
+                opened_doc = True
+            doc = app.CurrentDb()
+        elif self.office_app == "powerpoint":
+            if file_arg:
+                doc = app.Presentations.Open(doc_path)
+                opened_doc = True
+            else:
+                doc = app.ActivePresentation
+
+        if doc is None:
+            self.logger.error(f"No active {file_type} found. Open a {file_type} first.")
+            sys.exit(1)
+
+        return doc, opened_doc
+
+    def _dispatch_refs_subcommand(
+        self,
+        manager: Any,
+        subcommand: str,
+        args: argparse.Namespace,
+        doc_path: str,
+        refs_file: Optional[str],
+    ) -> None:
+        """Execute the specific references subcommand against the given manager."""
+        from vba_edit.console import info, success
+
+        no_default = getattr(args, "no_default", False)
+        no_installed = getattr(args, "no_installed", False)
+        no_custom = getattr(args, "no_custom", False)
+
+        if subcommand == "add":
+            library_path = args.library
+            if manager.add_reference_by_path(library_path):
+                success(f"Added reference: {Path(library_path).stem}")
+            else:
+                info(f"Reference already exists: {Path(library_path).stem}")
+
+        elif subcommand == "export":
+            skipped = manager.export_to_toml(
+                refs_file, no_default=no_default, no_installed=no_installed, no_custom=no_custom
+            )
+            success(f"References exported to: {refs_file}")
+            if skipped:
+                info(f"NOTE: Skipped {len(skipped)} reference(s) without GUID: {', '.join(skipped)}")
+
+        elif subcommand == "import":
+            self._dispatch_refs_import(manager, args, refs_file)
+
+        elif subcommand == "list":
+            self._dispatch_refs_list(manager, doc_path, no_default, no_installed, no_custom)
+
+        elif subcommand == "remove":
+            ref_name = args.ref_name
+            if manager.remove_reference(name=ref_name, skip_if_missing=False):
+                success(f"Removed reference: {ref_name}")
+
+        elif subcommand == "validate":
+            self._dispatch_refs_validate(manager, doc_path)
+
+    def _dispatch_refs_import(self, manager: Any, args: argparse.Namespace, refs_file: Optional[str]) -> None:
+        """Handle the 'references import' subcommand."""
+        from vba_edit.console import success, warning
+
+        if not refs_file or not Path(refs_file).exists():
+            self.logger.error(f"References file not found: {refs_file}")
+            self.logger.error("Use --refs-file to specify the TOML file.")
+            sys.exit(1)
+
+        sync_mode = getattr(args, "sync", False)
+        force_overwrite = getattr(args, "force_overwrite", False)
+
+        if sync_mode:
+            stats = manager.sync_from_toml(refs_file, force_overwrite=force_overwrite)
+            added = stats.get("added", 0)
+            skipped = stats.get("skipped", 0)
+            removed = stats.get("removed", 0)
+            protected = stats.get("protected", 0)
+            failed = stats.get("failed", 0)
+            success(
+                f"References synced: {added} added, {skipped} unchanged, "
+                f"{removed} removed, {protected} protected, {failed} failed"
+            )
+            if failed:
+                warning(f"{failed} reference(s) could not be processed — check log for details")
+        else:
+            stats = manager.import_from_toml(refs_file)
+            added = stats.get("added", 0)
+            skipped = stats.get("skipped", 0)
+            failed = stats.get("failed", 0)
+            success(f"References imported: {added} added, {skipped} skipped, {failed} failed")
+            if failed:
+                warning(f"{failed} reference(s) could not be added — check log for details")
+
+    def _dispatch_refs_list(
+        self,
+        manager: Any,
+        doc_path: str,
+        no_default: bool,
+        no_installed: bool,
+        no_custom: bool,
+    ) -> None:
+        """Handle the 'references list' subcommand."""
+        from vba_edit.console import info
+
+        refs = manager.list_references()
+        total_count = len(refs)
+        refs = filter_references(refs, no_default=no_default, no_installed=no_installed, no_custom=no_custom)
+        active_filters = [
+            name
+            for name, active in [
+                ("--no-default", no_default),
+                ("--no-installed", no_installed),
+                ("--no-custom", no_custom),
+            ]
+            if active
+        ]
+        if not refs:
+            if active_filters:
+                info(f"No VBA references match the active filters ({total_count} total in document).")
+                info(f"Active filters: {', '.join(active_filters)}")
+            else:
+                info("No VBA references found.")
+            sys.exit(0)
+        if active_filters:
+            info(
+                f"VBA references in {Path(doc_path).name} ({len(refs)} of {total_count} shown, filters: {', '.join(active_filters)}):\n"
+            )
+        else:
+            info(f"VBA references in {Path(doc_path).name} ({len(refs)} total):\n")
+        for ref in refs:
+            category = classify_reference(ref)
+            if ref["broken"]:
+                status = "[BROKEN]   "
+            elif category == "default":
+                status = "[DEFAULT]  "
+            elif category == "installed":
+                status = "[INSTALLED]"
+            else:
+                status = "[CUSTOM]   "
+            path_str = f"\n      Path: {ref['path']}" if ref.get("path") else ""
+            desc_str = f"\n      Desc: {ref['description']}" if ref.get("description") else ""
+            print(
+                f"  {status}  {ref['name']} v{ref['major']}.{ref['minor']}\n"
+                f"      GUID: {ref['guid']}{path_str}{desc_str}"
+            )
+
+    def _dispatch_refs_validate(self, manager: Any, doc_path: str) -> None:
+        """Handle the 'references validate' subcommand."""
+        from vba_edit.console import success, warning
+
+        refs = manager.list_references()
+        total = len(refs)
+        if broken := [ref for ref in refs if ref["broken"]]:
+            warning(f"Found {len(broken)} broken reference(s) in {Path(doc_path).name} ({total} total):\n")
+            for ref in broken:
+                path_str = f"  Path: {ref['path']}" if ref.get("path") else ""
+                print(f"  ✗ {ref['name']} v{ref['major']}.{ref['minor']}")
+                if path_str:
+                    print(f"    {path_str}")
+            sys.exit(1)
+        else:
+            success(f"All references are valid ({total} references checked)")
+
+    def _close_refs_doc(self, opened_doc: bool, doc: Any, app: Any) -> None:
+        """Close the document opened for a references operation, if we opened it."""
+        if not opened_doc or doc is None:
+            return
+        try:
+            if self.office_app == "excel":
+                doc.Close(SaveChanges=False)
+            elif self.office_app == "word":
+                doc.Close(SaveChanges=False)
+            elif self.office_app == "access":
+                if app is not None:
+                    app.CloseCurrentDatabase()
+            elif self.office_app == "powerpoint":
+                doc.Close()
+        except Exception as close_err:
+            self.logger.debug(f"Could not close document after references operation: {close_err}")
+
+    def _handle_references_command(self, args: argparse.Namespace) -> None:
+        """Handle the 'references' subcommand (list / export / import)."""
+        import win32com.client
+
+        setup_logging(verbose=getattr(args, "verbose", False), logfile=getattr(args, "logfile", None))
+
+        subcommand = args.refs_subcommand
+        if not subcommand:
+            # User ran 'references' or 'references -h' without a subcommand
+            self.create_cli_parser().parse_args(["references", "--help"])
+            return  # pragma: no cover — parse_args(--help) exits
+        file_arg = getattr(args, "file", None)
+
+        # Resolve document path
+        if file_arg:
+            doc_path = str(Path(file_arg).resolve())
+        else:
+            try:
+                doc_path = get_active_office_document(self.office_app)
+            except ApplicationError as e:
+                self.logger.error(str(e))
+                sys.exit(1)
+
+        app_name = self.config["app_name"]
+        file_type = self.config["file_type"]
+
+        # Derive default refs file path from document stem
+        refs_file = getattr(args, "refs_file", None)
+        if not refs_file and subcommand in ("export", "import"):
+            doc_stem = Path(doc_path).stem
+            refs_file = str(Path(doc_path).parent / f"{doc_stem}_refs.toml")
+
+        self.logger.info(f"References command '{subcommand}' on {file_type}: {doc_path}")
+
+        opened_doc = False
+        app = None
+        doc = None
+
+        try:
+            office_dispatch_ids = {
+                "excel": "Excel.Application",
+                "word": "Word.Application",
+                "access": "Access.Application",
+                "powerpoint": "PowerPoint.Application",
+            }
+            dispatch_id = office_dispatch_ids[self.office_app]
+            app = win32com.client.Dispatch(dispatch_id)
+            app.Visible = True
+
+            doc, opened_doc = self._open_doc_for_references(app, file_arg, doc_path, file_type)
+            manager = ReferenceManager(doc)
+            self._dispatch_refs_subcommand(manager, subcommand, args, doc_path, refs_file)
+
+        except VBAReferenceError as e:
+            self.logger.error(f"Reference error: {e}")
+            sys.exit(1)
+        except VBAAccessError as e:
+            self.logger.error(str(e))
+            self.logger.error(f'Please enable "Trust access to the VBA project object model" in {app_name}.')
+            sys.exit(1)
+        except VBAError as e:
+            self.logger.error(f"VBA error: {e}")
+            sys.exit(1)
+        except Exception as e:
+            self.logger.error(f"Unexpected error: {e}")
+            if getattr(args, "verbose", False):
+                self.logger.exception("Detailed error information:")
+            sys.exit(1)
+        finally:
+            self._close_refs_doc(opened_doc, doc, app)
+
+    def _load_cli_config(self, parser: argparse.ArgumentParser, pre_args: argparse.Namespace) -> Tuple[Any, bool]:
+        """Load config file and apply defaults to the parser.
+
+        Returns:
+            Tuple of (config, config_load_failed).
+        """
+        config = None
+        config_load_failed = False
+        command = getattr(pre_args, "command", None)
+        config_path = getattr(pre_args, "conf", None)
+        if command in {"edit", "import", "export", "references"} and config_path:
+            try:
+                config = load_config_file(config_path)
+            except Exception as e:
+                error(f"Error loading configuration file: {e}")
+                config_load_failed = True
+            else:
+                subparser = self._get_subparser(parser, command)
+                target_parser = subparser or parser
+                if config_defaults := self._get_config_defaults(target_parser, config):
+                    # Don't let the config file silently set the other side of a mutually
+                    # exclusive header pair when the user already specified one on the CLI.
+                    if getattr(pre_args, "save_headers", False):
+                        config_defaults.pop("in_file_headers", None)
+                    if getattr(pre_args, "in_file_headers", False):
+                        config_defaults.pop("save_headers", None)
+                    target_parser.set_defaults(**config_defaults)
+                    # For commands with nested sub-parsers (e.g. references list),
+                    # set_defaults on the parent doesn't propagate to sub-parsers.
+                    # Apply matching defaults to each sub-parser as well.
+                    for action in target_parser._actions:
+                        if isinstance(action, argparse._SubParsersAction):
+                            for sub in action.choices.values():
+                                sub_dests = self._collect_parser_dests(sub)
+                                if sub_defaults := {k: v for k, v in config_defaults.items() if k in sub_dests}:
+                                    sub.set_defaults(**sub_defaults)
+        return config, config_load_failed
 
     def main(self) -> None:
         """Main entry point for the Office VBA CLI."""
@@ -544,38 +1073,23 @@ class OfficeVBACLI:
 
             parser = self.create_cli_parser()
             pre_args, _ = parser.parse_known_args()
-            config = None
-            config_load_failed = False
-            command = getattr(pre_args, "command", None)
-            config_path = getattr(pre_args, "conf", None)
-            if command in {"edit", "import", "export"} and config_path:
-                try:
-                    config = load_config_file(config_path)
-                except Exception as e:
-                    error(f"Error loading configuration file: {e}")
-                    config_load_failed = True
-                else:
-                    subparser = self._get_subparser(parser, command)
-                    target_parser = subparser or parser
-                    config_defaults = self._get_config_defaults(target_parser, config)
-                    if config_defaults:
-                        # If the user explicitly passed one side of a mutually exclusive
-                        # header pair on the CLI, don't let the config file silently set
-                        # the other side via set_defaults — that would cause validate_header_options
-                        # to raise an "options are mutually exclusive" error even though the
-                        # user never specified both.
-                        if getattr(pre_args, "save_headers", False):
-                            config_defaults.pop("in_file_headers", None)
-                        if getattr(pre_args, "in_file_headers", False):
-                            config_defaults.pop("save_headers", None)
-                        target_parser.set_defaults(**config_defaults)
+            config, config_load_failed = self._load_cli_config(parser, pre_args)
 
             args = parser.parse_args()
+
+            # Determine which args were explicitly set on the CLI
+            # for robust config merging (handles store_true with defaults correctly)
+            cli_explicit = None
+            if config:
+                try:
+                    cli_explicit = _get_cli_explicit_args(parser, args)
+                except (SystemExit, Exception):
+                    pass  # Fall back to legacy is-None check
 
             # Apply configuration and resolve placeholders BEFORE setting up logging
             if not config_load_failed:
                 if config and getattr(args, "conf", None):
-                    args = merge_config_with_args(args, config)
+                    args = merge_config_with_args(args, config, cli_explicit=cli_explicit)
                     args = resolve_all_placeholders(args, args.conf)
                 else:
                     args = resolve_all_placeholders(args, None)
@@ -598,6 +1112,8 @@ class OfficeVBACLI:
                 except Exception as e:
                     self.logger.error(f"Failed to check Trust Access to VBA project object model: {str(e)}")
                 sys.exit(0)
+            elif args.command == "references":
+                self._handle_references_command(args)
             else:
                 self.handle_office_vba_command(args)
 

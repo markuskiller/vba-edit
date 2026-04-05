@@ -8,11 +8,15 @@ updates:
   # Enable version updates for Python dependencies
   - package-ecosystem: "pip"
     directory: "/"
+    target-branch: "dev"
     schedule:
       interval: "weekly"
       day: "monday"
       time: "09:00"
     open-pull-requests-limit: 5
+    # NOTE: Satellite packages (packages/excel-vba, word-vba, etc.) are NOT
+    # monitored separately. Their only dependency (vba-edit==X.Y.Z) is
+    # auto-synced to the release tag by the publish workflow during CI/CD.
     # Labels removed - create them in GitHub repo settings first:
     # - dependencies
     # - python
@@ -34,6 +38,7 @@ updates:
   # Enable version updates for GitHub Actions
   - package-ecosystem: "github-actions"
     directory: "/"
+    target-branch: "dev"
     schedule:
       interval: "weekly"
       day: "monday"

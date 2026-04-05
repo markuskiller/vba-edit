@@ -126,12 +126,15 @@ try:
             "watches",
             "edit",
             "check",
+            "list",
+            "references",
             # Command verbs (capitalized for emphasis in sentences)
             "Edit",
             "Export",
             "Import",
             "Check",
             "Sync",
+            "List",
             "Starting",  # Used in "Starting edit session" messages
             # Action verbs (lowercase - used in progress messages)
             "Opening",

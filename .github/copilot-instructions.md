@@ -286,10 +286,40 @@ When updating CHANGELOG.md:
 - Use GitHub releases with appropriate templates (see `docs/development/RELEASE_PROCESS.md`)
 - Binaries are built automatically on release creation
 
+### Creating GitHub Releases via `gh` CLI — CRITICAL
+
+**NEVER use `--notes "..."` with inline backticks in PowerShell.**
+
+PowerShell interprets `` \` `` inside double-quoted strings before `gh` sees the argument, stripping
+backticks and corrupting inline code spans (e.g. `` `references` `` becomes `eferences`).
+
+**Always write release notes to a temp file and use `--notes-file`:**
+
+```powershell
+$notes = @'
+## Release notes with `backticks` that work correctly
+- `some-command` does something
+'@
+$notes | Set-Content -Path "$env:TEMP\release_notes.md" -Encoding UTF8
+gh release create vX.Y.Z --notes-file "$env:TEMP\release_notes.md" ...
+```
+
+This applies to both `gh release create` and `gh release edit`.
+
 ### Release Branches
 - `dev`: Active development, pre-releases
 - `main`: Stable releases only
 - Feature branches: `feature/<name>` (merge to dev via PR)
+
+### Satellite Entry-Point Packages
+- Located in `packages/` — `excel-vba`, `word-vba`, `powerpoint-vba`, `access-vba`
+- Also placeholder name reservations: `outlook-vba`, `visio-vba`, `project-vba` (no entry points, not yet implemented)
+- **Dependency pinning policy**: satellites use EXACT version pin — `vba-edit==X.Y.Z` — NOT a range
+  - Each release publishes new satellite versions pinned to that exact core release
+  - Users who want a newer core must upgrade the satellite package (`pip install -U excel-vba`)
+  - The CI `publish-satellites` job in `publish.yaml` enforces this automatically
+- **Version alignment**: satellite version always equals core version (e.g. core `0.4.3` → satellites `0.4.3`)
+- **Never use** `>=X.Y.Z,<X.(Y+1).0` or any other range — always `==X.Y.Z`
 
 ---
 

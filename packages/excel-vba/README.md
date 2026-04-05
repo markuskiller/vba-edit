@@ -6,11 +6,12 @@
 [![PyPI - Version](https://img.shields.io/pypi/v/vba-edit.svg)](https://pypi.org/project/vba-edit)
 [![PyPI - Python Version](https://img.shields.io/pypi/pyversions/vba-edit.svg)](https://pypi.org/project/vba-edit)
 [![Platform](https://img.shields.io/badge/platform-windows-blue.svg)](https://pypi.org/search/?q=vba-edit&o=&c=Operating+System+%3A%3A+Microsoft+%3A%3A+Windows)
-[![vba-edit - Downloads](https://img.shields.io/pypi/dm/vba-edit)](https://www.pypiplus.com/project/vba-edit/)
-[![excel-vba - Downloads](https://img.shields.io/pypi/dm/excel-vba)](https://www.pypiplus.com/project/excel-vba/)
+[![Downloads](https://img.shields.io/pypi/dm/vba-edit)](https://www.pypiplus.com/project/vba-edit/)
 [![License](https://img.shields.io/badge/License-BSD_3--Clause-blue.svg)](https://opensource.org/licenses/BSD-3-Clause)
 
 This is a thin entry-point package for [vba-edit](https://pypi.org/project/vba-edit/). Installing `excel-vba` gives you the `excel-vba` command and automatically installs the `vba-edit` core package.
+
+[![excel-vba downloads](https://img.shields.io/pypi/dm/excel-vba?label=excel-vba%20downloads)](https://www.pypiplus.com/project/excel-vba/)
 
 ## Quick Start
 
@@ -45,7 +46,9 @@ uvx excel-vba edit
 |    Editor)       |                            |   .cls           |     assistants
 |                  |   <---   IMPORT            |   .frm           |   
 |                  |                            |  (.frx binary)   | 
-|                  |                            |                  | 
+|                  |                            |                  |     optional
+|                  |                            |  [.toml]         |  <- support for 
+|                  |                            |                  |     references
 +------------------+                            +------------------+
                                                          v
                                                 +------------------+
@@ -77,6 +80,7 @@ pip install excel-vba
 | `excel-vba import` | One-time import |
 | `excel-vba export --open-folder --keep-open` | Export and open folder in explorer, keep document open for inspection |
 | `excel-vba export --force-overwrite` | Export without confirmation prompts |
+| `excel-vba references list` | List VBA library references |
 | `excel-vba check` | Verify status of *Trust access* to the VBA project object model |
 
 > 💡 **Complete Option Matrix**: available **[here](https://langui.ch/current-projects/vba-edit/#OptionMatrix)**

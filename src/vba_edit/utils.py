@@ -823,6 +823,10 @@ def detect_vba_encoding(file_path: str) -> Tuple[str, float]:
     Supports UTF-16 LE/BE (with BOM), UTF-8 with BOM, UTF-8 without BOM,
     and falls back to the Windows ANSI codepage (or cp1252) for legacy files.
 
+    NOTE: Pure ASCII content is treated as the Windows ANSI codepage rather
+    than UTF-8, because VBA files are never intentionally UTF-8 and ASCII is
+    a valid subset of every Windows code page.
+
     Args:
         file_path: Path to the file to analyze
 
@@ -851,22 +855,29 @@ def detect_vba_encoding(file_path: str) -> Tuple[str, float]:
             encoding = "utf-8-sig"
             confidence = 1.0
         else:
-            # Try strict UTF-8 decode
+            # Pure ASCII: valid for every code page — use system ANSI codepage.
+            # VBA files are never intentionally UTF-8, so avoid a false positive.
             try:
-                raw_data.decode("utf-8")
-                encoding = "utf-8"
-                confidence = 0.99
-            except UnicodeDecodeError:
-                # Fall back to Windows ANSI codepage (legacy VBA files)
+                raw_data.decode("ascii")
                 encoding = get_windows_ansi_codepage() or "cp1252"
-                confidence = 0.5
+                confidence = 0.75
+            except UnicodeDecodeError:
+                # Non-ASCII bytes present — check if they form valid UTF-8 sequences.
+                try:
+                    raw_data.decode("utf-8")
+                    encoding = "utf-8"
+                    confidence = 0.99
+                except UnicodeDecodeError:
+                    # Fall back to Windows ANSI codepage (legacy VBA files)
+                    encoding = get_windows_ansi_codepage() or "cp1252"
+                    confidence = 0.5
 
         logger.debug(f"Detected encoding: {encoding} (confidence: {confidence})")
         return encoding, confidence
     except EncodingError:
         raise
     except Exception as e:
-        raise EncodingError(f"Failed to detect encoding: {e}")
+        raise EncodingError(f"Failed to detect encoding: {e}") from e
 
 
 @error_handler
@@ -1105,7 +1116,9 @@ def show_workflow_diagram() -> None:
 [dim]|[/dim]    [dim]Editor)[/dim]       [dim]|                            |[/dim]   [cyan].cls[/cyan]           [dim]|[/dim]     [cyan]assistants[/cyan]
 [dim]|                  |[/dim]   [bold bright_cyan]<---   IMPORT[/bold bright_cyan]            [dim]|[/dim]   [cyan].frm[/cyan]           [dim]|[/dim]   
 [dim]|                  |                            |[/dim]  [dim](.frx binary)[/dim]   [dim]|[/dim] 
-[dim]|                  |                            |                  |[/dim] 
+[dim]|                  |                            |                  |[/dim]     [cyan]optional[/cyan]
+[dim]|                  |                            |[/dim]  [cyan]\\[.toml][/cyan]         [dim]|[/dim]  [dim]<-[/dim] [cyan]support for[/cyan] 
+[dim]|                  |                            |                  |[/dim]     [cyan]references[/cyan]
 [dim]+------------------+                            +------------------+[/dim]
                                                          [dim]v[/dim]
                                                 [dim]+------------------+[/dim]

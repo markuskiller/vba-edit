@@ -1,0 +1,1053 @@
+"""
+VBA Reference Management Module
+
+This module provides functionality for managing VBA library references in Office documents.
+It supports listing, adding, removing, and exporting/importing references via TOML configuration.
+
+**Uses pure win32com** - xlwings is optional for convenience but NOT required.
+
+Phase 1: Core reference management for single documents (v0.5.0)
+Phase 2: CLI integration (v0.5.0)
+Phase 3: Enhanced features and polish (v0.5.0)
+
+Usage with win32com (recommended):
+    import win32com.client
+    from vba_edit.reference_manager import ReferenceManager
+
+    excel = win32com.client.Dispatch("Excel.Application")
+    wb = excel.Workbooks.Open("file.xlsm")
+    manager = ReferenceManager(wb)
+
+Usage with xlwings (optional convenience):
+    import xlwings as xw
+    from vba_edit.reference_manager import ReferenceManager
+
+    wb = xw.books.open("file.xlsm")
+    manager = ReferenceManager(wb)  # Automatically extracts COM object
+"""
+
+import logging
+import re
+import sys
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Union
+
+import pywintypes
+
+from vba_edit.exceptions import (
+    VBAReferenceError,
+    VBAAccessError,
+)
+
+# Configure module logger
+logger = logging.getLogger(__name__)
+
+# --- Reference classification ---
+# GUIDs of standard Office framework libraries that ship with every Office
+# installation.  The COM ``BuiltIn`` flag is only ``True`` for the host
+# app library (e.g. Word, Excel) and the VBA runtime.  These additional
+# framework references are always present and should be treated as default.
+DEFAULT_GUIDS: set = {
+    # OLE Automation (stdole / stdole2)
+    "{00020430-0000-0000-C000-000000000046}",
+    # Microsoft Office Object Library (all versions)
+    "{2DF8D04C-5BFA-101B-BDE5-00AA0044DE52}",
+    # Microsoft Forms 2.0 Object Library
+    "{0D452EE1-E08F-101A-852E-02608C4D0BB4}",
+}
+
+# Reference names that should also be classified as default regardless of
+# the COM BuiltIn flag.  Matched case-insensitively.
+DEFAULT_NAMES: set = {
+    "stdole",
+    "office",
+    "normal",  # Word Normal.dotm template
+}
+
+
+def classify_reference(ref: Dict[str, Any]) -> str:
+    """Classify a reference as 'default', 'installed', or 'custom'.
+
+    Classification rules (evaluated in order):
+    1. COM ``BuiltIn`` flag is True → ``'default'``
+    2. GUID is in ``DEFAULT_GUIDS`` → ``'default'``
+    3. Name is in ``DEFAULT_NAMES`` → ``'default'``
+    4. Reference has a GUID → ``'installed'`` (registered COM library)
+    5. No GUID (file-path reference) → ``'custom'``
+
+    Args:
+        ref: Reference dictionary as returned by ``list_references()``.
+
+    Returns:
+        One of ``'default'``, ``'installed'``, or ``'custom'``.
+    """
+    if ref.get("builtin"):
+        return "default"
+
+    guid = (ref.get("guid") or "").upper()
+    name_lower = (ref.get("name") or "").lower()
+
+    if guid and guid in {g.upper() for g in DEFAULT_GUIDS}:
+        return "default"
+    if name_lower in DEFAULT_NAMES:
+        return "default"
+
+    return "installed" if guid else "custom"
+
+
+def filter_references(
+    refs: List[Dict[str, Any]],
+    *,
+    no_default: bool = False,
+    no_installed: bool = False,
+    no_custom: bool = False,
+) -> List[Dict[str, Any]]:
+    """Filter a list of references by classification category.
+
+    Args:
+        refs: List of reference dictionaries.
+        no_default: Exclude default references (VBA, host app, stdole, Office, Normal).
+        no_installed: Exclude installed COM library references (have a GUID).
+        no_custom: Exclude custom file-path references (no GUID).
+
+    Returns:
+        Filtered list of reference dictionaries.
+    """
+    excluded = set()
+    if no_default:
+        excluded.add("default")
+    if no_installed:
+        excluded.add("installed")
+    if no_custom:
+        excluded.add("custom")
+
+    if not excluded:
+        return refs
+
+    return [ref for ref in refs if classify_reference(ref) not in excluded]
+
+
+def _reference_to_dict(ref: Any, index: int) -> Dict[str, Any]:
+    """Build a reference info dict from a COM reference object."""
+    info: Dict[str, Any] = {
+        "name": ref.Name,
+        "guid": ref.Guid,
+        "major": ref.Major,
+        "minor": ref.Minor,
+        "priority": index,
+        "builtin": ref.BuiltIn,
+        "broken": ref.IsBroken,
+    }
+    try:
+        info["description"] = ref.Description
+    except (AttributeError, pywintypes.com_error):
+        info["description"] = ""
+    try:
+        info["path"] = ref.FullPath
+    except (AttributeError, pywintypes.com_error):
+        info["path"] = ""
+
+    # Add classification category
+    info["category"] = classify_reference(info)
+
+    return info
+
+
+def _get_version() -> str:
+    """Return the vba-edit package version."""
+    try:
+        from importlib.metadata import version
+
+        return version("vba-edit")
+    except Exception:
+        return "unknown"
+
+
+def _serialize_references_to_toml(
+    refs: List[Dict[str, Any]],
+    document_name: str = "",
+    filters: Optional[List[str]] = None,
+) -> str:
+    """Serialize a list of reference dicts to a TOML string with metadata."""
+    lines: list = [
+        "# VBA References Configuration\n",
+        "# Generated by vba-edit reference manager\n\n",
+        "[metadata]\n",
+        f'generated_by = "vba-edit {_get_version()}"\n',
+    ]
+    lines.append(f'timestamp = "{datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")}"\n')
+    if document_name:
+        escaped_name = document_name.replace("\\", "\\\\").replace('"', '\\"')
+        lines.append(f'document = "{escaped_name}"\n')
+    if filters:
+        # Record which categories were excluded during export
+        filter_strs = ", ".join(f'"{f}"' for f in filters)
+        lines.append(f"filters = [{filter_strs}]\n")
+    lines.append("\n")
+
+    for ref in refs:
+        lines.extend(
+            (
+                "[[references]]\n",
+                f'name = "{ref["name"]}"\n',
+                f'guid = "{ref["guid"]}"\n',
+                f"major = {ref['major']}\n",
+                f"minor = {ref['minor']}\n",
+            )
+        )
+        if ref.get("description"):
+            # Escape backslashes first, then quotes
+            desc = ref["description"].replace("\\", "\\\\").replace('"', '\\"')
+            lines.append(f'description = "{desc}"\n')
+        if ref.get("path"):
+            # Normalize and escape path for TOML format.
+            # Resolve to absolute so paths are unambiguous across environments.
+            try:
+                normalized = str(Path(ref["path"]).resolve())
+            except (OSError, ValueError):
+                normalized = ref["path"]
+            path = normalized.replace("\\", "\\\\")
+            lines.append(f'path = "{path}"\n')
+        lines.append("\n")
+    return "".join(lines)
+
+
+def _load_toml(path: Path) -> Dict[str, Any]:
+    """Load a TOML file using tomllib (Python 3.11+) or the tomli backport."""
+    if sys.version_info >= (3, 11):
+        import tomllib
+
+        with open(path, "rb") as f:
+            return tomllib.load(f)
+    else:
+        import tomli  # type: ignore[import-not-found]
+
+        with open(path, "rb") as f:
+            return tomli.load(f)
+
+
+class ReferenceManager:
+    """Manage VBA library references in Office documents.
+
+    This class provides methods to list, add, remove, and manage VBA library references
+    in Microsoft Office documents using pure win32com COM automation.
+
+    **xlwings is optional** - The manager accepts both xlwings workbook objects (for convenience)
+    and win32com COM objects directly. When given an xlwings object, it automatically extracts
+    the underlying COM object and uses pure win32com for all operations.
+
+    Attributes:
+        document: The Office document object (xlwings or win32com)
+        vb_project: The VBA project COM object for the document
+
+    Example with win32com (recommended):
+        >>> import win32com.client
+        >>> excel = win32com.client.Dispatch("Excel.Application")
+        >>> wb = excel.Workbooks.Open("file.xlsm")
+        >>> manager = ReferenceManager(wb)
+        >>> refs = manager.list_references()
+
+    Example with xlwings (optional):
+        >>> import xlwings as xw
+        >>> wb = xw.books.open("file.xlsm")
+        >>> manager = ReferenceManager(wb)  # Extracts wb.api automatically
+        >>> refs = manager.list_references()
+    """
+
+    # GUID validation pattern: {XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX}
+    GUID_PATTERN = re.compile(r"^\{[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}\}$")
+
+    def __init__(self, document: Any):
+        """Initialize the ReferenceManager.
+
+        Accepts both win32com COM objects and xlwings objects. When given an xlwings
+        object (has .api attribute), automatically extracts the underlying COM object.
+        All subsequent operations use pure win32com.
+
+        Args:
+            document: Office document object (win32com COM object or xlwings workbook)
+
+        Raises:
+            VBAAccessError: If VBA project access is denied
+            ReferenceError: If document doesn't support VBA references
+        """
+        self.document = document
+        self.vb_project = None
+
+        logger.debug("Initializing ReferenceManager")
+
+        try:
+            # Handle xlwings objects (have .api attribute)
+            if hasattr(document, "api"):
+                logger.debug("Detected xlwings document object")
+                self.vb_project = document.api.VBProject
+            # Handle win32com objects directly
+            elif hasattr(document, "VBProject"):
+                logger.debug("Detected win32com document object")
+                self.vb_project = document.VBProject
+            else:
+                raise VBAReferenceError(
+                    "Document object does not support VBA projects. "
+                    "Expected xlwings workbook or win32com Office document."
+                )
+
+            # Test access to VBA project
+            try:
+                _ = self.vb_project.Name
+                logger.debug(f"Successfully accessed VBA project: {self.vb_project.Name}")
+            except pywintypes.com_error as e:
+                error_code = e.args[0] if e.args else None
+                if error_code == -2147352567:  # Access denied
+                    logger.error("VBA project access denied - trust access not enabled")
+                    raise VBAAccessError(
+                        "Access to VBA project denied. Please enable "
+                        '"Trust access to the VBA project object model" in Trust Center settings.'
+                    ) from e
+                raise
+
+        except pywintypes.com_error as e:
+            logger.error(f"COM error initializing ReferenceManager: {e}")
+            raise VBAReferenceError(f"Failed to access VBA project: {e}") from e
+
+    def _get_document_name(self) -> str:
+        """Return the document's file name, or empty string on failure."""
+        try:
+            return self.document.Name
+        except Exception:
+            return ""
+
+    def list_references(self) -> List[Dict[str, Any]]:
+        """List all VBA references in the document.
+
+        Returns a list of dictionaries containing reference information:
+        - name: Reference name (e.g., "Scripting", "Excel")
+        - guid: Reference GUID (e.g., "{420B2830-E718-11CF-893D-00A0C9054228}")
+        - major: Major version number
+        - minor: Minor version number
+        - priority: Loading priority (lower = earlier)
+        - builtin: Whether it's a built-in reference
+        - broken: Whether the reference is broken/missing
+        - description: Reference description (optional)
+        - path: Reference file path (if available)
+
+        Returns:
+            List of reference dictionaries
+
+        Raises:
+            ReferenceError: If unable to access references
+
+        Example:
+            >>> refs = manager.list_references()
+            >>> print(f"Found {len(refs)} references")
+            >>> for ref in refs:
+            ...     status = "BROKEN" if ref['broken'] else "OK"
+            ...     print(f"{status}: {ref['name']} v{ref['major']}.{ref['minor']}")
+        """
+        logger.debug("Listing VBA references")
+        references = []
+
+        try:
+            refs_collection = self.vb_project.References
+            ref_count = refs_collection.Count
+            logger.debug(f"Found {ref_count} references in VBA project")
+
+            # VBA collections are 1-indexed
+            for i in range(1, ref_count + 1):
+                try:
+                    ref = refs_collection.Item(i)
+                    ref_info = _reference_to_dict(ref, i)
+                    references.append(ref_info)
+
+                    status = "BROKEN" if ref_info["broken"] else "OK"
+                    builtin_str = " [DEFAULT]" if ref_info["builtin"] else ""
+                    logger.debug(
+                        f"{status} Reference {i}: {ref_info['name']} "
+                        f"v{ref_info['major']}.{ref_info['minor']}{builtin_str}"
+                    )
+
+                except pywintypes.com_error as e:
+                    logger.warning(f"Failed to read reference {i}: {e}")
+                    continue
+
+            logger.info(f"Listed {len(references)} VBA references")
+            return references
+
+        except pywintypes.com_error as e:
+            logger.error(f"Failed to access VBA references: {e}")
+            raise VBAReferenceError(f"Unable to list references: {e}") from e
+
+    def reference_exists(self, guid: Optional[str] = None, name: Optional[str] = None) -> bool:
+        """Check if a reference exists in the VBA project.
+
+        Searches by GUID (preferred) or name. GUID matching is more reliable
+        since reference names can be ambiguous.
+
+        Args:
+            guid: Reference GUID (e.g., "{420B2830-E718-11CF-893D-00A0C9054228}")
+            name: Reference name (e.g., "Scripting")
+
+        Returns:
+            True if reference exists, False otherwise
+
+        Raises:
+            ValueError: If neither guid nor name is provided
+            ReferenceError: If unable to check references
+
+        Example:
+            >>> # Check by GUID (recommended)
+            >>> exists = manager.reference_exists(
+            ...     guid="{420B2830-E718-11CF-893D-00A0C9054228}"
+            ... )
+            >>>
+            >>> # Check by name (less reliable)
+            >>> exists = manager.reference_exists(name="Scripting")
+        """
+        if guid is None and name is None:
+            raise ValueError("Either guid or name must be provided")
+
+        search_by = f"GUID {guid}" if guid else f"name '{name}'"
+        logger.debug(f"Checking if reference exists by {search_by}")
+
+        try:
+            references = self.list_references()
+
+            for ref in references:
+                if guid and ref["guid"].upper() == guid.upper():
+                    logger.debug(f"Reference found by GUID: {ref['name']}")
+                    return True
+                if name and ref["name"].lower() == name.lower():
+                    logger.debug(f"Reference found by name: {ref['name']} ({ref['guid']})")
+                    return True
+
+            logger.debug(f"Reference not found by {search_by}")
+            return False
+
+        except VBAReferenceError:
+            logger.error("Failed to check reference existence")
+            raise
+
+    def add_reference(
+        self,
+        guid: str,
+        name: str,
+        major: int = 1,
+        minor: int = 0,
+        skip_if_exists: bool = True,
+    ) -> bool:
+        """Add a VBA reference to the document.
+
+        Adds a reference by GUID. If the reference already exists and skip_if_exists
+        is True, the operation is skipped with a log message.
+
+        Args:
+            guid: Reference GUID (e.g., "{420B2830-E718-11CF-893D-00A0C9054228}")
+            name: Reference name for logging (e.g., "Scripting")
+            major: Major version number (default: 1)
+            minor: Minor version number (default: 0)
+            skip_if_exists: If True, skip adding if reference already exists (default: True)
+
+        Returns:
+            True if reference was added, False if skipped (already exists)
+
+        Raises:
+            ValueError: If GUID format is invalid
+            ReferenceError: If unable to add reference
+
+        Example:
+            >>> # Add Microsoft Scripting Runtime
+            >>> manager.add_reference(
+            ...     guid="{420B2830-E718-11CF-893D-00A0C9054228}",
+            ...     name="Scripting",
+            ...     major=1,
+            ...     minor=0
+            ... )
+            True
+        """
+        # Validate GUID format
+        if not self.GUID_PATTERN.match(guid):
+            raise ValueError(f"Invalid GUID format: {guid}. Expected format: {{XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX}}")
+
+        logger.debug(f"Adding reference: {name} ({guid}) v{major}.{minor}")
+
+        # Check if already exists
+        if skip_if_exists and self.reference_exists(guid=guid):
+            logger.info(f"Reference already exists, skipping: {name} ({guid})")
+            return False
+
+        try:
+            self.vb_project.References.AddFromGuid(guid, major, minor)
+            logger.info(f"Added reference: {name} ({guid}) v{major}.{minor}")
+            return True
+
+        except pywintypes.com_error as e:
+            error_msg = str(e)
+            logger.error(f"Failed to add reference {name}: {error_msg}")
+
+            # Provide helpful error messages
+            if "class not registered" in error_msg.lower():
+                raise VBAReferenceError(
+                    f"Reference library not found: {name} ({guid}). The library may not be installed on this system."
+                ) from e
+            elif "invalid guid" in error_msg.lower():
+                raise VBAReferenceError(
+                    f"Invalid reference GUID: {guid}. The GUID may be incorrect or not registered."
+                ) from e
+            else:
+                raise VBAReferenceError(f"Failed to add reference {name}: {e}") from e
+
+    def remove_reference(
+        self,
+        guid: Optional[str] = None,
+        name: Optional[str] = None,
+        skip_if_missing: bool = True,
+    ) -> bool:
+        """Remove a VBA reference from the document.
+
+        Removes a reference by GUID (preferred) or name. If the reference doesn't exist
+        and skip_if_missing is True, the operation is skipped with a log message.
+
+        NOTE: Built-in references (like VBA, Excel, Word) cannot be removed.
+
+        Args:
+            guid: Reference GUID (e.g., "{420B2830-E718-11CF-893D-00A0C9054228}")
+            name: Reference name (e.g., "Scripting")
+            skip_if_missing: If True, skip removal if reference doesn't exist (default: True)
+
+        Returns:
+            True if reference was removed, False if skipped (doesn't exist)
+
+        Raises:
+            ValueError: If neither guid nor name is provided
+            ReferenceError: If unable to remove reference or if reference is built-in
+
+        Example:
+            >>> # Remove by GUID (recommended)
+            >>> manager.remove_reference(
+            ...     guid="{420B2830-E718-11CF-893D-00A0C9054228}"
+            ... )
+            True
+            >>>
+            >>> # Remove by name
+            >>> manager.remove_reference(name="Scripting")
+            True
+        """
+        if guid is None and name is None:
+            raise ValueError("Either guid or name must be provided")
+
+        search_by = f"GUID {guid}" if guid else f"name '{name}'"
+        logger.debug(f"Removing reference by {search_by}")
+
+        try:
+            # Find the reference
+            refs_collection = self.vb_project.References
+            target_ref = None
+
+            for i in range(1, refs_collection.Count + 1):
+                try:
+                    ref = refs_collection.Item(i)
+
+                    if guid and ref.Guid.upper() == guid.upper():
+                        target_ref = ref
+                        break
+                    if name and ref.Name.lower() == name.lower():
+                        target_ref = ref
+                        break
+                except pywintypes.com_error as e:
+                    # Skip references that can't be read (corrupted or inaccessible)
+                    logger.debug(f"Skipping unreadable reference at position {i}: {e}")
+                    continue
+
+            if target_ref is None:
+                if skip_if_missing:
+                    logger.info(f"Reference not found, skipping removal: {search_by}")
+                    return False
+                else:
+                    raise VBAReferenceError(f"Reference not found: {search_by}")
+
+            # Check if it's a built-in reference
+            if target_ref.BuiltIn:
+                raise VBAReferenceError(
+                    f"Cannot remove built-in reference: {target_ref.Name}. "
+                    "Built-in references are required by the Office application."
+                )
+
+            # Remove the reference
+            ref_name = target_ref.Name
+            ref_guid = target_ref.Guid
+            refs_collection.Remove(target_ref)
+
+            logger.info(f"Removed reference: {ref_name} ({ref_guid})")
+            return True
+
+        except pywintypes.com_error as e:
+            logger.error(f"Failed to remove reference: {e}")
+            raise VBAReferenceError(f"Unable to remove reference: {e}") from e
+
+    def add_reference_by_path(self, file_path: Union[str, Path], skip_if_exists: bool = True) -> bool:
+        """Add a VBA reference by file path (e.g. .dotm, .xlam, .dll, .olb).
+
+        Uses the COM ``AddFromFile`` method.  This is the correct way to
+        reference template libraries, add-ins, and other file-based references
+        that may not have a stable GUID.
+
+        Args:
+            file_path: Path to the library file.
+            skip_if_exists: If True, skip adding if a reference with the same
+                name already exists (default: True).
+
+        Returns:
+            True if reference was added, False if skipped.
+
+        Raises:
+            FileNotFoundError: If *file_path* does not exist.
+            VBAReferenceError: If the COM call fails.
+        """
+        resolved = Path(file_path).resolve()
+        if not resolved.exists():
+            raise FileNotFoundError(f"Library file not found: {resolved}")
+
+        lib_name = resolved.stem
+        logger.debug(f"Adding reference by path: {resolved}")
+
+        if skip_if_exists and self.reference_exists(name=lib_name):
+            logger.info(f"Reference already exists, skipping: {lib_name}")
+            return False
+
+        try:
+            self.vb_project.References.AddFromFile(str(resolved))
+            logger.info(f"Added reference from file: {resolved}")
+            return True
+        except pywintypes.com_error as e:
+            logger.error(f"Failed to add reference from {resolved}: {e}")
+            raise VBAReferenceError(f"Unable to add reference from {resolved}: {e}") from e
+
+    def check_broken(self) -> List[Dict[str, Any]]:
+        """Return all broken (missing / invalid) references.
+
+        A broken reference has ``IsBroken == True`` — typically because
+        the library file was moved, deleted, or is from a different Office
+        version.
+
+        Returns:
+            List of reference dictionaries for broken references only.
+        """
+        return [ref for ref in self.list_references() if ref["broken"]]
+
+    def export_to_toml(
+        self,
+        output_file: Union[str, Path],
+        *,
+        no_default: bool = False,
+        no_installed: bool = False,
+        no_custom: bool = False,
+    ) -> List[str]:
+        """Export VBA references to a TOML configuration file.
+
+        By default, all references with a valid GUID or a file path are exported.
+        Use the filter flags to exclude specific categories.
+
+        Default references without a GUID (e.g. Word's Normal.dotm) are
+        automatically skipped because they cannot be re-added.
+
+        TOML Format:
+            [[references]]
+            name = "Scripting"
+            guid = "{420B2830-E718-11CF-893D-00A0C9054228}"
+            major = 1
+            minor = 0
+            description = "Microsoft Scripting Runtime"
+
+        Args:
+            output_file: Path to output TOML file
+            no_default: Exclude default references (VBA, host app, stdole, etc.).
+            no_installed: Exclude installed COM library references.
+            no_custom: Exclude custom file-path references.
+
+        Returns:
+            List of names of references skipped because they have no GUID
+            and no file path (e.g. Normal).
+
+        Raises:
+            ReferenceError: If unable to export references
+            IOError: If unable to write to file
+
+        Example:
+            >>> manager.export_to_toml("references.toml")
+            >>> # Creates references.toml with all non-built-in references
+        """
+        output_path = Path(output_file)
+        logger.debug(f"Exporting references to TOML: {output_path}")
+
+        try:
+            references = self.list_references()
+
+            # Exclude DEFAULT references that lack a valid GUID (e.g. Word's
+            # Normal.dotm has an empty GUID and cannot be re-added).
+            # CUSTOM file-path references without a GUID are kept — they
+            # can be re-added via AddFromFile using their path.
+            skipped_no_guid = []
+            exportable_refs = []
+            for ref in references:
+                has_guid = bool(self.GUID_PATTERN.match(ref.get("guid", "")))
+                if has_guid:
+                    exportable_refs.append(ref)
+                elif classify_reference(ref) == "custom" and ref.get("path"):
+                    # Custom file-path reference — exportable via path
+                    exportable_refs.append(ref)
+                else:
+                    skipped_no_guid.append(ref)
+
+            if skipped_no_guid:
+                names = ", ".join(ref.get("name", "unknown") for ref in skipped_no_guid)
+                logger.info(f"Skipped {len(skipped_no_guid)} reference(s) without GUID: {names}")
+
+            # Apply category filters
+            exportable_refs = filter_references(
+                exportable_refs,
+                no_default=no_default,
+                no_installed=no_installed,
+                no_custom=no_custom,
+            )
+
+            if not exportable_refs:
+                logger.warning("No references to export after filtering")
+
+            logger.debug(
+                f"Exporting {len(exportable_refs)} references "
+                f"(excluded {len(references) - len(exportable_refs)} by filter)"
+            )
+
+            # Build filter metadata for the TOML file
+            active_filters = []
+            if no_default:
+                active_filters.append("no_default")
+            if no_installed:
+                active_filters.append("no_installed")
+            if no_custom:
+                active_filters.append("no_custom")
+
+            toml_content = _serialize_references_to_toml(
+                exportable_refs,
+                document_name=self._get_document_name(),
+                filters=active_filters or None,
+            )
+
+            # Write to file
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+            output_path.write_text(toml_content, encoding="utf-8")
+
+            logger.info(f"Exported {len(exportable_refs)} references to: {output_path}")
+            return [ref.get("name", "unknown") for ref in skipped_no_guid]
+
+        except VBAReferenceError:
+            logger.error("Failed to export references")
+            raise
+        except IOError as e:
+            logger.error(f"Failed to write TOML file: {e}")
+            raise VBAReferenceError(f"Unable to write to {output_path}: {e}") from e
+
+    def _log_metadata_info(self, metadata: Dict[str, Any]) -> None:
+        """Log metadata from a TOML references file and warn about version mismatches."""
+        generated_by = metadata.get("generated_by", "unknown")
+        timestamp = metadata.get("timestamp", "unknown")
+        document = metadata.get("document", "")
+        logger.info(f"References file generated by {generated_by} at {timestamp}")
+        if document:
+            logger.info(f"Originally exported from: {document}")
+
+        # Warn if generated by a newer major version
+        current_version = _get_version()
+        if generated_by.startswith("vba-edit "):
+            file_version = generated_by.split(" ", 1)[1]
+            try:
+                file_major = int(file_version.split(".")[0])
+                current_major = int(current_version.split(".")[0])
+                if file_major > current_major:
+                    logger.warning(
+                        f"References file was created by a newer version ({file_version}). "
+                        f"Current version is {current_version}. Some references may not import correctly."
+                    )
+            except (ValueError, IndexError):
+                pass  # Non-standard version string, skip check
+
+    def _validate_ref_entry(self, ref: Dict[str, Any]) -> Optional[List[str]]:
+        """Validate a single reference entry from a TOML file.
+
+        Returns None if the entry is valid, or a list of missing field names
+        if validation fails. Returns an empty list if the entry has neither
+        a GUID nor a path (fundamentally invalid).
+        """
+        guid = ref.get("guid", "")
+        has_guid = bool(self.GUID_PATTERN.match(guid))
+        has_path = bool(ref.get("path"))
+
+        if not has_guid and not has_path:
+            return []  # No GUID and no path — fundamentally invalid
+
+        required = ["name", "guid", "major", "minor"] if has_guid else ["name", "path"]
+        if missing := [f for f in required if f not in ref]:
+            return missing
+        return None
+
+    def _add_ref_from_entry(self, ref: Dict[str, Any], skip_if_exists: bool = True) -> str:
+        """Add a single reference from a parsed TOML entry.
+
+        Returns "added", "skipped", or "failed".
+        Assumes the entry has already been validated.
+        """
+        guid = ref.get("guid", "")
+        has_guid = bool(self.GUID_PATTERN.match(guid))
+        name = ref.get("name", "unknown")
+
+        try:
+            if has_guid:
+                added = self.add_reference(
+                    guid=ref["guid"],
+                    name=ref["name"],
+                    major=ref["major"],
+                    minor=ref["minor"],
+                    skip_if_exists=skip_if_exists,
+                )
+            else:
+                added = self.add_reference_by_path(
+                    file_path=ref["path"],
+                    skip_if_exists=skip_if_exists,
+                )
+            return "added" if added else "skipped"
+        except (VBAReferenceError, ValueError) as e:
+            logger.warning(f"Failed to add reference {name}: {e}")
+            return "failed"
+
+    def import_from_toml(self, input_file: Union[str, Path], skip_existing: bool = True) -> Dict[str, int]:
+        """Import VBA references from a TOML configuration file.
+
+        Reads references from a TOML file and adds them to the document.
+        Existing references can be skipped (default) or cause an error.
+
+        Args:
+            input_file: Path to input TOML file
+            skip_existing: If True, skip references that already exist (default: True)
+
+        Returns:
+            Dictionary with operation statistics:
+            - added: Number of references added
+            - skipped: Number of references skipped (already exist)
+            - failed: Number of references that failed to add
+
+        Raises:
+            FileNotFoundError: If TOML file doesn't exist
+            ReferenceError: If unable to parse TOML or add references
+
+        Example:
+            >>> stats = manager.import_from_toml("references.toml")
+            >>> print(f"Added: {stats['added']}, Skipped: {stats['skipped']}")
+        """
+        input_path = Path(input_file)
+        logger.debug(f"Importing references from TOML: {input_path}")
+
+        if not input_path.exists():
+            raise FileNotFoundError(f"TOML file not found: {input_path}")
+
+        try:
+            data = _load_toml(input_path)
+
+            if metadata := data.get("metadata", {}):
+                self._log_metadata_info(metadata)
+
+            # Warn if the TOML was exported with filters
+            filters = metadata.get("filters", []) if metadata else []
+            if filters:
+                filter_flags = ", ".join(f"--{f.replace('_', '-')}" for f in filters)
+                logger.warning(
+                    f"This references file was exported with filters ({filter_flags}). "
+                    "It may not contain all references from the source document."
+                )
+
+            if "references" not in data:
+                raise VBAReferenceError(f"Invalid TOML file: missing 'references' section in {input_path}")
+
+            references = data["references"]
+            logger.debug(f"Found {len(references)} references in TOML file")
+
+            stats: Dict[str, int] = {"added": 0, "skipped": 0, "failed": 0}
+
+            for ref in references:
+                name = ref.get("name", "unknown")
+                validation = self._validate_ref_entry(ref)
+                if validation is not None:
+                    if not validation:
+                        logger.warning(f"Skipping reference without GUID or path: {name}")
+                    else:
+                        logger.warning(f"Skipping invalid reference (missing {', '.join(validation)}): {name}")
+                    stats["failed"] += 1
+                    continue
+
+                result = self._add_ref_from_entry(ref, skip_if_exists=skip_existing)
+                stats[result] += 1
+
+            logger.info(
+                f"Import complete: {stats['added']} added, {stats['skipped']} skipped, {stats['failed']} failed"
+            )
+
+            return stats
+
+        except ImportError as e:
+            logger.error(f"TOML library not available: {e}")
+            raise VBAReferenceError(
+                "TOML parsing library not available. Please install tomli: pip install tomli"
+            ) from e
+        except VBAReferenceError:
+            raise
+        except Exception as e:
+            logger.error(f"Failed to import references from TOML: {e}")
+            raise VBAReferenceError(f"Unable to import from {input_path}: {e}") from e
+
+    def _sync_add_phase(self, toml_refs: List[Dict[str, Any]], stats: Dict[str, int]) -> tuple:
+        """Phase 1 of sync: validate and add references from the TOML file.
+
+        Returns (toml_guids, toml_names) sets for use in the remove phase.
+        """
+        toml_guids: set = set()
+        toml_names: set = set()
+        for ref in toml_refs:
+            guid = ref.get("guid", "")
+            has_guid = bool(self.GUID_PATTERN.match(guid))
+            name = ref.get("name", "unknown")
+
+            validation = self._validate_ref_entry(ref)
+            if validation is not None:
+                if not validation:
+                    logger.warning(f"Skipping reference without GUID or path: {name}")
+                else:
+                    logger.warning(f"Skipping invalid reference (missing {', '.join(validation)}): {name}")
+                stats["failed"] += 1
+                continue
+
+            if has_guid:
+                toml_guids.add(guid.upper())
+            toml_names.add(name.lower())
+
+            result = self._add_ref_from_entry(ref, skip_if_exists=True)
+            stats[result] += 1
+        return toml_guids, toml_names
+
+    def _sync_remove_phase(
+        self,
+        toml_guids: set,
+        toml_names: set,
+        force_overwrite: bool,
+        stats: Dict[str, int],
+    ) -> None:
+        """Phase 2 of sync: remove references not listed in the TOML file."""
+        current_refs = self.list_references()
+        for ref in current_refs:
+            guid = (ref.get("guid") or "").upper()
+            name_lower = (ref.get("name") or "").lower()
+
+            # Keep references present in TOML (by GUID or by name for path-based refs)
+            if guid and guid in toml_guids:
+                continue
+            if name_lower in toml_names:
+                continue
+
+            category = classify_reference(ref)
+            if category == "default" and not force_overwrite:
+                logger.debug(f"Protected default reference: {ref['name']}")
+                stats["protected"] += 1
+                continue
+
+            # Skip references without a GUID (can't be managed by GUID)
+            if not guid:
+                logger.debug(f"Skipping reference without GUID: {ref['name']}")
+                stats["protected"] += 1
+                continue
+
+            try:
+                if self.remove_reference(guid=guid, skip_if_missing=True):
+                    logger.info(f"Removed reference not in TOML: {ref['name']}")
+                    stats["removed"] += 1
+            except VBAReferenceError as e:
+                logger.warning(f"Could not remove reference {ref['name']}: {e}")
+                stats["failed"] += 1
+
+    def sync_from_toml(
+        self,
+        input_file: Union[str, Path],
+        force_overwrite: bool = False,
+    ) -> Dict[str, int]:
+        """Synchronize VBA references to match a TOML file exactly.
+
+        Like ``import_from_toml``, but also **removes** references not listed
+        in the TOML file.  Default references (VBA, host app, stdole, Office)
+        are protected and never removed unless *force_overwrite* is ``True``.
+
+        If the TOML file was exported with filters (recorded in metadata),
+        the operation is refused unless *force_overwrite* is ``True`` — syncing
+        against a filtered subset would silently remove the excluded categories.
+
+        Args:
+            input_file: Path to input TOML file.
+            force_overwrite: If True, remove default references and allow
+                syncing from filtered exports.
+
+        Returns:
+            Dictionary with keys ``added``, ``skipped``, ``removed``, ``protected``, ``failed``.
+
+        Raises:
+            FileNotFoundError: If TOML file doesn't exist.
+            VBAReferenceError: If the TOML was exported with filters and
+                *force_overwrite* is False, or on COM errors.
+        """
+        input_path = Path(input_file)
+        logger.debug(f"Syncing references from TOML: {input_path}")
+
+        if not input_path.exists():
+            raise FileNotFoundError(f"TOML file not found: {input_path}")
+
+        try:
+            data = _load_toml(input_path)
+
+            metadata = data.get("metadata", {})
+            if metadata:
+                self._log_metadata_info(metadata)
+
+            # Refuse to sync from a filtered export unless forced
+            filters = metadata.get("filters", [])
+            if filters and not force_overwrite:
+                filter_flags = ", ".join(f"--{f.replace('_', '-')}" for f in filters)
+                raise VBAReferenceError(
+                    f"This references file was exported with filters ({filter_flags}). "
+                    "Syncing would remove references that were intentionally excluded from the export. "
+                    "Use --force-overwrite to sync anyway."
+                )
+
+            # An empty TOML (no [[references]] section) means "no references desired"
+            toml_refs = data.get("references", [])
+            logger.debug(f"Found {len(toml_refs)} references in TOML file")
+
+            stats: Dict[str, int] = {"added": 0, "skipped": 0, "removed": 0, "protected": 0, "failed": 0}
+
+            # Phase 1: Add missing references (same as import)
+            toml_guids, toml_names = self._sync_add_phase(toml_refs, stats)
+
+            # Phase 2: Remove references not in the TOML file
+            self._sync_remove_phase(toml_guids, toml_names, force_overwrite, stats)
+
+            logger.info(
+                f"Sync complete: {stats['added']} added, {stats['skipped']} unchanged, "
+                f"{stats['removed']} removed, {stats['protected']} protected, {stats['failed']} failed"
+            )
+
+            return stats
+
+        except ImportError as e:
+            logger.error(f"TOML library not available: {e}")
+            raise VBAReferenceError(
+                "TOML parsing library not available. Please install tomli: pip install tomli"
+            ) from e
+        except VBAReferenceError:
+            raise
+        except Exception as e:
+            logger.error(f"Failed to sync references from TOML: {e}")
+            raise VBAReferenceError(f"Unable to sync from {input_path}: {e}") from e

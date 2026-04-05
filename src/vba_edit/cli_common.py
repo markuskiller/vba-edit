@@ -47,22 +47,6 @@ def add_common_arguments(parser: argparse.ArgumentParser) -> None:
     )
 
 
-PLACEHOLDER_FILE_NAME_LEGACY = "{general.file.name}"
-PLACEHOLDER_FILE_FULLNAME_LEGACY = "{general.file.fullname}"
-PLACEHOLDER_FILE_PATH_LEGACY = "{general.file.path}"
-PLACEHOLDER_VBA_PROJECT_LEGACY = "{vbaproject}"
-PLACEHOLDER_VBA_PROJECT = PLACEHOLDER_VBA_PROJECT_LEGACY
-
-
-def _placeholder_compatibility_stub(placeholders: Dict[str, str]) -> Dict[str, str]:
-    placeholders[PLACEHOLDER_FILE_NAME_LEGACY] = placeholders[PLACEHOLDER_FILE_NAME]
-    placeholders[PLACEHOLDER_FILE_FULLNAME_LEGACY] = placeholders[PLACEHOLDER_FILE_FULLNAME]
-    placeholders[PLACEHOLDER_FILE_PATH_LEGACY] = placeholders[PLACEHOLDER_FILE_PATH]
-    placeholders[PLACEHOLDER_VBA_PROJECT] = placeholders[PLACEHOLDER_FILE_VBAPROJECT]
-    placeholders[PLACEHOLDER_VBA_PROJECT_LEGACY] = placeholders[PLACEHOLDER_FILE_VBAPROJECT]
-    return placeholders
-
-
 # endregion
 
 
@@ -138,6 +122,7 @@ CONFIG_SECTION_WORD = "word"
 CONFIG_SECTION_ACCESS = "access"
 CONFIG_SECTION_POWERPOINT = "powerpoint"
 CONFIG_SECTION_ADVANCED = "advanced"
+CONFIG_SECTION_REFERENCES = "references"
 
 # TOML configuration keys (general section) and argument namespace attributes
 CONFIG_KEY_FILE = "file"
@@ -155,8 +140,16 @@ CONFIG_KEY_INVISIBLE_MODE = "invisible_mode"
 CONFIG_KEY_OPEN_FOLDER = "open_folder"
 CONFIG_KEY_FORCE_OVERWRITE = "force_overwrite"
 CONFIG_KEY_KEEP_OPEN = "keep_open"
+CONFIG_KEY_SKIP_EMPTY = "skip_empty"
 CONFIG_KEY_NO_COLOR = "no_color"
 CONFIG_KEY_XLWINGS = "xlwings"
+CONFIG_KEY_WITH_REFERENCES = "with_references"
+
+# TOML configuration keys (references section)
+CONFIG_KEY_REFS_FILE = "refs_file"
+CONFIG_KEY_NO_DEFAULT = "no_default"
+CONFIG_KEY_NO_INSTALLED = "no_installed"
+CONFIG_KEY_NO_CUSTOM = "no_custom"
 
 # Placeholder constants for use in arguments and configuration values
 PLACEHOLDER_CONFIG_PATH = "{config.path}"
@@ -226,6 +219,7 @@ CLI_HELP_STRINGS = {
     "import": "Import VBA from filesystem into {file_type}",
     "export": "Export VBA from {file_type} to filesystem",
     "check": "Check VBA project access settings in {app_name}",
+    "references": "Manage VBA library references in {file_type}",
 }
 
 
@@ -274,25 +268,22 @@ def get_placeholder_values(config_file_path: Optional[str] = None, file_path: Op
         placeholders[PLACEHOLDER_CONFIG_PATH] = str(config_dir)
 
     # Extract file information if file path is available
-    if file_path:
-        # Handle case where file_path might contain unresolved placeholders
-        if "{" not in file_path:  # Only process if no placeholders remain
-            resolved_file_path = Path(file_path)
+    if file_path and "{" not in file_path:
+        resolved_file_path = Path(file_path)
 
-            # If relative path and we have config directory, resolve relative to config
-            if not resolved_file_path.is_absolute() and config_file_path:
-                config_dir = Path(config_file_path).parent
-                resolved_file_path = config_dir / file_path
+        # If relative path and we have config directory, resolve relative to config
+        if not resolved_file_path.is_absolute() and config_file_path:
+            config_dir = Path(config_file_path).parent
+            resolved_file_path = config_dir / file_path
 
-            file_name = resolved_file_path.stem  # filename without extension
-            file_fullname = resolved_file_path.name  # filename with extension
-            file_path_str = str(resolved_file_path.parent)
+        file_name = resolved_file_path.stem  # filename without extension
+        file_fullname = resolved_file_path.name  # filename with extension
+        file_path_str = str(resolved_file_path.parent)
 
-            placeholders[PLACEHOLDER_FILE_NAME] = file_name
-            placeholders[PLACEHOLDER_FILE_FULLNAME] = file_fullname
-            placeholders[PLACEHOLDER_FILE_PATH] = file_path_str
+        placeholders[PLACEHOLDER_FILE_NAME] = file_name
+        placeholders[PLACEHOLDER_FILE_FULLNAME] = file_fullname
+        placeholders[PLACEHOLDER_FILE_PATH] = file_path_str
 
-    placeholders = _placeholder_compatibility_stub(placeholders)
     return placeholders
 
 
@@ -387,15 +378,62 @@ def load_config_file(config_path: str) -> Dict[str, Any]:
         raise ValueError(_enhance_toml_error_message(config_path, text, e)) from e
 
 
-def merge_config_with_args(args: argparse.Namespace, config: Dict[str, Any]) -> argparse.Namespace:
+def _get_cli_explicit_args(parser: argparse.ArgumentParser, args: argparse.Namespace) -> set:
+    """Determine which argument dest names were explicitly passed on the command line.
+
+    Compares parsed arg values against parser defaults to identify which were
+    explicitly set by the user. This is more robust than checking for None,
+    which fails for store_true arguments with explicit defaults.
+
+    Args:
+        parser: The argument parser used to parse args
+        args: The parsed arguments namespace
+
+    Returns:
+        Set of dest names that were explicitly provided on the CLI
+    """
+    explicit = set()
+    # parse_args([]) triggers an error message on parsers that require a
+    # subcommand.  Redirect stderr to suppress the spurious output and
+    # re-raise so the caller can fall back to the is-None check.
+    import io
+    import sys as _sys
+    _stderr = _sys.stderr
+    try:
+        _sys.stderr = io.StringIO()
+        defaults = parser.parse_args([])  # Parse with no args to get pure defaults
+    except SystemExit:
+        _sys.stderr = _stderr
+        raise
+    finally:
+        _sys.stderr = _stderr
+    for key, value in vars(args).items():
+        if key.startswith("_"):
+            continue
+        default_value = getattr(defaults, key, None)
+        if value != default_value:
+            explicit.add(key)
+    return explicit
+
+
+def merge_config_with_args(
+    args: argparse.Namespace,
+    config: Dict[str, Any],
+    cli_explicit: set | None = None,
+) -> argparse.Namespace:
     """Merge configuration from a file with command-line arguments.
 
     Command-line arguments take precedence over configuration file values.
-    Configuration structure is preserved (e.g., general.file remains as nested structure).
+    When cli_explicit is provided, only args NOT in that set are overridden
+    by config values. This handles all argument types correctly, including
+    store_true flags with explicit defaults.
+
+    Falls back to the legacy "is None" check when cli_explicit is not provided.
 
     Args:
         args: Command-line arguments
         config: Configuration from file
+        cli_explicit: Set of dest names explicitly passed on CLI (optional)
 
     Returns:
         Updated arguments with values from configuration
@@ -403,21 +441,45 @@ def merge_config_with_args(args: argparse.Namespace, config: Dict[str, Any]) -> 
     # Create a copy of the args namespace as a dictionary
     args_dict = vars(args).copy()
 
-    # Handle 'general' section - these map directly to CLI args
-    if CONFIG_SECTION_GENERAL in config:
-        general_config = config[CONFIG_SECTION_GENERAL]
-        for key, value in general_config.items():
-            # Convert dashes to underscores for argument names
-            arg_key = key.replace("-", "_")
+    # Merge [general] section — these map directly to CLI args
+    _merge_config_section(args_dict, config, CONFIG_SECTION_GENERAL, cli_explicit)
 
-            # Only update if the arg wasn't explicitly set (is None)
-            if arg_key in args_dict and args_dict[arg_key] is None:
-                args_dict[arg_key] = value
+    # Merge [references] section — for reference-specific options
+    _merge_config_section(args_dict, config, CONFIG_SECTION_REFERENCES, cli_explicit)
 
     # Store the full config for later access by handlers if needed
     args_dict["_config"] = config
     args_dict["_config_file_path"] = getattr(args, "_config_file_path", None)
 
+    # Convert back to a Namespace
+    return argparse.Namespace(**args_dict)
+
+
+def _merge_config_section(args_dict: dict, config: Dict[str, Any], section: str, cli_explicit: set | None) -> None:
+    """Merge a single config section into the args dictionary.
+
+    Args:
+        args_dict: Mutable dictionary of argument values
+        config: Full configuration dictionary
+        section: Section name to read (e.g. "general", "references")
+        cli_explicit: Set of dest names explicitly passed on CLI (optional)
+    """
+    if section not in config:
+        return
+    section_config = config[section]
+    if not isinstance(section_config, dict):
+        return
+    for key, value in section_config.items():
+        arg_key = key.replace("-", "_")
+        if arg_key not in args_dict:
+            continue
+        if (
+            cli_explicit is not None
+            and arg_key not in cli_explicit
+            or cli_explicit is None
+            and args_dict[arg_key] is None
+        ):
+            args_dict[arg_key] = value
     # Convert back to a Namespace
     return argparse.Namespace(**args_dict)
 
@@ -542,6 +604,33 @@ def add_exporting_arguments(parser: argparse.ArgumentParser) -> None:
         dest=CONFIG_KEY_OPEN_FOLDER,
         action="store_true",
         help="Open export directory in file explorer after export",
+    )
+    exporting_group.add_argument(
+        "--with-references",
+        dest=CONFIG_KEY_WITH_REFERENCES,
+        action="store_true",
+        help="Also export VBA references to a TOML file",
+    )
+
+
+def add_importing_arguments(parser: argparse.ArgumentParser) -> None:
+    """Add import-specific arguments to a parser.
+
+    Args:
+        parser: The argument parser to add arguments to
+    """
+    importing_group = parser.add_argument_group("Import Options")
+    importing_group.add_argument(
+        "--skip-empty",
+        dest=CONFIG_KEY_SKIP_EMPTY,
+        action="store_true",
+        help="Skip files with no code (e.g. empty worksheet module files)",
+    )
+    importing_group.add_argument(
+        "--with-references",
+        dest=CONFIG_KEY_WITH_REFERENCES,
+        action="store_true",
+        help="Also import VBA references from a TOML file",
     )
 
 
@@ -840,7 +929,7 @@ def get_command_usage(command: str, office_app: str) -> str:
         case "export" | "edit" | "import":
             command_usage = f"{command_usage}{common_command_options1}"
 
-            if command in ("edit", "export"):
+            if command in {"edit", "export"}:
                 command_usage = f"{command_usage}{edit_and_export_options}"
 
             if command == "export":
@@ -854,9 +943,7 @@ def get_command_usage(command: str, office_app: str) -> str:
         case "check":
             command_usage = f"{command_usage} [all]"
 
-    command_usage = f"{command_usage}{common_command_options2}"
-
-    return command_usage
+    return f"{command_usage}{common_command_options2}"
 
 
 EXAMPLE_FILENAME_MAX_LEN = 24
@@ -867,7 +954,7 @@ def _cap_example_filename(example_filename: str, max_len: int = EXAMPLE_FILENAME
     """Cap example filename length to keep example alignment stable."""
     if len(example_filename) <= max_len:
         return example_filename
-    return example_filename[: max_len - 1] + "…"
+    return f"{example_filename[: max_len - 1]}…"
 
 
 def _format_example_line(command: str, comment: str, col_width: int = EXAMPLE_COMMAND_COL_WIDTH) -> str:
@@ -919,6 +1006,138 @@ Use '{entry_point_name} <command> --help' for more information on a specific com
     
 IMPORTANT: Requires "Trust access to the VBA project object model" enabled in {app_name}.
            Early release - backup important files before use!"""
+
+
+def add_references_file_arguments(parser: argparse.ArgumentParser) -> None:
+    """Add file arguments for the references command (--file only, no --vba-directory)."""
+    file_group = parser.add_argument_group("File Options")
+    file_group.add_argument(
+        "--file",
+        "-f",
+        dest=CONFIG_KEY_FILE,
+        help="Path to Office document (default: active document).",
+    )
+
+
+def add_references_output_arguments(parser: argparse.ArgumentParser) -> None:
+    """Add output file argument for references export/import subcommands."""
+    refs_group = parser.add_argument_group("References Options")
+    refs_group.add_argument(
+        "--refs-file",
+        "-r",
+        dest=CONFIG_KEY_REFS_FILE,
+        metavar="FILE",
+        help="TOML file for references (default: {document}_refs.toml)",
+    )
+
+
+def add_references_filter_arguments(parser: argparse.ArgumentParser) -> None:
+    """Add reference category filter arguments (--no-default, --no-installed, --no-custom)."""
+    filter_group = parser.add_argument_group("Filter Options")
+    filter_group.add_argument(
+        "--no-default",
+        dest=CONFIG_KEY_NO_DEFAULT,
+        action="store_true",
+        help="Exclude default references (VBA, Excel, Word, stdole, Office, Normal)",
+    )
+    filter_group.add_argument(
+        "--no-installed",
+        dest=CONFIG_KEY_NO_INSTALLED,
+        action="store_true",
+        help="Exclude installed COM library references (registered on the system)",
+    )
+    filter_group.add_argument(
+        "--no-custom",
+        dest=CONFIG_KEY_NO_CUSTOM,
+        action="store_true",
+        help="Exclude custom file-path references (e.g. .docm/.dotm templates)",
+    )
+
+
+def get_references_command_description(refs_subcommand: str, office_app: str) -> str:
+    """Get description string for a references subcommand."""
+    config = get_office_config(office_app)
+    ep = config["entry_point"]
+    ft = config["file_type"]
+    ex = config["example_filename"]
+
+    match refs_subcommand:
+        case "list":
+            return f"""List all VBA references in a {ft}
+
+Shows reference details including name, GUID, version, path and status (built-in, broken).
+
+Examples:
+  {ep} references list              # List refs in active {ft}
+  {ep} references list -f {ex}  # List refs in specific file"""
+        case "export":
+            return f"""Export VBA references to a TOML configuration file
+
+Saves all non-built-in references to a TOML file that can be shared,
+version-controlled, or used to replicate reference setup in other documents.
+
+Examples:
+  {ep} references export                      # Export to {{document}}_refs.toml
+  {ep} references export -r my_file_refs.toml  # Export to custom file
+  {ep} references export -f {ex} -r refs.toml"""
+        case "import":
+            return f"""Import VBA references from a TOML configuration file
+
+Adds references defined in a TOML file to the {ft}.
+Handles duplicate detection, missing files, and invalid GUIDs.
+
+Use --sync to make the document match the TOML file exactly:
+adds missing references AND removes references not listed in the file.
+Default references (VBA, host app, stdole) are protected unless
+--force-overwrite is also specified.
+
+Examples:
+  {ep} references import -r refs.toml              # Add references (safe, additive)
+  {ep} references import -r refs.toml --sync       # Sync: add missing, remove extra
+  {ep} references import -f {ex} -r refs.toml"""
+        case "validate":
+            return f"""Check for broken (missing) references in a {ft}
+
+Scans all VBA references and reports any that point to files or
+libraries that are no longer available. Exits with code 1 if broken
+references are found.
+
+Examples:
+  {ep} references validate              # Validate active {ft}
+  {ep} references validate -f {ex}  # Validate specific file"""
+        case "add":
+            return f"""Add a reference to a library file
+
+Adds a VBA project reference by file path (e.g. .dotm, .xlam, .dll, .olb).
+Skips if a reference with the same name already exists.
+
+Examples:
+  {ep} references add SharedLib.xlam
+  {ep} references add C:\\Libs\\MyLib.dotm -f {ex}"""
+        case "remove":
+            return f"""Remove a reference by name
+
+Removes a non-built-in VBA reference from the document.
+Use '{ep} references list' to see available reference names.
+
+Examples:
+  {ep} references remove SharedLib
+  {ep} references remove OldLibrary -f {ex}"""
+        case _:
+            return f"Manage VBA library references in {ft}"
+
+
+def get_references_command_usage(office_app: str) -> str:
+    """Get usage string for the references command."""
+    config = get_office_config(office_app)
+    ep = config["entry_point"]
+    return f"""{ep} references <command>
+    [--file FILE | -f FILE]
+    [--refs-file FILE | -r FILE]
+    [--verbose | -v]
+    [--logfile | -l]
+    [--no-color | --no-colour]
+    [--help | -h]"""
 
 
 def create_office_cli_description(office_app: str, package_name_formatted: str, package_version: str) -> str:

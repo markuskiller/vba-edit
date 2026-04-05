@@ -6,11 +6,12 @@
 [![PyPI - Version](https://img.shields.io/pypi/v/vba-edit.svg)](https://pypi.org/project/vba-edit)
 [![PyPI - Python Version](https://img.shields.io/pypi/pyversions/vba-edit.svg)](https://pypi.org/project/vba-edit)
 [![Platform](https://img.shields.io/badge/platform-windows-blue.svg)](https://pypi.org/search/?q=vba-edit&o=&c=Operating+System+%3A%3A+Microsoft+%3A%3A+Windows)
-[![vba-edit - Downloads](https://img.shields.io/pypi/dm/vba-edit)](https://www.pypiplus.com/project/vba-edit/)
-[![powerpoint-vba - Downloads](https://img.shields.io/pypi/dm/powerpoint-vba)](https://www.pypiplus.com/project/powerpoint-vba/)
+[![Downloads](https://img.shields.io/pypi/dm/vba-edit)](https://www.pypiplus.com/project/vba-edit/)
 [![License](https://img.shields.io/badge/License-BSD_3--Clause-blue.svg)](https://opensource.org/licenses/BSD-3-Clause)
 
 This is a thin entry-point package for [vba-edit](https://pypi.org/project/vba-edit/). Installing `powerpoint-vba` gives you the `powerpoint-vba` command and automatically installs the `vba-edit` core package.
+
+[![powerpoint-vba downloads](https://img.shields.io/pypi/dm/powerpoint-vba?label=powerpoint-vba%20downloads)](https://www.pypiplus.com/project/powerpoint-vba/)
 
 ## Quick Start
 
@@ -45,7 +46,9 @@ uvx powerpoint-vba edit
 |    Editor)       |                            |   .cls           |     assistants
 |                  |   <---   IMPORT            |   .frm           |   
 |                  |                            |  (.frx binary)   | 
-|                  |                            |                  | 
+|                  |                            |                  |     optional
+|                  |                            |  [.toml]         |  <- support for 
+|                  |                            |                  |     references
 +------------------+                            +------------------+
                                                          v
                                                 +------------------+
@@ -77,6 +80,7 @@ pip install powerpoint-vba
 | `powerpoint-vba import` | One-time import |
 | `powerpoint-vba export --open-folder --keep-open` | Export and open folder in explorer, keep document open for inspection |
 | `powerpoint-vba export --force-overwrite` | Export without confirmation prompts |
+| `powerpoint-vba references list` | List VBA library references |
 | `powerpoint-vba check` | Verify status of *Trust access* to the VBA project object model |
 
 > 💡 **Complete Option Matrix**: available **[here](https://langui.ch/current-projects/vba-edit/#OptionMatrix)**

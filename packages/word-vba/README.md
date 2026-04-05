@@ -6,11 +6,12 @@
 [![PyPI - Version](https://img.shields.io/pypi/v/vba-edit.svg)](https://pypi.org/project/vba-edit)
 [![PyPI - Python Version](https://img.shields.io/pypi/pyversions/vba-edit.svg)](https://pypi.org/project/vba-edit)
 [![Platform](https://img.shields.io/badge/platform-windows-blue.svg)](https://pypi.org/search/?q=vba-edit&o=&c=Operating+System+%3A%3A+Microsoft+%3A%3A+Windows)
-[![vba-edit - Downloads](https://img.shields.io/pypi/dm/vba-edit)](https://www.pypiplus.com/project/vba-edit/)
-[![word-vba - Downloads](https://img.shields.io/pypi/dm/word-vba)](https://www.pypiplus.com/project/word-vba/)
+[![Downloads](https://img.shields.io/pypi/dm/vba-edit)](https://www.pypiplus.com/project/vba-edit/)
 [![License](https://img.shields.io/badge/License-BSD_3--Clause-blue.svg)](https://opensource.org/licenses/BSD-3-Clause)
 
 This is a thin entry-point package for [vba-edit](https://pypi.org/project/vba-edit/). Installing `word-vba` gives you the `word-vba` command and automatically installs the `vba-edit` core package.
+
+[![word-vba downloads](https://img.shields.io/pypi/dm/word-vba?label=word-vba%20downloads)](https://www.pypiplus.com/project/word-vba/)
 
 ## Quick Start
 
@@ -45,7 +46,9 @@ uvx word-vba edit
 |    Editor)       |                            |   .cls           |     assistants
 |                  |   <---   IMPORT            |   .frm           |   
 |                  |                            |  (.frx binary)   | 
-|                  |                            |                  | 
+|                  |                            |                  |     optional
+|                  |                            |  [.toml]         |  <- support for 
+|                  |                            |                  |     references
 +------------------+                            +------------------+
                                                          v
                                                 +------------------+
@@ -77,6 +80,7 @@ pip install word-vba
 | `word-vba import` | One-time import |
 | `word-vba export --open-folder --keep-open` | Export and open folder in explorer, keep document open for inspection |
 | `word-vba export --force-overwrite` | Export without confirmation prompts |
+| `word-vba references list` | List VBA library references |
 | `word-vba check` | Verify status of *Trust access* to the VBA project object model |
 
 > 💡 **Complete Option Matrix**: available **[here](https://langui.ch/current-projects/vba-edit/#OptionMatrix)**

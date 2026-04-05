@@ -1,12 +1,17 @@
-# This workflow will run tests on every push and publish to PyPI on every tag push
-name: Test and Publish to PyPI and Test PyPI
+# Publishes vba-edit and satellite packages to PyPI / TestPyPI using Trusted Publishers (OIDC).
+# Requires Trusted Publisher configuration on PyPI for each package:
+#   - vba-edit, excel-vba, word-vba, powerpoint-vba, access-vba
+# See: https://docs.pypi.org/trusted-publishers/creating-a-project-through-oidc/
+name: Publish to PyPI and Test PyPI
 
 on:
   release:
     types: [published]
 
 permissions:
-  contents: read  # Required to checkout code
+  contents: read       # Required to checkout code
+  id-token: write      # Required for Trusted Publishers (OIDC)
+  attestations: write  # Required for PEP 740 attestations
 
 jobs:
 
@@ -16,44 +21,98 @@ jobs:
     uses: ./.github/workflows/test.yaml
 
   publish:
-    needs: [lint, test]  # Ensure this job only runs if 'test' and 'lint' are successful
+    needs: [lint, test]
     runs-on: ubuntu-latest
 
     steps:
     - name: Check out code
       uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
-    - name: Set up Python
-      uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
-      with:
-        python-version: "3.12"
-
-    - name: Install dependencies
-      run: |
-        pip install build twine
+    - name: Install uv
+      uses: astral-sh/setup-uv@e06108dd0aef18192324c70427afc47652e63a82 # v7.5.0
 
     - name: Build the package
-      run: python -m build
+      run: uv build
 
-    - name: Determine Branch
-      id: determine-branch
-      run: echo "branch_name=$(echo ${GITHUB_REF} | sed 's|refs/heads/||; s|refs/tags/||')" >> $GITHUB_ENV
+    - name: Verify package
+      run: uv run --with twine twine check dist/*
+
+    - name: Security audit
+      run: uv run --with pip-audit pip-audit
 
     - name: Publish to Test PyPI
       if: startsWith(github.ref, 'refs/tags/v') && github.event.release.prerelease
-      env:
-        TWINE_USERNAME: __token__
-        TWINE_PASSWORD: ${{ secrets.TEST_PYPI_API_TOKEN }}
-      run: |
-        twine upload --verbose --repository-url https://test.pypi.org/legacy/ dist/*
+      uses: pypa/gh-action-pypi-publish@ed0c53931b1dc9bd32cbe73a98c7f6766f8a527e # v1.13.0
+      with:
+        repository-url: https://test.pypi.org/legacy/
+        attestations: true
 
     - name: Publish to PyPI
       if: startsWith(github.ref, 'refs/tags/v') && !github.event.release.prerelease
-      env:
-        TWINE_USERNAME: __token__
-        TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
+      uses: pypa/gh-action-pypi-publish@ed0c53931b1dc9bd32cbe73a98c7f6766f8a527e # v1.13.0
+      with:
+        attestations: true
+
+  publish-satellites:
+    needs: [publish]
+    runs-on: ubuntu-latest
+    env:
+      SATELLITE_PKGS: "excel-vba word-vba powerpoint-vba access-vba"
+      RELEASE_TAG: ${{ github.ref_name }}
+
+    steps:
+    - name: Check out code
+      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+    - name: Install uv
+      uses: astral-sh/setup-uv@e06108dd0aef18192324c70427afc47652e63a82 # v7.5.0
+
+    - name: Sync satellite versions to release tag
       run: |
-        twine upload --verbose dist/*
+        python - <<'EOF'
+        import os
+        import re
+        from pathlib import Path
+
+        tag = os.environ["RELEASE_TAG"]
+        version = tag.lstrip("v")
+        constraint = f"vba-edit=={version}"
+
+        for pkg in os.environ["SATELLITE_PKGS"].split():
+            path = Path(f"packages/{pkg}/pyproject.toml")
+            content = path.read_text()
+            content = re.sub(r'^version = "[^"]*"', f'version = "{version}"', content, flags=re.MULTILINE)
+            content = re.sub(r'"vba-edit(?:==[^"]+)?"', f'"{constraint}"', content)
+            path.write_text(content)
+            print(f"Updated {pkg} to {version} with {constraint}")
+        EOF
+
+    - name: Build satellite packages
+      run: |
+        mkdir -p satellite-dist
+        for pkg in $SATELLITE_PKGS; do
+          rm -rf packages/$pkg/dist
+          uv build packages/$pkg
+          cp packages/$pkg/dist/* satellite-dist/
+        done
+
+    - name: Verify satellite packages
+      run: uv run --with twine twine check satellite-dist/*
+
+    - name: Publish satellites to Test PyPI
+      if: startsWith(github.ref, 'refs/tags/v') && github.event.release.prerelease
+      uses: pypa/gh-action-pypi-publish@ed0c53931b1dc9bd32cbe73a98c7f6766f8a527e # v1.13.0
+      with:
+        repository-url: https://test.pypi.org/legacy/
+        packages-dir: satellite-dist/
+        attestations: true
+
+    - name: Publish satellites to PyPI
+      if: startsWith(github.ref, 'refs/tags/v') && !github.event.release.prerelease
+      uses: pypa/gh-action-pypi-publish@ed0c53931b1dc9bd32cbe73a98c7f6766f8a527e # v1.13.0
+      with:
+        packages-dir: satellite-dist/
+        attestations: true
 
   publish-satellites:
     needs: [publish]
