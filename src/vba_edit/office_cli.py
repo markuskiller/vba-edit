@@ -406,6 +406,7 @@ IMPORTANT: Requires "Trust access to the VBA project object model" enabled in {s
         )
         add_references_file_arguments(list_refs_parser)
         add_references_filter_arguments(list_refs_parser)
+        add_config_arguments(list_refs_parser)
         add_common_option_group(list_refs_parser)
 
         # references export
@@ -420,6 +421,7 @@ IMPORTANT: Requires "Trust access to the VBA project object model" enabled in {s
         add_references_file_arguments(export_refs_parser)
         add_references_output_arguments(export_refs_parser)
         add_references_filter_arguments(export_refs_parser)
+        add_config_arguments(export_refs_parser)
         add_common_option_group(export_refs_parser)
 
         # references import
@@ -446,6 +448,7 @@ IMPORTANT: Requires "Trust access to the VBA project object model" enabled in {s
             action="store_true",
             help="Allow removing default references and syncing from filtered exports",
         )
+        add_config_arguments(import_refs_parser)
         add_common_option_group(import_refs_parser)
 
         # references validate
@@ -458,6 +461,7 @@ IMPORTANT: Requires "Trust access to the VBA project object model" enabled in {s
             add_help=False,
         )
         add_references_file_arguments(validate_refs_parser)
+        add_config_arguments(validate_refs_parser)
         add_common_option_group(validate_refs_parser)
 
         # references add
@@ -475,6 +479,7 @@ IMPORTANT: Requires "Trust access to the VBA project object model" enabled in {s
             help="Path to library file (.dotm, .xlam, .dll, .olb, etc.)",
         )
         add_references_file_arguments(add_ref_parser)
+        add_config_arguments(add_ref_parser)
         add_common_option_group(add_ref_parser)
 
         # references remove
@@ -492,6 +497,7 @@ IMPORTANT: Requires "Trust access to the VBA project object model" enabled in {s
             help="Name of the reference to remove (as shown in 'references list')",
         )
         add_references_file_arguments(remove_ref_parser)
+        add_config_arguments(remove_ref_parser)
         add_common_option_group(remove_ref_parser)
 
         return parser
