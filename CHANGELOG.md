@@ -61,8 +61,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Security
 
-- **Trusted Publishers**: PyPI and TestPyPI uploads now use OpenID Connect (OIDC) authentication — no more stored API tokens
-- **PEP 740 Attestations**: Every published package now includes cryptographically signed provenance, proving it was built by the official GitHub Actions workflow
+- **Trusted Publishers**: PyPI and TestPyPI uploads use OpenID Connect (OIDC) authentication
+- **PEP 740 Attestations**: Every published package includes cryptographically signed provenance, proving it was built by the official GitHub Actions workflow
 - **Supply Chain Hardening**: Added `pip-audit` security scan to the publish pipeline and `--no-upx` to binary builds to reduce antivirus false positives
 
 ## [0.4.4] - 2026-03-13

@@ -508,7 +508,7 @@ excel-vba export --conf vba-config.toml --save-headers
 - [Source Code](https://github.com/markuskiller/vba-edit)
 - [Changelog](https://github.com/markuskiller/vba-edit/blob/main/CHANGELOG.md)
 - [Changelog of latest dev version](https://github.com/markuskiller/vba-edit/blob/dev/CHANGELOG.md)
-- [Video Tutorial](https://www.youtube.com/watch?v=xoO-Fx0fTpM) (xlwings walkthrough — covers basic export/import concepts; vba-edit has many additional features)
+- [Video Tutorial](https://www.youtube.com/watch?v=xoO-Fx0fTpM) (xlwings walkthrough — covers basic edit/export/import concepts; vba-edit has many additional features)
 
 ## License
 
@@ -518,6 +518,4 @@ BSD 3-Clause License
 
 **vba-edit** builds on an excellent idea first implemented for Excel in [xlwings](https://www.xlwings.org/) (BSD-3).
 
-Special thanks to **@onderhold** for improved header handling, RubberduckVBA folder and config file support in v0.4.0, and unified CLI handling across all Office tools in v0.4.3.
-
-Thanks to **@erikvanhimbergen** for the UserForm import fix in v0.4.4 ([PR #84](https://github.com/markuskiller/vba-edit/pull/84)).
+Special thanks to **@onderhold** for many valuable contributions since v0.4.0.
