@@ -66,7 +66,9 @@ PowerPoint / Access             v                       Editor
 |    Editor)       |                            |   .cls           |     assistants
 |                  |   <---   IMPORT            |   .frm           |   
 |                  |                            |  (.frx binary)   | 
-|                  |                            |                  | 
+|                  |                            |                  |     optional
+|                  |                            |  [.toml]         |  <- support for 
+|                  |                            |                  |     references
 +------------------+                            +------------------+
                                                          v
                                                 +------------------+
