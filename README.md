@@ -324,7 +324,7 @@ excel-vba export --vba-directory ./src --force-overwrite
 
 **📚 Reference Management**
 - List, export, import, validate, add, and remove VBA library references
-- Classify references as builtin, third-party, or custom with composable filters
+- Classify references as default, installed, or custom with composable filters
 - Automatic reference sync alongside code with `--with-references`
 - Share reference setups via version-controlled TOML files
 
@@ -340,7 +340,7 @@ Development priorities evolve based on user feedback and real-world needs.
 
 👀 **See active planning**: [GitHub Milestones](https://github.com/markuskiller/vba-edit/milestones)  
 💡 **Request features**: [Open an Issue](https://github.com/markuskiller/vba-edit/issues)  
-📝 **Current focus**: VBA reference management, supply chain security, and stability
+📝 **Current focus**: Stability, documentation, and exploring PowerQuery support
 
 
 ### 💡 Feedback & Contributions
@@ -388,9 +388,9 @@ Terminal output features color-coded messages terms for better readability:
 - Respects `NO_COLOR` environment variable
 
 **Manual Control:**
-```bash
+```powershell
 excel-vba export --no-color              # Disable colors
-export NO_COLOR=1; excel-vba export      # Via environment variable
+$env:NO_COLOR=1; excel-vba export        # Via environment variable (PowerShell)
 ```
 
 > 💡 **Tip**: Use `--no-color` when terminal colors cause issues.
@@ -508,7 +508,7 @@ excel-vba export --conf vba-config.toml --save-headers
 - [Source Code](https://github.com/markuskiller/vba-edit)
 - [Changelog](https://github.com/markuskiller/vba-edit/blob/main/CHANGELOG.md)
 - [Changelog of latest dev version](https://github.com/markuskiller/vba-edit/blob/dev/CHANGELOG.md)
-- [Video Tutorial](https://www.youtube.com/watch?v=xoO-Fx0fTpM) (xlwings walkthrough, with similar functionality)
+- [Video Tutorial](https://www.youtube.com/watch?v=xoO-Fx0fTpM) (xlwings walkthrough — covers basic export/import concepts; vba-edit has many additional features)
 
 ## License
 
@@ -519,3 +519,5 @@ BSD 3-Clause License
 **vba-edit** builds on an excellent idea first implemented for Excel in [xlwings](https://www.xlwings.org/) (BSD-3).
 
 Special thanks to **@onderhold** for improved header handling, RubberduckVBA folder and config file support in v0.4.0, and unified CLI handling across all Office tools in v0.4.3.
+
+Thanks to **@erikvanhimbergen** for the UserForm import fix in v0.4.4 ([PR #84](https://github.com/markuskiller/vba-edit/pull/84)).

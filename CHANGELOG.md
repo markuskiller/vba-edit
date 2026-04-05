@@ -43,10 +43,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Has no effect on `edit` mode
 - **Configuration File Support for References**: Reference filter options (`--refs-file`, `--no-default`, `--no-installed`, `--no-custom`) can now be set in configuration files using a new `[references]` section
 - **Extended Configuration Keys**: Added `skip_empty`, `force_overwrite`, `save_metadata`, `detect_encoding`, and `with_references` to the `[general]` section of configuration files
-- **`uvx` Support via Satellite Entry-Point Packages**: All four tools are now available on PyPI as standalone packages — `excel-vba`, `word-vba`, `powerpoint-vba`, `access-vba`
-  - Run any tool instantly without installing: `uvx excel-vba edit`, `uvx word-vba edit`, etc.
-  - Each package automatically pulls in the `vba-edit` core — no separate install step needed
-  - Ideal for one-off use, scripts, and CI/CD pipelines
 
 ### Changed
 
@@ -68,6 +64,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Trusted Publishers**: PyPI and TestPyPI uploads now use OpenID Connect (OIDC) authentication — no more stored API tokens
 - **PEP 740 Attestations**: Every published package now includes cryptographically signed provenance, proving it was built by the official GitHub Actions workflow
 - **Supply Chain Hardening**: Added `pip-audit` security scan to the publish pipeline and `--no-upx` to binary builds to reduce antivirus false positives
+
+## [0.4.4] - 2026-03-13
+
+### Added
+
+- **`uvx` Support via Satellite Entry-Point Packages**: All four tools are now available on PyPI as standalone packages — `excel-vba`, `word-vba`, `powerpoint-vba`, `access-vba`
+  - Run any tool instantly without installing: `uvx excel-vba edit`, `uvx word-vba edit`, etc.
+  - Each package automatically pulls in the `vba-edit` core — no separate install step needed
+  - Ideal for one-off use, scripts, and CI/CD pipelines
+- **VS Code Settings Guidance**: Added recommended VS Code configuration to README
+  - Correct encoding (`windows1252`) and file-type associations for `.bas`, `.cls`, `.frm` files
+
+### Fixed
+
+- **UserForm Import Error on Same-Directory Workbooks**: Fixed `[WinError 32]` crash when importing from a workbook located in the same folder as the executable (or when `vba-dir` equals the workbook directory) ([Issue #83](https://github.com/markuskiller/vba-edit/issues/83))
+  - Excel locks `.frx` binary files while open; the tool now detects when source and target are the same file and skips the redundant copy
+  - Thanks to [@erikvanhimbergen](https://github.com/erikvanhimbergen) for the report and fix ([PR #84](https://github.com/markuskiller/vba-edit/pull/84))
 
 ## [0.4.3] - 2026-03-07
 
