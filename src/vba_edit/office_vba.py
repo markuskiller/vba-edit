@@ -1668,6 +1668,10 @@ class OfficeVBAHandler(ABC):
             frx_source = resolve_path(f"{name}.frx", Path(self.doc.FullName).parent)
             if frx_source.exists():
                 frx_target = resolve_path(f"{name}.frx", self.vba_dir)
+                # Skip copy when source and target are the same file (vba_dir == workbook dir)
+                if frx_source.resolve() == frx_target.resolve():
+                    logger.debug(f"Skipping form binary copy for {name}.frx: source and target are the same file")
+                    return
                 try:
                     # If target exists and is read-only, make it writable before copying
                     if frx_target.exists():

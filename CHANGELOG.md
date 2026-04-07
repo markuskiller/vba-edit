@@ -13,6 +13,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **UserForm Export Error on Same-Directory Workbooks**: Fixed `[WinError 32]` crash when exporting from a workbook located in the same folder as the VBA output directory ([Issue #83](https://github.com/markuskiller/vba-edit/issues/83))
+  - The v0.4.4 fix only covered the import path; export had the same problem when `vba-dir` equals the workbook directory
+  - Export now detects when source and target `.frx` are the same file and skips the redundant copy
+
 ## [0.5.0] - 2026-04-05
 
 ### Added
