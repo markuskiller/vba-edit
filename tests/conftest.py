@@ -42,6 +42,7 @@ def pytest_configure(config):
         "com: marks tests that require COM initialization",
         "integration: mark test as integration test",
         "skip_access: skip Access variants of parameterized tests (requires user interaction)",
+        "gui: mark test as requiring an interactive display (skipped in CI)",
     ]
     for marker in markers:
         config.addinivalue_line("markers", marker)
