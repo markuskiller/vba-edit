@@ -260,7 +260,7 @@ class EnhancedHelpFormatter(argparse.RawDescriptionHelpFormatter):
             # _section_heading holds the last section built, not the current one.
             if not action.option_strings:
                 result = re.sub(
-                    r"^(\s+)(\w+)(?=\s{2,})",
+                    r"^(\s+)(\w[\w-]*)(?=\s{2,})",
                     lambda m: m.group(1) + self._colorize(m.group(2), "command"),
                     result,
                     flags=re.MULTILINE,
