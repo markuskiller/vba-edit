@@ -30,6 +30,7 @@ dependencies = [
     "watchfiles>=1.1.1",                         # replaced watchgod; 1.1.1+ required for Python 3.14
     "tomli>=2.0.0; python_version < '3.11'",
     "rich>=13.0.0",                              # Modern terminal output with colors
+    "ttkbootstrap>=1.10.0",                      # GUI framework for config-gen
 ]
 
 [project.optional-dependencies]

@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Config Generator GUI** (`config-gen`): New interactive form for generating vba-edit TOML configuration files without manually editing text
+  - Available as a subcommand on all four apps: `excel-vba config-gen`, `word-vba config-gen`, `access-vba config-gen`, `powerpoint-vba config-gen`
+  - App-aware form: file picker filters, xlwings toggle (Excel only), UserForms notice (Access)
+  - Live TOML preview updates as you fill in the form, with a draggable divider to resize the preview area
+  - Open and edit an existing config file directly in the form
+  - Save the generated config as a `.toml` file ready to use with `--config-file`
+  - GUI framework (`ttkbootstrap`) is included in the standard install — no extras required
+
 ### Changed
 
 ### Fixed

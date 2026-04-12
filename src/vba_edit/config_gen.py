@@ -1,0 +1,627 @@
+"""Config File Generator GUI for vba-edit.
+
+Provides a graphical wizard to create TOML configuration files
+for the vba-edit CLI tools without hand-editing TOML syntax.
+
+ttkbootstrap is included in the standard vba-edit install.
+"""
+
+from __future__ import annotations
+
+import sys
+import tkinter as tk
+import tkinter.filedialog as filedialog
+import tkinter.messagebox as messagebox
+from pathlib import Path
+
+try:
+    import ttkbootstrap as ttk  # type: ignore[import-untyped]
+
+    _HAS_TTKBOOTSTRAP = True
+except ImportError:
+    _HAS_TTKBOOTSTRAP = False
+
+# ── Common constant lists ──────────────────────────────────────────────────────
+
+ENCODINGS = [
+    "cp1252",
+    "windows-1252",
+    "utf-8",
+    "utf-8-sig",
+    "utf-16",
+    "latin-1",
+    "iso-8859-1",
+]
+
+OFFICE_FILE_TYPES = [
+    ("Office Macro Files", "*.xlsm *.xlsb *.xls *.docm *.dotm *.pptm *.accdb *.accde"),
+    ("Excel Files", "*.xlsm *.xlsb *.xls"),
+    ("Word Files", "*.docm *.dotm"),
+    ("PowerPoint Files", "*.pptm"),
+    ("Access Files", "*.accdb *.accde"),
+    ("All Files", "*.*"),
+]
+
+TOML_FILE_TYPES = [("TOML Config Files", "*.toml"), ("All Files", "*.*")]
+LOG_FILE_TYPES = [("Log Files", "*.log *.txt"), ("All Files", "*.*")]
+
+# App-specific file type filters for the Office Document picker
+APP_FILE_TYPES: dict[str, list] = {
+    "excel": [("Excel Macro Files", "*.xlsm *.xlsb *.xls"), ("All Files", "*.*")],
+    "word": [("Word Macro Files", "*.docm *.dotm"), ("All Files", "*.*")],
+    "access": [("Access Files", "*.accdb *.accde"), ("All Files", "*.*")],
+    "powerpoint": [("PowerPoint Macro Files", "*.pptm"), ("All Files", "*.*")],
+}
+
+# Window titles per app (None → generic title)
+APP_TITLES: dict[str, str] = {
+    "excel": "Excel VBA  ·  Config Generator",
+    "word": "Word VBA  ·  Config Generator",
+    "access": "Access VBA  ·  Config Generator",
+    "powerpoint": "PowerPoint VBA  ·  Config Generator",
+}
+
+# ── Helper widget ──────────────────────────────────────────────────────────────
+
+
+class _FileBrowseRow:
+    """Label + Entry + Browse button row for picking files or directories."""
+
+    def __init__(
+        self,
+        parent: ttk.Frame,
+        label: str,
+        row: int,
+        browse_type: str = "file",  # "file" | "dir" | "save"
+        file_types: list | None = None,
+        placeholder: str = "",
+    ) -> None:
+        self.browse_type = browse_type
+        self.file_types = file_types or [("All Files", "*.*")]
+        self.var = tk.StringVar(value=placeholder)
+
+        ttk.Label(parent, text=label).grid(row=row, column=0, sticky="w", padx=4, pady=3)
+        entry = ttk.Entry(parent, textvariable=self.var, width=44)
+        entry.grid(row=row, column=1, sticky="ew", padx=4, pady=3)
+        ttk.Button(
+            parent,
+            text="Browse…",
+            command=self._browse,
+            bootstyle="info-outline",  # type: ignore[call-arg]
+            width=9,
+        ).grid(row=row, column=2, padx=(0, 4), pady=3)
+
+    def _browse(self) -> None:
+        if self.browse_type == "dir":
+            result = filedialog.askdirectory()
+        elif self.browse_type == "save":
+            result = filedialog.asksaveasfilename(defaultextension=".toml", filetypes=self.file_types)
+        else:
+            result = filedialog.askopenfilename(filetypes=self.file_types)
+        if result:
+            self.var.set(result)
+
+    def get(self) -> str:
+        return self.var.get().strip()
+
+
+# ── Pure TOML builder (no Tk required) ────────────────────────────────────────
+
+
+def build_toml(
+    *,
+    file: str = "",
+    vba_directory: str = "",
+    logfile: str = "",
+    encoding_mode: str = "system",
+    encoding_value: str = "cp1252",
+    header_mode: str = "none",
+    bool_flags: dict[str, bool] | None = None,
+    refs_file: str = "",
+    refs_bool_flags: dict[str, bool] | None = None,
+) -> str:
+    """Build a vba-edit TOML config string from plain Python values.
+
+    This is the pure logic behind the GUI form; call it directly in tests or
+    from scripts without needing a Tkinter display.
+
+    Args:
+        file: Path to the Office document.
+        vba_directory: Output directory for VBA files.
+        logfile: Optional log file path.
+        encoding_mode: ``"system"`` (default), ``"custom"``, or ``"detect"``.
+        encoding_value: Encoding name used when *encoding_mode* is ``"custom"``.
+        header_mode: ``"none"``, ``"save_headers"``, or ``"in_file_headers"``.
+        bool_flags: Mapping of CLI flag names to their boolean values.
+        refs_file: Path for the references TOML file.
+        refs_bool_flags: Mapping of references filter flag names to boolean values.
+    """
+    bool_flags = bool_flags or {}
+    refs_bool_flags = refs_bool_flags or {}
+
+    def _q(s: str) -> str:
+        # Single-quoted TOML avoids backslash-escaping Windows paths.
+        return "'" + s.replace("'", "\\'") + "'"
+
+    lines: list[str] = [
+        "# vba-edit configuration file",
+        "# Generated by vba-edit Config Generator",
+        "# Docs: https://github.com/markuskiller/vba-edit",
+        "",
+        "[general]",
+    ]
+
+    for key, val in [("file", file), ("vba_directory", vba_directory), ("logfile", logfile)]:
+        if val:
+            lines.append(f"{key} = {_q(val)}")
+
+    if encoding_mode == "detect":
+        lines.append("detect_encoding = true")
+    elif encoding_mode == "custom" and encoding_value:
+        lines.append(f"encoding = {_q(encoding_value)}")
+
+    if header_mode == "save_headers":
+        lines.append("save_headers = true")
+    elif header_mode == "in_file_headers":
+        lines.append("in_file_headers = true")
+
+    for key, value in bool_flags.items():
+        if value:
+            lines.append(f"{key} = true")
+
+    active_refs_flags = [k for k, v in refs_bool_flags.items() if v]
+    if refs_file or active_refs_flags:
+        lines += ["", "[references]"]
+        if refs_file:
+            lines.append(f"refs_file = {_q(refs_file)}")
+        for key in active_refs_flags:
+            lines.append(f"{key} = true")
+
+    lines.append("")  # trailing newline
+    return "\n".join(lines)
+
+
+# ── Main application ───────────────────────────────────────────────────────────
+
+
+class ConfigGenApp(ttk.Window):  # type: ignore[misc]
+    """Main application window for the vba-edit Config File Generator."""
+
+    def __init__(self, app: str | None = None) -> None:
+        self.app = app  # "excel" | "word" | "access" | "powerpoint" | None
+        title = APP_TITLES.get(app or "", "vba-edit  ·  Config Generator")
+        super().__init__(
+            title=title,
+            themename="darkly",
+            resizable=(True, True),
+        )
+        # Fixed window size — adjust per display if needed
+        w, h, sash_y = 1700, 1500, 590
+        self.geometry(f"{w}x{h}")
+        self.minsize(700, 580)
+        self._sash_y = sash_y
+        self._build_ui()
+        self._update_preview()
+
+    # ── Top-level layout ───────────────────────────────────────────────────────
+
+    def _build_ui(self) -> None:
+        # Title bar
+        title_frame = ttk.Frame(self, padding=(12, 8, 12, 4))
+        title_frame.pack(fill="x")
+        app_label = APP_TITLES.get(self.app or "", "vba-edit  ·  Config Generator")
+        ttk.Label(
+            title_frame,
+            text=app_label,
+            font=("Segoe UI", 12, "bold"),
+            bootstyle="info",  # type: ignore[call-arg]
+        ).pack(side="left")
+        ttk.Label(
+            title_frame,
+            text="  Generates a vba_edit.toml configuration file",
+            font=("Segoe UI", 9),
+            bootstyle="light",  # type: ignore[call-arg]
+        ).pack(side="left")
+
+        ttk.Separator(self).pack(fill="x")
+
+        # Main split: PanedWindow — notebook (top) / TOML preview (bottom, resizable)
+        paned = tk.PanedWindow(self, orient=tk.VERTICAL, sashwidth=7, sashrelief="groove")
+        paned.pack(fill="both", expand=True, padx=8, pady=4)
+
+        # Upper pane: tabbed form
+        nb_frame = ttk.Frame(paned)
+        paned.add(nb_frame, minsize=300, stretch="always")
+        self.nb = ttk.Notebook(nb_frame, padding=(6, 4))
+        self.nb.pack(fill="both", expand=True)
+
+        self._build_general_tab()
+        self._build_references_tab()
+
+        # Lower pane: TOML preview (drag sash to resize)
+        preview_pane = ttk.Frame(paned)
+        paned.add(preview_pane, minsize=80, stretch="always")
+        # Position sash after window renders — proportion derived from screen size
+        self.after(80, lambda: paned.sash_place(0, 0, self._sash_y))
+
+        pf = ttk.Labelframe(preview_pane, text=" TOML Preview  —  drag divider to resize ", padding=6)
+        pf.pack(fill="both", expand=True, pady=(2, 0))
+
+        self.preview_text = tk.Text(
+            pf,
+            font=("Consolas", 9),
+            state="disabled",
+            wrap="none",
+        )
+        sb_y = ttk.Scrollbar(pf, orient="vertical", command=self.preview_text.yview)
+        sb_x = ttk.Scrollbar(pf, orient="horizontal", command=self.preview_text.xview)
+        self.preview_text.configure(yscrollcommand=sb_y.set, xscrollcommand=sb_x.set)
+        sb_y.pack(side="right", fill="y")
+        sb_x.pack(side="bottom", fill="x")
+        self.preview_text.pack(fill="both", expand=True)
+
+        ttk.Separator(self).pack(fill="x", pady=(4, 0))
+
+        # Button bar
+        bf = ttk.Frame(self, padding=(8, 6))
+        bf.pack(fill="x")
+        ttk.Button(
+            bf,
+            text="↻  Refresh Preview",
+            command=self._update_preview,
+            bootstyle="info-outline",  # type: ignore[call-arg]
+            width=18,
+        ).pack(side="left", padx=4)
+        ttk.Button(
+            bf,
+            text="📂  Open Config…",
+            command=self._load_config,
+            bootstyle="info-outline",  # type: ignore[call-arg]
+            width=16,
+        ).pack(side="left", padx=4)
+        ttk.Button(
+            bf,
+            text="✕  Close",
+            command=self.destroy,
+            bootstyle="secondary-outline",  # type: ignore[call-arg]
+            width=12,
+        ).pack(side="right", padx=4)
+        ttk.Button(
+            bf,
+            text="💾  Save Config…",
+            command=self._save_config,
+            bootstyle="success",  # type: ignore[call-arg]
+            width=16,
+        ).pack(side="right", padx=4)
+
+    # ── General tab ───────────────────────────────────────────────────────────
+
+    def _build_general_tab(self) -> None:
+        outer = ttk.Frame(self.nb, padding=4)
+        self.nb.add(outer, text="  General  ")
+
+        # Scrollable inner area
+        canvas = tk.Canvas(outer, highlightthickness=0)
+        vsb = ttk.Scrollbar(outer, orient="vertical", command=canvas.yview)
+        canvas.configure(yscrollcommand=vsb.set)
+        vsb.pack(side="right", fill="y")
+        canvas.pack(side="left", fill="both", expand=True)
+
+        inner = ttk.Frame(canvas)
+        inner.columnconfigure(1, weight=1)
+        window_id = canvas.create_window((0, 0), window=inner, anchor="nw")
+
+        def _on_frame_configure(_event: tk.Event) -> None:  # type: ignore[type-arg]
+            canvas.configure(scrollregion=canvas.bbox("all"))
+
+        def _on_canvas_configure(event: tk.Event) -> None:  # type: ignore[type-arg]
+            canvas.itemconfig(window_id, width=event.width)
+
+        inner.bind("<Configure>", _on_frame_configure)
+        canvas.bind("<Configure>", _on_canvas_configure)
+        canvas.bind_all("<MouseWheel>", lambda e: canvas.yview_scroll(int(-1 * (e.delta / 120)), "units"))
+
+        row = 0
+
+        # ── File Options ──────────────────────────────────────────────────────
+        row = self._add_section(inner, "File Options", row)
+        doc_file_types = APP_FILE_TYPES.get(self.app or "", OFFICE_FILE_TYPES)
+        self._file_row = _FileBrowseRow(inner, "Office Document:", row, browse_type="file", file_types=doc_file_types)
+        row += 1
+        self._vba_dir_row = _FileBrowseRow(
+            inner, "VBA Directory:", row, browse_type="dir", placeholder="{file.path}\\vba"
+        )
+        row += 1
+        ttk.Label(
+            inner,
+            text="    Placeholders: {file.name}, {file.path}, {file.fullname}, {file.vbaproject}, {config.path}",
+            font=("Segoe UI", 8),
+            bootstyle="light",  # type: ignore[call-arg]
+        ).grid(row=row, column=0, columnspan=3, sticky="w", padx=4, pady=(0, 4))
+        row += 1
+        self._logfile_row = _FileBrowseRow(
+            inner, "Log File (optional):", row, browse_type="save", file_types=LOG_FILE_TYPES
+        )
+        row += 1
+
+        # ── Header Mode ───────────────────────────────────────────────────────
+        row = self._add_section(inner, "Header Mode  (mutually exclusive)", row)
+        self._header_mode = tk.StringVar(value="none")
+        for val, label in [
+            ("none", "No header files (default)"),
+            ("save_headers", "Save headers to separate .header files  (--save-headers)"),
+            ("in_file_headers", "Embed headers inside code files  (--in-file-headers)"),
+        ]:
+            ttk.Radiobutton(inner, text=label, variable=self._header_mode, value=val).grid(
+                row=row, column=0, columnspan=3, sticky="w", padx=20, pady=2
+            )
+            row += 1
+
+        # ── Encoding ──────────────────────────────────────────────────────────
+        row = self._add_section(inner, "Encoding  (mutually exclusive)", row)
+        self._encoding_mode = tk.StringVar(value="system")
+        for val, label in [
+            ("system", "Use system default (cp1252 on Western Windows)"),
+            ("custom", "Use specific encoding:"),
+            ("detect", "Auto-detect encoding  (--detect-encoding)"),
+        ]:
+            rb = ttk.Radiobutton(
+                inner,
+                text=label,
+                variable=self._encoding_mode,
+                value=val,
+                command=self._on_encoding_changed,
+            )
+            rb.grid(row=row, column=0, columnspan=2, sticky="w", padx=20, pady=2)
+            if val == "custom":
+                self._encoding_combo = ttk.Combobox(
+                    inner, values=ENCODINGS, width=18, state="disabled", bootstyle="info"
+                )  # type: ignore[call-arg]
+                self._encoding_combo.set("cp1252")
+                self._encoding_combo.grid(row=row, column=2, sticky="w", padx=(0, 4), pady=2)
+                self._encoding_combo.bind("<<ComboboxSelected>>", lambda _e: self._update_preview())
+            row += 1
+
+        # ── Boolean flags ─────────────────────────────────────────────────────
+        row = self._add_section(inner, "Behavior Options", row)
+        self._bool_vars: dict[str, tk.BooleanVar] = {}
+        bool_opts_all = [
+            ("verbose", "Verbose logging  (--verbose)"),
+            ("save_metadata", "Save metadata JSON alongside VBA files  (--save-metadata)"),
+            ("rubberduck_folders", "Use RubberduckVBA @Folder organization  (--rubberduck-folders)"),
+            ("open_folder", "Open VBA directory in Explorer after export  (--open-folder)"),
+            ("force_overwrite", "Skip confirmation prompts  (--force-overwrite)"),
+            ("keep_open", "Keep document open after export  (--keep-open)"),
+            ("skip_empty", "Skip modules with no code  (--skip-empty)"),
+            ("with_references", "Include VBA references alongside code  (--with-references)"),
+            ("no_color", "Disable colored terminal output  (--no-color)"),
+            # Excel-only options
+            ("xlwings", "Use xlwings backend  (--xlwings)  [Excel only]"),
+        ]
+        # Filter options by app context
+        bool_opts = [(k, v) for k, v in bool_opts_all if k != "xlwings" or self.app == "excel"]
+
+        # Access has no UserForm support — show a notice
+        if self.app == "access":
+            ttk.Label(
+                inner,
+                text="  ℹ NOTE: Access VBA does not support UserForms — form modules are not exported/imported.",
+                font=("Segoe UI", 8),
+                bootstyle="warning",  # type: ignore[call-arg]
+            ).grid(row=row, column=0, columnspan=3, sticky="w", padx=8, pady=(4, 8))
+            row += 1
+        for i, (key, label) in enumerate(bool_opts):
+            var = tk.BooleanVar()
+            self._bool_vars[key] = var
+            var.trace_add("write", lambda *_: self._update_preview())
+            col_offset = (i % 2) * 2  # two-column layout
+            ttk.Checkbutton(
+                inner,
+                text=label,
+                variable=var,
+                bootstyle="round-toggle",  # type: ignore[call-arg]
+            ).grid(row=row + (i // 2), column=col_offset, columnspan=2, sticky="w", padx=20, pady=3)
+        row += (len(bool_opts) + 1) // 2 + 1
+
+        # Trace path fields for live preview
+        for row_widget in (self._file_row, self._vba_dir_row, self._logfile_row):
+            row_widget.var.trace_add("write", lambda *_: self._update_preview())
+        self._header_mode.trace_add("write", lambda *_: self._update_preview())
+        self._encoding_mode.trace_add("write", lambda *_: self._update_preview())
+
+    def _on_encoding_changed(self) -> None:
+        self._encoding_combo.configure(state="normal" if self._encoding_mode.get() == "custom" else "disabled")
+        self._update_preview()
+
+    # ── References tab ────────────────────────────────────────────────────────
+
+    def _build_references_tab(self) -> None:
+        tab = ttk.Frame(self.nb, padding=16)
+        self.nb.add(tab, text="  References  ")
+        tab.columnconfigure(1, weight=1)
+
+        row = 0
+        self._refs_file_row = _FileBrowseRow(
+            tab, "References File:", row, browse_type="save", file_types=TOML_FILE_TYPES
+        )
+        row += 1
+        ttk.Label(
+            tab,
+            text="    Default when empty: {document}_refs.toml",
+            font=("Segoe UI", 8),
+            bootstyle="light",  # type: ignore[call-arg]
+        ).grid(row=row, column=0, columnspan=3, sticky="w", padx=4, pady=(0, 12))
+        row += 1
+
+        row = self._add_section(tab, "Reference Filters", row)
+
+        self._refs_bool_vars: dict[str, tk.BooleanVar] = {}
+        for key, label in [
+            ("no_default", "Exclude built-in default references (VBA, host app, stdole)  (--no-default)"),
+            ("no_installed", "Exclude installed COM library references (registered on system)  (--no-installed)"),
+            ("no_custom", "Exclude custom file-path references (.docm, .dotm, .xlam)  (--no-custom)"),
+        ]:
+            var = tk.BooleanVar()
+            self._refs_bool_vars[key] = var
+            var.trace_add("write", lambda *_: self._update_preview())
+            ttk.Checkbutton(
+                tab,
+                text=label,
+                variable=var,
+                bootstyle="round-toggle",  # type: ignore[call-arg]
+            ).grid(row=row, column=0, columnspan=3, sticky="w", padx=20, pady=4)
+            row += 1
+
+        self._refs_file_row.var.trace_add("write", lambda *_: self._update_preview())
+
+        # Absorb remaining vertical space so content stays top-aligned
+        tab.rowconfigure(row, weight=1)
+
+    # ── TOML generation ───────────────────────────────────────────────────────
+
+    def _generate_toml(self) -> str:
+        """Build a TOML config string from the current form state."""
+        return build_toml(
+            file=self._file_row.get(),
+            vba_directory=self._vba_dir_row.get(),
+            logfile=self._logfile_row.get(),
+            encoding_mode=self._encoding_mode.get(),
+            encoding_value=self._encoding_combo.get().strip(),
+            header_mode=self._header_mode.get(),
+            bool_flags={k: v.get() for k, v in self._bool_vars.items()},
+            refs_file=self._refs_file_row.get(),
+            refs_bool_flags={k: v.get() for k, v in self._refs_bool_vars.items()},
+        )
+
+    def _update_preview(self, *_args: object) -> None:
+        toml_text = self._generate_toml()
+        self.preview_text.configure(state="normal")
+        self.preview_text.delete("1.0", "end")
+        self.preview_text.insert("1.0", toml_text)
+        self.preview_text.configure(state="disabled")
+
+    def _save_config(self) -> None:
+        default_name = f"{self.app}-vba.toml" if self.app else "vba_edit.toml"
+        path = filedialog.asksaveasfilename(
+            defaultextension=".toml",
+            filetypes=TOML_FILE_TYPES,
+            initialfile=default_name,
+            title="Save vba-edit Config File",
+        )
+        if not path:
+            return
+        try:
+            Path(path).write_text(self._generate_toml(), encoding="utf-8")
+            messagebox.showinfo("Saved", f"Configuration saved to:\n{path}")
+        except OSError as exc:
+            messagebox.showerror("Save Error", f"Could not write file:\n{exc}")
+
+    def _load_config(self) -> None:
+        """Open an existing vba_edit.toml and populate all form fields."""
+        path = filedialog.askopenfilename(
+            filetypes=TOML_FILE_TYPES,
+            title="Open vba-edit Config File",
+        )
+        if not path:
+            return
+        try:
+            from vba_edit.cli_common import load_config_file
+
+            config = load_config_file(path)
+        except Exception as exc:
+            messagebox.showerror("Load Error", f"Could not read config file:\n{exc}")
+            return
+
+        g = config.get("general", {})
+        r = config.get("references", {})
+
+        # Path fields
+        self._file_row.var.set(g.get("file", ""))
+        self._vba_dir_row.var.set(g.get("vba_directory", ""))
+        self._logfile_row.var.set(g.get("logfile", ""))
+
+        # Encoding
+        if g.get("detect_encoding"):
+            self._encoding_mode.set("detect")
+        elif "encoding" in g:
+            self._encoding_mode.set("custom")
+            self._encoding_combo.configure(state="normal")
+            self._encoding_combo.set(g["encoding"])
+        else:
+            self._encoding_mode.set("system")
+            self._encoding_combo.configure(state="disabled")
+
+        # Header mode
+        if g.get("save_headers"):
+            self._header_mode.set("save_headers")
+        elif g.get("in_file_headers"):
+            self._header_mode.set("in_file_headers")
+        else:
+            self._header_mode.set("none")
+
+        # Boolean flags
+        for key, var in self._bool_vars.items():
+            var.set(bool(g.get(key, False)))
+
+        # References
+        self._refs_file_row.var.set(r.get("refs_file", ""))
+        for key, var in self._refs_bool_vars.items():
+            var.set(bool(r.get(key, False)))
+
+        self._update_preview()
+
+    # ── Utility ───────────────────────────────────────────────────────────────
+
+    @staticmethod
+    def _add_section(parent: ttk.Frame, title: str, row: int) -> int:
+        """Insert a separator + bold section label; returns the next free row."""
+        ttk.Separator(parent, orient="horizontal").grid(
+            row=row, column=0, columnspan=3, sticky="ew", padx=4, pady=(10, 0)
+        )
+        row += 1
+        ttk.Label(
+            parent,
+            text=title,
+            font=("Segoe UI", 9, "bold"),
+            bootstyle="light",  # type: ignore[call-arg]
+        ).grid(row=row, column=0, columnspan=3, sticky="w", padx=8, pady=(2, 4))
+        return row + 1
+
+
+# ── Entry point ───────────────────────────────────────────────────────────────
+
+
+def _require_ttkbootstrap() -> None:
+    """Exit with a helpful message if ttkbootstrap is not installed."""
+    if not _HAS_TTKBOOTSTRAP:
+        print(
+            "Error: ttkbootstrap is required for the Config Generator.\nInstall it with:  pip install ttkbootstrap",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
+
+def config_gen_main(app: str | None = None) -> None:
+    """Launch the app-specific Config Generator (used by excel-vba config-gen etc.)."""
+    _require_ttkbootstrap()
+    ConfigGenApp(app=app).mainloop()
+
+
+def wizard_main() -> None:
+    """Launch the vba-edit onboarding wizard (used by the vba-edit entry point).
+
+    Currently opens the generic Config Generator. The full wizard (Trust Access
+    check → app picker → config form → launch panel) is implemented in a
+    follow-up step.
+    """
+    _require_ttkbootstrap()
+    ConfigGenApp(app=None).mainloop()
+
+
+def main() -> None:
+    """Legacy entry point — delegates to wizard_main()."""
+    wizard_main()
+
+
+if __name__ == "__main__":
+    main()

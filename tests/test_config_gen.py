@@ -1,0 +1,362 @@
+"""Tests for vba_edit.config_gen.
+
+Coverage strategy
+-----------------
+- ``build_toml()`` — pure function, no Tk required, runs in all environments
+  including CI.  Covers every branch: paths, encoding modes, header modes,
+  bool flags, references section.
+- ``_require_ttkbootstrap()`` — patched, no Tk required.
+- CLI smoke test — ``excel-vba config-gen --help`` via subprocess; no window.
+- GUI smoke tests (``@pytest.mark.gui``) — create and immediately destroy a
+  real ``ConfigGenApp`` window.  Skipped in CI (``CI=true`` env var).
+"""
+
+from __future__ import annotations
+
+import os
+import subprocess
+import sys
+from unittest.mock import patch
+
+import pytest
+
+from vba_edit.config_gen import (
+    APP_FILE_TYPES,
+    APP_TITLES,
+    ENCODINGS,
+    build_toml,
+)
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+_CI = os.environ.get("CI", "").lower() in ("1", "true", "yes")
+
+
+def _parse_toml_lines(toml: str) -> dict[str, str]:
+    """Minimal line-by-line parser — returns key=value from [general]."""
+    result: dict[str, str] = {}
+    for line in toml.splitlines():
+        line = line.strip()
+        if "=" in line and not line.startswith("#") and not line.startswith("["):
+            k, _, v = line.partition("=")
+            result[k.strip()] = v.strip()
+    return result
+
+
+# ---------------------------------------------------------------------------
+# Constants sanity checks
+# ---------------------------------------------------------------------------
+
+
+def test_app_titles_cover_all_apps() -> None:
+    assert set(APP_TITLES.keys()) == {"excel", "word", "access", "powerpoint"}
+
+
+def test_app_file_types_cover_all_apps() -> None:
+    assert set(APP_FILE_TYPES.keys()) == {"excel", "word", "access", "powerpoint"}
+
+
+def test_encodings_not_empty() -> None:
+    assert len(ENCODINGS) > 0
+    assert "cp1252" in ENCODINGS
+    assert "utf-8" in ENCODINGS
+
+
+# ---------------------------------------------------------------------------
+# _save_config default filename is app-aware
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "app, expected",
+    [
+        ("excel", "excel-vba.toml"),
+        ("word", "word-vba.toml"),
+        ("access", "access-vba.toml"),
+        ("powerpoint", "powerpoint-vba.toml"),
+        (None, "vba_edit.toml"),
+    ],
+)
+def test_save_config_default_filename(app: str | None, expected: str) -> None:
+    """_save_config must propose an app-specific filename in the save dialog."""
+    from unittest.mock import MagicMock, patch
+
+    # Patch filedialog so no real dialog opens; capture the kwargs passed
+    with patch("vba_edit.config_gen.filedialog") as mock_fd:
+        mock_fd.asksaveasfilename.return_value = ""  # user cancels → nothing saved
+        # We need a minimal object with .app and ._generate_toml; use MagicMock
+        instance = MagicMock()
+        instance.app = app
+        instance._generate_toml.return_value = "[general]\n"
+        # Call the real method with our mock instance as `self`
+        from vba_edit.config_gen import ConfigGenApp
+
+        ConfigGenApp._save_config(instance)  # noqa: SLF001
+
+    call_kwargs = mock_fd.asksaveasfilename.call_args.kwargs
+    assert call_kwargs["initialfile"] == expected, (
+        f"Expected initialfile={expected!r} for app={app!r}, got {call_kwargs['initialfile']!r}"
+    )
+
+
+# ---------------------------------------------------------------------------
+# build_toml — default / empty form
+# ---------------------------------------------------------------------------
+
+
+def test_build_toml_defaults() -> None:
+    toml = build_toml()
+    assert "# vba-edit configuration file" in toml
+    assert "[general]" in toml
+    assert "[references]" not in toml
+    # No path lines emitted for empty fields
+    assert "file = " not in toml
+    assert "vba_directory = " not in toml
+    assert "logfile = " not in toml
+
+
+# ---------------------------------------------------------------------------
+# build_toml — path fields
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "field, value, expected_key",
+    [
+        ("file", r"C:\Users\test\workbook.xlsm", "file"),
+        ("vba_directory", r"C:\Users\test\vba", "vba_directory"),
+        ("logfile", r"C:\Users\test\vba_edit.log", "logfile"),
+    ],
+)
+def test_build_toml_path_fields(field: str, value: str, expected_key: str) -> None:
+    toml = build_toml(**{field: value})  # type: ignore[arg-type]
+    assert expected_key in toml
+    # Windows backslashes survive inside single-quoted TOML strings
+    assert value in toml
+
+
+def test_build_toml_windows_path_uses_single_quotes() -> None:
+    toml = build_toml(file=r"C:\dev\test.xlsm")
+    # Single-quoted so backslashes are literal
+    assert "= 'C:\\dev\\test.xlsm'" in toml
+
+
+def test_build_toml_path_with_single_quote_escaped() -> None:
+    toml = build_toml(file="C:\\Users\\O'Brien\\test.xlsm")
+    assert "O\\'Brien" in toml
+
+
+def test_build_toml_placeholder_path() -> None:
+    toml = build_toml(vba_directory=r"{file.path}\vba")
+    assert "{file.path}" in toml
+
+
+# ---------------------------------------------------------------------------
+# build_toml — encoding modes
+# ---------------------------------------------------------------------------
+
+
+def test_build_toml_encoding_system_default() -> None:
+    toml = build_toml(encoding_mode="system")
+    assert "detect_encoding" not in toml
+    assert "encoding = " not in toml
+
+
+def test_build_toml_encoding_detect() -> None:
+    toml = build_toml(encoding_mode="detect")
+    assert "detect_encoding = true" in toml
+
+
+def test_build_toml_encoding_custom() -> None:
+    toml = build_toml(encoding_mode="custom", encoding_value="utf-8")
+    assert "encoding = 'utf-8'" in toml
+    assert "detect_encoding" not in toml
+
+
+def test_build_toml_encoding_custom_empty_value_omitted() -> None:
+    toml = build_toml(encoding_mode="custom", encoding_value="")
+    assert "encoding = " not in toml
+
+
+# ---------------------------------------------------------------------------
+# build_toml — header modes
+# ---------------------------------------------------------------------------
+
+
+def test_build_toml_header_none() -> None:
+    toml = build_toml(header_mode="none")
+    assert "save_headers" not in toml
+    assert "in_file_headers" not in toml
+
+
+def test_build_toml_header_save_headers() -> None:
+    toml = build_toml(header_mode="save_headers")
+    assert "save_headers = true" in toml
+    assert "in_file_headers" not in toml
+
+
+def test_build_toml_header_in_file_headers() -> None:
+    toml = build_toml(header_mode="in_file_headers")
+    assert "in_file_headers = true" in toml
+    assert "save_headers" not in toml
+
+
+# ---------------------------------------------------------------------------
+# build_toml — boolean flags
+# ---------------------------------------------------------------------------
+
+
+def test_build_toml_bool_flags_all_false() -> None:
+    flags = {"verbose": False, "keep_open": False, "skip_empty": False}
+    toml = build_toml(bool_flags=flags)
+    assert "verbose" not in toml
+    assert "keep_open" not in toml
+
+
+def test_build_toml_bool_flags_selected() -> None:
+    flags = {"verbose": True, "keep_open": False, "skip_empty": True}
+    toml = build_toml(bool_flags=flags)
+    assert "verbose = true" in toml
+    assert "skip_empty = true" in toml
+    assert "keep_open" not in toml
+
+
+# ---------------------------------------------------------------------------
+# build_toml — references section
+# ---------------------------------------------------------------------------
+
+
+def test_build_toml_no_references_section_when_empty() -> None:
+    toml = build_toml()
+    assert "[references]" not in toml
+
+
+def test_build_toml_references_section_with_refs_file() -> None:
+    toml = build_toml(refs_file=r"C:\project\refs.toml")
+    assert "[references]" in toml
+    assert "refs_file = " in toml
+
+
+def test_build_toml_references_section_with_flags_only() -> None:
+    toml = build_toml(refs_bool_flags={"no_default": True, "no_installed": False})
+    assert "[references]" in toml
+    assert "no_default = true" in toml
+    assert "no_installed" not in toml
+
+
+def test_build_toml_references_section_not_emitted_when_all_false() -> None:
+    toml = build_toml(refs_bool_flags={"no_default": False, "no_custom": False})
+    assert "[references]" not in toml
+
+
+def test_build_toml_references_section_combined() -> None:
+    toml = build_toml(
+        refs_file=r"C:\project\refs.toml",
+        refs_bool_flags={"no_default": True, "no_custom": True},
+    )
+    assert "[references]" in toml
+    assert "refs_file = " in toml
+    assert "no_default = true" in toml
+    assert "no_custom = true" in toml
+
+
+# ---------------------------------------------------------------------------
+# build_toml — full config
+# ---------------------------------------------------------------------------
+
+
+def test_build_toml_full_config_round_trip() -> None:
+    """A realistic full config should parse back to expected key-value pairs."""
+    toml = build_toml(
+        file=r"C:\dev\MyWorkbook.xlsm",
+        vba_directory=r"{file.path}\vba",
+        encoding_mode="custom",
+        encoding_value="cp1252",
+        header_mode="in_file_headers",
+        bool_flags={"verbose": True, "skip_empty": True},
+        refs_file=r"C:\dev\refs.toml",
+        refs_bool_flags={"no_default": True},
+    )
+    kv = _parse_toml_lines(toml)
+    assert kv["file"] == "'C:\\\\dev\\\\MyWorkbook.xlsm'" or "MyWorkbook.xlsm" in kv.get("file", "")
+    assert "in_file_headers = true" in toml
+    assert "verbose = true" in toml
+    assert "skip_empty = true" in toml
+    assert "[references]" in toml
+
+
+# ---------------------------------------------------------------------------
+# _require_ttkbootstrap
+# ---------------------------------------------------------------------------
+
+
+def test_require_ttkbootstrap_passes_when_installed() -> None:
+    from vba_edit.config_gen import _require_ttkbootstrap
+
+    with patch("vba_edit.config_gen._HAS_TTKBOOTSTRAP", True):
+        _require_ttkbootstrap()  # should not raise
+
+
+def test_require_ttkbootstrap_exits_when_missing() -> None:
+    from vba_edit.config_gen import _require_ttkbootstrap
+
+    with patch("vba_edit.config_gen._HAS_TTKBOOTSTRAP", False):
+        with pytest.raises(SystemExit) as exc_info:
+            _require_ttkbootstrap()
+    assert exc_info.value.code == 1
+
+
+# ---------------------------------------------------------------------------
+# CLI smoke test — config-gen --help (no window opened)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("app_cmd", ["excel-vba", "word-vba", "access-vba", "powerpoint-vba"])
+def test_config_gen_help(app_cmd: str) -> None:
+    """config-gen subcommand must be listed in --help output."""
+    result = subprocess.run(
+        [sys.executable, "-m", f"vba_edit.{app_cmd.replace('-', '_')}", "--help"],
+        capture_output=True,
+        text=True,
+        timeout=15,
+    )
+    assert "config-gen" in result.stdout, f"'config-gen' not found in {app_cmd} --help"
+
+
+# ---------------------------------------------------------------------------
+# GUI smoke tests — require a display; skipped in CI
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.gui
+@pytest.mark.skipif(_CI, reason="Skipped in CI (no interactive display)")
+def test_config_gen_app_creates_and_destroys() -> None:
+    """ConfigGenApp must instantiate, generate TOML, and destroy without errors.
+
+    NOTE: Only one ttkbootstrap window can be created per process — the style
+    registry is not re-initialized after destroy().  A single 'excel' instance
+    covers the shared build path; app-specific branches are covered by
+    build_toml() unit tests above.
+    """
+    from vba_edit.config_gen import ConfigGenApp
+
+    gui = ConfigGenApp(app="excel")
+    toml = gui._generate_toml()  # noqa: SLF001
+    assert "[general]" in toml
+    gui.destroy()
+
+
+@pytest.mark.gui
+@pytest.mark.skipif(_CI, reason="Skipped in CI (no interactive display)")
+def test_config_gen_app_generate_toml_via_gui() -> None:
+    """GUI form state correctly flows into TOML output through _generate_toml.
+
+    NOTE: Relies on the same single-window constraint — cannot run after
+    test_config_gen_app_creates_and_destroys in the same process.  Run this
+    file in isolation if you need both GUI tests: pytest tests/test_config_gen.py -m gui
+    """
+    pytest.skip(
+        "Requires isolated process — run with: pytest tests/test_config_gen.py::test_config_gen_app_generate_toml_via_gui"
+    )

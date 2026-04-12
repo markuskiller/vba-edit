@@ -366,6 +366,16 @@ class OfficeVBACLI:
             extra_args_func(import_parser)
             extra_args_func(export_parser)
 
+        # Config-gen command
+        config_gen_parser = subparsers.add_parser(
+            "config-gen",
+            help="Open GUI config file generator",
+            description=f"Launch the graphical config file generator for {self.config['app_name']} VBA projects.",
+            formatter_class=EnhancedHelpFormatter,
+            add_help=False,
+        )
+        add_common_option_group(config_gen_parser)
+
         # References command
         references_parser = subparsers.add_parser(
             "references",
@@ -509,7 +519,7 @@ IMPORTANT: Requires "Trust access to the VBA project object model" enabled in {s
         The 'check' command doesn't use file/vba_directory arguments.
         """
         # Skip validation for commands that don't use file paths
-        if args.command == "check":
+        if args.command in ("check", "config-gen"):
             return
 
         if args.file and not Path(args.file).exists():
@@ -1111,6 +1121,11 @@ IMPORTANT: Requires "Trust access to the VBA project object model" enabled in {s
                         check_vba_trust_access(self.office_app)  # Check specific Office app only
                 except Exception as e:
                     self.logger.error(f"Failed to check Trust Access to VBA project object model: {str(e)}")
+                sys.exit(0)
+            elif args.command == "config-gen":
+                from vba_edit.config_gen import config_gen_main
+
+                config_gen_main(app=self.office_app)
                 sys.exit(0)
             elif args.command == "references":
                 self._handle_references_command(args)

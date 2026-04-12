@@ -58,4 +58,4 @@ jobs:
       - name: Run Pytest
         timeout-minutes: 15  # Prevent runaway tests from blocking CI
         run: |
-          pytest -m "not integration"
+          pytest -m "not integration and not gui"
