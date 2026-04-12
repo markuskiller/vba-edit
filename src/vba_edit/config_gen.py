@@ -501,10 +501,11 @@ class ConfigGenApp(ttk.Window):  # type: ignore[misc]
         self.preview_text.configure(state="disabled")
 
     def _save_config(self) -> None:
+        default_name = f"{self.app}-vba.toml" if self.app else "vba_edit.toml"
         path = filedialog.asksaveasfilename(
             defaultextension=".toml",
             filetypes=TOML_FILE_TYPES,
-            initialfile="vba_edit.toml",
+            initialfile=default_name,
             title="Save vba-edit Config File",
         )
         if not path:

@@ -65,6 +65,43 @@ def test_encodings_not_empty() -> None:
 
 
 # ---------------------------------------------------------------------------
+# _save_config default filename is app-aware
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "app, expected",
+    [
+        ("excel", "excel-vba.toml"),
+        ("word", "word-vba.toml"),
+        ("access", "access-vba.toml"),
+        ("powerpoint", "powerpoint-vba.toml"),
+        (None, "vba_edit.toml"),
+    ],
+)
+def test_save_config_default_filename(app: str | None, expected: str) -> None:
+    """_save_config must propose an app-specific filename in the save dialog."""
+    from unittest.mock import MagicMock, patch
+
+    # Patch filedialog so no real dialog opens; capture the kwargs passed
+    with patch("vba_edit.config_gen.filedialog") as mock_fd:
+        mock_fd.asksaveasfilename.return_value = ""  # user cancels → nothing saved
+        # We need a minimal object with .app and ._generate_toml; use MagicMock
+        instance = MagicMock()
+        instance.app = app
+        instance._generate_toml.return_value = "[general]\n"
+        # Call the real method with our mock instance as `self`
+        from vba_edit.config_gen import ConfigGenApp
+
+        ConfigGenApp._save_config(instance)  # noqa: SLF001
+
+    call_kwargs = mock_fd.asksaveasfilename.call_args.kwargs
+    assert call_kwargs["initialfile"] == expected, (
+        f"Expected initialfile={expected!r} for app={app!r}, got {call_kwargs['initialfile']!r}"
+    )
+
+
+# ---------------------------------------------------------------------------
 # build_toml — default / empty form
 # ---------------------------------------------------------------------------
 
