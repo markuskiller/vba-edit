@@ -45,6 +45,7 @@ dev = [
     "filelock>=3.20.1",      # Security fix for GHSA-w853-jp5j-5j7f (symlink race condition)
 ]
 all = ["xlwings>=0.28.0"]
+gui = ["ttkbootstrap>=1.10.0"]
 
 [tool.setuptools.packages.find]
 where = ["src"]
