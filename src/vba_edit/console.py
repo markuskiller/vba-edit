@@ -112,6 +112,7 @@ try:
             # Filenames
             "vba_edit.log",
             # Dev tools and libraries
+            "GUI",
             "RubberduckVBA",
             "@Folder",
             "xlwings",
@@ -128,6 +129,7 @@ try:
             "check",
             "list",
             "references",
+            "config-gen",
             # Command verbs (capitalized for emphasis in sentences)
             "Edit",
             "Export",
