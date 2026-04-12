@@ -3,9 +3,7 @@
 Provides a graphical wizard to create TOML configuration files
 for the vba-edit CLI tools without hand-editing TOML syntax.
 
-Requirements:
-    pip install "vba-edit[gui]"      # installs ttkbootstrap
-    uv sync --extra gui
+ttkbootstrap is included in the standard vba-edit install.
 """
 
 from __future__ import annotations
@@ -566,9 +564,7 @@ def _require_ttkbootstrap() -> None:
     """Exit with a helpful message if ttkbootstrap is not installed."""
     if not _HAS_TTKBOOTSTRAP:
         print(
-            "Error: ttkbootstrap is required for the Config Generator.\n"
-            'Install it with:  pip install "vba-edit[gui]"\n'
-            "Or directly:      pip install ttkbootstrap",
+            "Error: ttkbootstrap is required for the Config Generator.\nInstall it with:  pip install ttkbootstrap",
             file=sys.stderr,
         )
         sys.exit(1)
