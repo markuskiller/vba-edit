@@ -7,8 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.5.1a2] - 2026-04-12
-
 ### Added
 
 - **Config Generator GUI** (`config-gen`): New interactive form for generating vba-edit TOML configuration files without manually editing text
