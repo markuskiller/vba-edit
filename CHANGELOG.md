@@ -19,6 +19,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **References Not Saved to Disk**: `references add`, `references import`, and `references remove` now save the document after making changes, so reference updates survive the next time the file is opened ([Issue #99](https://github.com/markuskiller/vba-edit/issues/99))
+  - Previously the document was closed with `SaveChanges=False`, silently discarding every reference change
+
 - **UserForm Export Error on Same-Directory Workbooks**: Fixed `[WinError 32]` crash when exporting from a workbook located in the same folder as the VBA output directory ([Issue #93](https://github.com/markuskiller/vba-edit/issues/93), related: [#83](https://github.com/markuskiller/vba-edit/issues/83))
   - The v0.4.4 fix only covered the import path; export had the same problem when `vba-dir` equals the workbook directory
   - Export now detects when source and target `.frx` are the same file and skips the redundant copy

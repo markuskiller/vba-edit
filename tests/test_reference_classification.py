@@ -675,3 +675,105 @@ class TestImportFilterWarning:
             manager.import_from_toml(toml_path)
 
         assert not any("exported with filters" in msg for msg in caplog.messages)
+
+
+# ---------------------------------------------------------------------------
+# Regression test: mutating references commands must call doc.Save()
+# Issue #99: references add / import / remove did not persist changes to disk
+# ---------------------------------------------------------------------------
+
+
+class TestReferencesSavePersistence:
+    """Regression tests for issue #99.
+
+    Verifies that _handle_references_command calls doc.Save() after mutating
+    subcommands (add, import, remove) so changes are persisted to disk.
+    Read-only subcommands (list, export, validate) must NOT trigger a save.
+    """
+
+    def _make_args(self, subcommand, file_path, **kwargs):
+        """Build a minimal argparse.Namespace for _handle_references_command."""
+        import argparse
+
+        defaults = dict(
+            refs_subcommand=subcommand,
+            file=str(file_path),
+            refs_file=None,
+            verbose=False,
+            logfile=None,
+            no_default=False,
+            no_installed=False,
+            no_custom=False,
+            sync=False,
+            force_overwrite=False,
+        )
+        defaults.update(kwargs)
+        return argparse.Namespace(**defaults)
+
+    def _run_with_mocks(self, subcommand, tmp_path, extra_args=None):
+        """Run _handle_references_command with fully mocked COM layer.
+
+        Returns the mock document so callers can assert on doc.Save().
+        """
+        from vba_edit.office_cli import OfficeVBACLI
+        from vba_edit.reference_manager import ReferenceManager
+
+        # Create a real (but empty) dotm file so Path(...).resolve() works
+        fake_doc = tmp_path / "test.dotm"
+        fake_doc.write_text("")
+
+        args = self._make_args(subcommand, fake_doc, **(extra_args or {}))
+
+        mock_doc = MagicMock()
+        mock_app = MagicMock()
+        mock_app.Documents.Open.return_value = mock_doc
+
+        # Build a ReferenceManager whose COM methods are all no-ops
+        mock_manager = MagicMock(spec=ReferenceManager)
+        mock_manager.add_reference_by_path.return_value = True
+        mock_manager.import_from_toml.return_value = {"added": 1, "skipped": 0, "failed": 0}
+        mock_manager.remove_reference.return_value = True
+        mock_manager.list_references.return_value = []
+        mock_manager.export_to_toml.return_value = []
+
+        cli = OfficeVBACLI("word")
+
+        with (
+            patch("win32com.client.Dispatch", return_value=mock_app),
+            patch("vba_edit.office_cli.ReferenceManager", return_value=mock_manager),
+            patch("vba_edit.office_cli.setup_logging"),
+        ):
+            try:
+                cli._handle_references_command(args)
+            except SystemExit as exc:
+                # list / validate call sys.exit(0) on success — that's fine
+                if exc.code != 0:
+                    raise
+
+        return mock_doc
+
+    @pytest.mark.parametrize("subcommand", ["add", "import", "remove"])
+    def test_mutating_subcommand_saves_document(self, subcommand, tmp_path):
+        """add / import / remove must call doc.Save() to persist changes (issue #99)."""
+        extra = {}
+        if subcommand == "add":
+            lib = tmp_path / "MyLib.dotm"
+            lib.write_text("")
+            extra["library"] = str(lib)
+        elif subcommand == "import":
+            refs = tmp_path / "refs.toml"
+            refs.write_text(
+                '[[references]]\nname = "TestLib"\nguid = "{AAAAAAAA-BBBB-CCCC-DDDD-EEEEEEEEEEEE}"\nmajor = 1\nminor = 0\n'
+            )
+            extra["refs_file"] = str(refs)
+        elif subcommand == "remove":
+            extra["ref_name"] = "OldLib"
+
+        mock_doc = self._run_with_mocks(subcommand, tmp_path, extra)
+        mock_doc.Save.assert_called_once()
+
+    @pytest.mark.parametrize("subcommand", ["list", "validate"])
+    def test_readonly_subcommand_does_not_save(self, subcommand, tmp_path):
+        """list / validate must NOT call doc.Save() — they don't change anything."""
+        mock_doc = self._run_with_mocks(subcommand, tmp_path)
+        mock_doc.Save.assert_not_called()

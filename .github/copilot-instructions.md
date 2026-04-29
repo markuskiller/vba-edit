@@ -1,3 +1,8 @@
+# Repository
+
+**GitHub repository**: `markuskiller/vba-edit`
+Always use this exact owner/name for all `gh` CLI calls — never guess or derive it.
+
 # Project Overview
 
 This project is a command-line application that allows users to export, import, and edit VBA code from Microsoft Office files using external editors with one-way sync back to Office.

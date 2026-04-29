@@ -1008,6 +1008,21 @@ IMPORTANT: Requires "Trust access to the VBA project object model" enabled in {s
             manager = ReferenceManager(doc)
             self._dispatch_refs_subcommand(manager, subcommand, args, doc_path, refs_file)
 
+            # Persist reference changes to disk for mutating subcommands.
+            # Must happen here (before finally/_close_refs_doc) because
+            # _close_refs_doc uses SaveChanges=False to avoid prompts.
+            if subcommand in ("add", "import", "remove") and doc is not None:
+                if self.office_app in ("excel", "word", "powerpoint"):
+                    try:
+                        doc.Save()
+                        self.logger.debug(
+                            f"Document saved after references '{subcommand}' operation"
+                        )
+                    except Exception as save_err:
+                        self.logger.warning(
+                            f"Could not save document after references '{subcommand}': {save_err}"
+                        )
+
         except VBAReferenceError as e:
             self.logger.error(f"Reference error: {e}")
             sys.exit(1)
