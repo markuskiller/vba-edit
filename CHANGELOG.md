@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Config Generator Version Display**: The Config Generator now shows the active vba-edit version in the window title, header, TOML preview, and saved configuration files
+
 ## [0.5.1] - 2026-05-17
 
 ### Added
