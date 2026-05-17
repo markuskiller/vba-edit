@@ -17,21 +17,25 @@ def create_build_config():
             "script": os.path.join(src_dir, "word_vba.py"),
             "name": "word-vba",
             "description": "Word VBA CLI tool",
+            "icon": "word-vba-logo.ico",
         },
         "excel": {
             "script": os.path.join(src_dir, "excel_vba.py"),
             "name": "excel-vba",
             "description": "Excel VBA CLI tool",
+            "icon": "excel-vba-logo.ico",
         },
         "access": {
             "script": os.path.join(src_dir, "access_vba.py"),
             "name": "access-vba",
             "description": "Access VBA CLI tool",
+            "icon": "access-vba-logo.ico",
         },
         "powerpoint": {
             "script": os.path.join(src_dir, "powerpoint_vba.py"),
             "name": "powerpoint-vba",
             "description": "PowerPoint VBA CLI tool",
+            "icon": "powerpoint-vba-logo.ico",
         },
     }
 
@@ -154,6 +158,7 @@ def build_executable(app_name: str, config: dict, src_dir: str, additional_args:
     script_path = config["script"]
     exe_name = config["name"]
     description = config["description"]
+    icon_name = config.get("icon")
 
     # Check if script exists
     if not os.path.exists(script_path):
@@ -164,7 +169,9 @@ def build_executable(app_name: str, config: dict, src_dir: str, additional_args:
     version_file = create_version_file(exe_name, description)
 
     # Get path to pyproject.toml for version info
-    pyproject_path = Path(__file__).parent / "pyproject.toml"
+    project_root = Path(__file__).parent
+    pyproject_path = project_root / "pyproject.toml"
+    assets_dir = project_root / "src" / "vba_edit" / "assets"
 
     # Base PyInstaller arguments
     args = [
@@ -178,6 +185,16 @@ def build_executable(app_name: str, config: dict, src_dir: str, additional_args:
         # Include pyproject.toml in the bundle for version detection
         f"--add-data={pyproject_path};.",
     ]
+
+    if assets_dir.exists():
+        args.append(f"--add-data={assets_dir};vba_edit/assets")
+
+    if icon_name:
+        icon_path = assets_dir / icon_name
+        if icon_path.exists():
+            args.append(f"--icon={icon_path}")
+        else:
+            print(f"Warning: Icon not found for {exe_name}: {icon_path}")
 
     # Add any additional arguments
     if additional_args:

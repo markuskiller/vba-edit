@@ -3,3 +3,4 @@ include AUTHORS.md
 include SECURITY.md
 include CHANGELOG.md
 recursive-include LICENSES *.txt
+recursive-include src/vba_edit/assets *.ico *.png

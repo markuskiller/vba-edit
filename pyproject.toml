@@ -53,6 +53,9 @@ where = ["src"]
 [tool.setuptools.package-dir]
 "" = "src"
 
+[tool.setuptools.package-data]
+vba_edit = ["assets/*"]
+
 [project.scripts]
 word-vba = "vba_edit.word_vba:main"
 excel-vba = "vba_edit.excel_vba:main"

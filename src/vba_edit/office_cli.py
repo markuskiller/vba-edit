@@ -1015,13 +1015,9 @@ IMPORTANT: Requires "Trust access to the VBA project object model" enabled in {s
                 if self.office_app in ("excel", "word", "powerpoint"):
                     try:
                         doc.Save()
-                        self.logger.debug(
-                            f"Document saved after references '{subcommand}' operation"
-                        )
+                        self.logger.debug(f"Document saved after references '{subcommand}' operation")
                     except Exception as save_err:
-                        self.logger.warning(
-                            f"Could not save document after references '{subcommand}': {save_err}"
-                        )
+                        self.logger.warning(f"Could not save document after references '{subcommand}': {save_err}")
 
         except VBAReferenceError as e:
             self.logger.error(f"Reference error: {e}")

@@ -105,6 +105,7 @@ class ColorizedArgumentParser(argparse.ArgumentParser):
         """
         if message:
             import sys
+
             if file is sys.stderr:
                 file.write(message)
             else:

@@ -398,6 +398,7 @@ def _get_cli_explicit_args(parser: argparse.ArgumentParser, args: argparse.Names
     # re-raise so the caller can fall back to the is-None check.
     import io
     import sys as _sys
+
     _stderr = _sys.stderr
     try:
         _sys.stderr = io.StringIO()

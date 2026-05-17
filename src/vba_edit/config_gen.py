@@ -61,6 +61,26 @@ APP_TITLES: dict[str, str] = {
     "powerpoint": "PowerPoint VBA  ·  Config Generator",
 }
 
+APP_ICON_BASENAMES: dict[str, str] = {
+    "excel": "excel-vba-logo",
+    "word": "word-vba-logo",
+    "access": "access-vba-logo",
+    "powerpoint": "powerpoint-vba-logo",
+}
+
+
+def _asset_path(filename: str) -> Path:
+    """Return an asset path in development, installed packages, or PyInstaller bundles."""
+    if getattr(sys, "frozen", False):
+        return Path(sys._MEIPASS) / "vba_edit" / "assets" / filename  # type: ignore[attr-defined]
+    return Path(__file__).parent / "assets" / filename
+
+
+def _app_asset_path(app: str | None, extension: str) -> Path:
+    basename = APP_ICON_BASENAMES.get(app or "", "logo")
+    return _asset_path(f"{basename}.{extension}")
+
+
 # ── Helper widget ──────────────────────────────────────────────────────────────
 
 
@@ -195,6 +215,10 @@ class ConfigGenApp(ttk.Window):  # type: ignore[misc]
             themename="darkly",
             resizable=(True, True),
         )
+        icon_path = _app_asset_path(self.app, "ico")
+        if icon_path.exists():
+            self.iconbitmap(str(icon_path))
+
         # Fixed window size — adjust per display if needed
         w, h, sash_y = 1700, 1500, 590
         self.geometry(f"{w}x{h}")
@@ -210,6 +234,11 @@ class ConfigGenApp(ttk.Window):  # type: ignore[misc]
         title_frame = ttk.Frame(self, padding=(12, 8, 12, 4))
         title_frame.pack(fill="x")
         app_label = APP_TITLES.get(self.app or "", "vba-edit  ·  Config Generator")
+        logo_path = _app_asset_path(self.app, "png")
+        if logo_path.exists():
+            self._logo_image = tk.PhotoImage(file=str(logo_path))
+            ttk.Label(title_frame, image=self._logo_image).pack(side="left", padx=(0, 8))
+
         ttk.Label(
             title_frame,
             text=app_label,
