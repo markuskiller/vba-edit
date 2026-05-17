@@ -14,8 +14,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - App-aware form: file picker filters, xlwings toggle (Excel only), UserForms notice (Access)
   - Live TOML preview updates as you fill in the form, with a draggable divider to resize the preview area
   - Open and edit an existing config file directly in the form
-  - Save the generated config as a `.toml` file ready to use with `--config-file`
+  - Save the generated config as a `.toml` file ready to use with `--conf`
   - GUI framework (`ttkbootstrap`) is included in the standard install — no extras required
+
+### Changed
+
+- **App-Specific Icons**: Windows executables and Config Generator windows now use distinct icons for Excel, Word, PowerPoint, and Access
+  - The generic `vba-edit` icon remains the fallback for shared/package contexts
+  - Makes downloaded `.exe` files easier to distinguish in File Explorer, the taskbar, and window lists
 
 ### Fixed
 

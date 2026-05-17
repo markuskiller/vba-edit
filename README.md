@@ -48,6 +48,9 @@ Available binaries:
 # Start editing (uses active Excel/Word document) — no install required!
 uvx excel-vba edit    # or: uvx word-vba edit
 
+# Prefer a config file? Open the GUI generator first.
+uvx excel-vba config-gen
+
 # That's it! Edit the .bas/.cls files in your editor. Save = Sync.
 ```
 
@@ -129,6 +132,12 @@ uvx excel-vba edit                # Start with active workbook — no install re
 excel-vba edit                    # If already installed
 ```
 
+### Create a Config File
+```bash
+uvx excel-vba config-gen          # Open the config generator GUI
+excel-vba export --conf vba-config.toml
+```
+
 ### Quick Export with Folder View
 ```bash
 excel-vba export --open-folder    # Export and open in File Explorer
@@ -170,6 +179,7 @@ excel-vba edit --rubberduck-folders --in-file-headers
 | `import` | Import VBA content into Office document |
 | `export` | Export VBA content from Office document |
 | `check` | Check if 'Trust Access to the Office VBA project object model' is enabled |
+| `config-gen` | Open a GUI to create or edit TOML configuration files |
 | `references` | Manage VBA library references (list / export / import / validate / add / remove) |
 
 > 💡 Use **`uvx excel-vba <command> --help`** (or `excel-vba <command> --help` if installed) for a detailed option overview.
@@ -183,6 +193,7 @@ excel-vba edit --rubberduck-folders --in-file-headers
 | `excel-vba edit` | Start live editing |
 | `excel-vba export` | One-time export |
 | `excel-vba import` | One-time import |
+| `excel-vba config-gen` | Open the config generator GUI |
 | `excel-vba export --open-folder --keep-open` | Export and open folder in explorer, keep document open for inspection |
 | `excel-vba export --force-overwrite` | Export without confirmation prompts |
 | `excel-vba check` | Verify status of *Trust access* to the VBA project object model |
@@ -399,6 +410,17 @@ $env:NO_COLOR=1; excel-vba export        # Via environment variable (PowerShell)
 
 Use TOML configuration files to standardize team workflows and avoid repetitive command-line arguments.
 
+You can create them with the built-in GUI instead of writing TOML by hand:
+
+```bash
+excel-vba config-gen
+word-vba config-gen
+powerpoint-vba config-gen
+access-vba config-gen
+```
+
+The generator provides app-specific file pickers, live TOML preview, and open/save controls for existing or new config files. It is included in the standard install; no extra package is required.
+
 ### Basic Configuration
 
 Create a `vba-config.toml` file in your project:
@@ -416,6 +438,8 @@ Then use it:
 ```bash
 excel-vba export --conf vba-config.toml
 ```
+
+The same file can be reused with `edit`, `import`, `export`, and `references` commands whenever the settings apply.
 
 ### Available Configuration Keys
 
