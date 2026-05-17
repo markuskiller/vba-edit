@@ -7,6 +7,12 @@ name: Publish to PyPI and Test PyPI
 on:
   release:
     types: [published]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to publish satellite packages for (for example: 0.5.1)"
+        required: true
+        type: string
 
 permissions:
   contents: read       # Required to checkout code
@@ -54,6 +60,7 @@ jobs:
         attestations: true
 
   publish-satellites:
+    if: github.event_name == 'release'
     needs: [publish]
     runs-on: ubuntu-latest
     env:
@@ -109,6 +116,57 @@ jobs:
 
     - name: Publish satellites to PyPI
       if: startsWith(github.ref, 'refs/tags/v') && !github.event.release.prerelease
+      uses: pypa/gh-action-pypi-publish@cef221092ed1bacb1cc03d23a2d87d1d172e277b # v1.14.0
+      with:
+        packages-dir: satellite-dist/
+        attestations: true
+
+  publish-satellites-manual:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    env:
+      SATELLITE_PKGS: "excel-vba word-vba powerpoint-vba access-vba"
+      RELEASE_VERSION: ${{ inputs.version }}
+
+    steps:
+    - name: Check out code
+      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+    - name: Install uv
+      uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+
+    - name: Sync satellite versions to release version
+      run: |
+        python - <<'EOF'
+        import os
+        import re
+        from pathlib import Path
+
+        version = os.environ["RELEASE_VERSION"].lstrip("v")
+        constraint = f"vba-edit=={version}"
+
+        for pkg in os.environ["SATELLITE_PKGS"].split():
+            path = Path(f"packages/{pkg}/pyproject.toml")
+            content = path.read_text()
+            content = re.sub(r'^version = "[^"]*"', f'version = "{version}"', content, flags=re.MULTILINE)
+            content = re.sub(r'"vba-edit(?:==[^"]+)?"', f'"{constraint}"', content)
+            path.write_text(content)
+            print(f"Updated {pkg} to {version} with {constraint}")
+        EOF
+
+    - name: Build satellite packages
+      run: |
+        mkdir -p satellite-dist
+        for pkg in $SATELLITE_PKGS; do
+          rm -rf packages/$pkg/dist
+          uv build packages/$pkg
+          cp packages/$pkg/dist/* satellite-dist/
+        done
+
+    - name: Verify satellite packages
+      run: uv run --with twine twine check satellite-dist/*
+
+    - name: Publish satellites to PyPI
       uses: pypa/gh-action-pypi-publish@cef221092ed1bacb1cc03d23a2d87d1d172e277b # v1.14.0
       with:
         packages-dir: satellite-dist/
