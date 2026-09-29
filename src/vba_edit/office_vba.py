@@ -10,6 +10,9 @@ from abc import ABC, abstractmethod
 from enum import Enum, auto
 from pathlib import Path
 from typing import Any, Dict, Optional, Tuple
+import ctypes
+import hashlib
+import threading
 
 # Third-party imports
 import win32com.client
@@ -853,6 +856,8 @@ class OfficeVBAHandler(ABC):
             self.app = None
             self.doc = None
             self.component_handler = VBAComponentHandler(use_rubberduck_folders)
+            # Keep track of code module hashes for change detection
+            self.component_hashes = {}
 
             # Configure logging
             log_level = logging.DEBUG if verbose else logging.INFO
@@ -1286,13 +1291,24 @@ class OfficeVBAHandler(ABC):
         """Export a single VBA component."""
         temp_file = None
         try:
+            # Compute hash of the current contents of the code module
+            module_code = component.CodeModule.Lines(1, component.CodeModule.CountOfLines)
+            current_hash = hashlib.md5(module_code.encode('utf-8')).hexdigest()
+
+            # if code is unchanged, skip export
+            if self.component_hashes.get(component.Name) == current_hash:
+                return
+            
+            # save the hash for future exports
+            self.component_hashes[component.Name] = current_hash
+
             logger.debug(f"Starting component export for {component.Name}")
             info = self.component_handler.get_component_info(component)
             name = info["name"]
             logger.debug(f"Exporting component {name} with save_headers={self.save_headers}")
-            temp_file = resolve_path(f"{name}.tmp", directory)
 
             # Export to temp file
+            temp_file = resolve_path(f"{name}.tmp", directory)
             logger.debug("About to call component.Export")
             component.Export(str(temp_file))
             logger.debug("Component.Export completed")
@@ -1391,6 +1407,11 @@ class OfficeVBAHandler(ABC):
                 self._handle_form_binary_import(name)
 
             logger.info(f"Successfully processed: {file_path.name}")
+
+            # Compute & save hash of the current contents of the code module
+            component = components(name)
+            code = component.CodeModule.Lines(1, component.CodeModule.CountOfLines)
+            self.component_hashes[name] = hashlib.md5(code.encode('utf-8')).hexdigest()
 
             # NOTE: Don't save here - import_vba() saves once at the end (after all files imported)
             # Edit mode uses import_single_file() which has its own save call
@@ -1886,6 +1907,10 @@ class OfficeVBAHandler(ABC):
 
         return last_check_time
 
+    def time_ms(self) -> str:
+        """Return the current time in milliseconds as a string."""
+        return datetime.datetime.now().strftime("%H:%M:%S.%f")[:-3]
+    
     def watch_changes(self, *, watch_references: bool = False) -> None:
         """Watch for changes in VBA files and update the document.
 
@@ -1895,30 +1920,44 @@ class OfficeVBAHandler(ABC):
         try:
             logger.info(f"Watching for changes in {self.vba_dir}...")
             last_check_time = time.time()
-            check_interval = 5  # Check connection every 5 seconds
+            check_interval = 2  # Check for changes periodically
 
             recursive = self.use_rubberduck_folders
             watch_path = self.vba_dir
             vba_extensions = {".bas", ".cls", ".frm"}
             refs_toml_name = f"{self.doc_path.stem}_refs.toml"
 
-            for changes in watch(
-                watch_path,
-                recursive=recursive,
-                rust_timeout=check_interval * 1000,  # Convert seconds to milliseconds
-                yield_on_timeout=True,
-            ):
-                try:
-                    last_check_time = self._process_changes_batch(
-                        changes, refs_toml_name, watch_references, last_check_time, check_interval, vba_extensions
-                    )
-                except (DocumentClosedError, RPCError) as error:
-                    raise error
-                except Exception as error:
-                    logger.warning(f"Error in watch loop (will continue): {str(error)}")
+            stop_watching = threading.Event()
+            monitor = WindowFocusMonitor(self, logger, stop_watching)
+            monitor.setup()
 
-                # Prevent excessive CPU usage but stay responsive
-                time.sleep(0.5)
+            while True:
+                for changes in watch(
+                    watch_path,
+                    recursive=recursive,
+                    rust_timeout=check_interval * 1000,  # Convert seconds to milliseconds
+                    yield_on_timeout=True,
+                    stop_event=stop_watching
+                ):
+                    try:
+                        last_check_time = self._process_changes_batch(
+                            changes, refs_toml_name, watch_references, last_check_time, check_interval, vba_extensions
+                        )
+                    except (DocumentClosedError, RPCError) as error:
+                        raise error
+                    except Exception as error:
+                        logger.warning(f"Error in watch loop (will continue): {str(error)}")
+
+                    monitor.pump_messages()
+
+                    # Prevent excessive CPU usage but stay responsive
+                    time.sleep(0.5)
+
+                if stop_watching.is_set():
+                    stop_watching.clear()
+                    print(f"{self.time_ms()}: Main loop, broke out of watch, exporting changes")
+                    self.export_vba(save_metadata=False, overwrite=True, interactive=False, keep_open=True)
+
 
         except KeyboardInterrupt:
             logger.info("\nStopping VBA editor...")
@@ -1926,7 +1965,8 @@ class OfficeVBAHandler(ABC):
             raise error
         finally:
             logger.info("VBA editor stopped.")
-
+            monitor.stop()
+        
     def _is_empty_vba_file(self, vba_file: Path) -> bool:
         """Check if a VBA file contains no code (only a module header).
 
@@ -2561,3 +2601,103 @@ class PowerPointVBAHandler(OfficeVBAHandler):
 
         except Exception as e:
             raise VBAError(f"Failed to update module {name}") from e
+
+class WindowFocusMonitor:
+    """Monitor window focus changes to detect Office IDE loss of focus. Check for modules that need exporting."""
+
+    def __init__(self, office_vba: OfficeVBAHandler, logger, stop_event: threading.Event):
+        self.hook = None
+        self.office_vba = office_vba
+        self.logger = logger
+        self.stop_watch = stop_event
+
+        self.office_ide_hwnd = office_vba.app.VBE.MainWindow.HWnd
+        self.callback_api = None
+
+    def setup(self) -> None:
+        """Sets up the WinEvent hook."""
+
+        WINEVENT_OUTOFCONTEXT = 0x0000
+        EVENT_SYSTEM_FOREGROUND = 0x0003
+        user32 = ctypes.windll.user32
+
+        # Prepare the callback function type for SetWinEventHook
+        WinEventProcType = ctypes.WINFUNCTYPE(
+            None, ctypes.wintypes.HANDLE, ctypes.wintypes.DWORD, ctypes.wintypes.HWND,
+            ctypes.wintypes.LONG, ctypes.wintypes.LONG, ctypes.wintypes.DWORD, ctypes.wintypes.DWORD
+        )
+        self.callback_api = WinEventProcType(self._focus_change_cb)
+        self.hook = user32.SetWinEventHook(
+            EVENT_SYSTEM_FOREGROUND, EVENT_SYSTEM_FOREGROUND,
+            0, self.callback_api, 0, 0, WINEVENT_OUTOFCONTEXT
+        )
+        if not self.hook:
+            raise RuntimeError("Failed to set WinEvent hook.")
+
+        # Store the window that currently has focus so we can detect when it loses it
+        self.current_focus_hwnd = user32.GetForegroundWindow()
+        self.current_executable_name = self.get_executable_name(self.current_focus_hwnd)
+        logger.info(f"Initial Active App: {self.current_executable_name}")
+
+
+    def pump_messages(self) -> None:
+        """Flushes the Windows message queue. Call this inside your loop."""
+        PM_REMOVE = 0x0001
+        user32 = ctypes.windll.user32
+        msg = ctypes.wintypes.MSG()
+        while user32.PeekMessageW(ctypes.byref(msg), 0, 0, 0, PM_REMOVE) != 0:
+            user32.TranslateMessage(ctypes.byref(msg))
+            user32.DispatchMessageW(ctypes.byref(msg))
+
+    def _focus_change_cb(self, hWinEventHook, event, hwnd, idObject, idChild, dwEventThread, dwmsEventTime):
+        """Called on window focus change. Determine if our Office app has lost focus."""
+        
+        EVENT_SYSTEM_FOREGROUND = 0x0003
+        
+        if event == EVENT_SYSTEM_FOREGROUND and hwnd:
+            # If the window gaining focus is different from our tracked window,
+            # it means the tracked window has just officially lost focus.
+            if hwnd != self.current_focus_hwnd:
+                new_exe = self.get_executable_name(hwnd)
+                
+                # Is it the Office IDE?
+                if self.office_ide_hwnd == self.current_focus_hwnd:
+                    logger.info(f"{self.office_vba.time_ms()}: The Office IDE lost focus. trigger stop_watch event")
+                    # break out of the main loop so we can export without triggering an import
+                    self.stop_watch.set()  
+
+                # Update our tracker to the new active window
+                self.current_focus_hwnd = hwnd
+                self.current_executable_name = new_exe
+
+    def stop(self) -> None:
+        """Cleans up the hook safely."""
+        if self.hook:
+            user32 = ctypes.windll.user32
+            user32.UnhookWinEvent(self.hook)
+            self.hook = None
+
+
+    def get_executable_name(self, hwnd) -> str:
+        """Retrieves the executable file name (e.g., 'chrome.exe') for a given HWND."""
+
+        if not hwnd:
+            return "Unknown (No Window)"
+            
+        PROCESS_QUERY_LIMITED_INFORMATION = 0x1000
+        user32 = ctypes.windll.user32
+        kernel32 = ctypes.windll.kernel32
+
+        pid = ctypes.wintypes.DWORD()
+        user32.GetWindowThreadProcessId(hwnd, ctypes.byref(pid))
+        h_process = kernel32.OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, False, pid)
+        if not h_process:
+            return "Unknown (System/Protected Process)"
+        try:
+            size = ctypes.wintypes.DWORD(1024)
+            buf = ctypes.create_unicode_buffer(size.value)
+            if kernel32.QueryFullProcessImageNameW(h_process, 0, buf, ctypes.byref(size)):
+                return os.path.basename(buf.value)  
+            return "Unknown (Query Failed)"
+        finally:
+            kernel32.CloseHandle(h_process)
