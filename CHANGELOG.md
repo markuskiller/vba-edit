@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Preliminary Support for Python 3.15**: Test suite passes on Python 3.15 (release candidate); added to the CI test matrix and package classifiers
+
 ### Changed
 
 - **Config Generator Version Display**: The Config Generator now shows the active vba-edit version in the window title, header, TOML preview, and saved configuration files
