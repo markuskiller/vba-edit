@@ -82,6 +82,8 @@ respect-gitignore = true
 src = ["src", "vba_edit", "tests"]
 
 [tool.ruff.lint]
+# Pin rule set explicitly: newer Ruff releases enable a much larger default set
+select = ["E4", "E7", "E9", "F"]
 ignore = [] # Remove F401
 
 [tool.ruff.lint.per-file-ignores]
