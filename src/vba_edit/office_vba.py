@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import Any, Dict, Optional, Tuple
 import ctypes
 import hashlib
-import threading
+import threading, win32gui
 
 # Third-party imports
 import win32com.client
@@ -1910,7 +1910,16 @@ class OfficeVBAHandler(ABC):
     def time_ms(self) -> str:
         """Return the current time in milliseconds as a string."""
         return datetime.datetime.now().strftime("%H:%M:%S.%f")[:-3]
-    
+
+    def get_ide_hwnd(self) -> int:
+        """Return the window handle of the VBA IDE, or 0 if not found."""
+        try:
+            ideCaption = self.app.VBE.MainWindow.Caption
+            return win32gui.FindWindow(None, ideCaption)
+        except Exception as e:
+            logger.warning(f"Could not retrieve IDE HWND: {str(e)}")
+            return 0
+        
     def watch_changes(self, *, watch_references: bool = False) -> None:
         """Watch for changes in VBA files and update the document.
 
@@ -2611,7 +2620,7 @@ class WindowFocusMonitor:
         self.logger = logger
         self.stop_watch = stop_event
 
-        self.office_ide_hwnd = office_vba.app.VBE.MainWindow.HWnd
+        self.office_ide_hwnd = office_vba.get_ide_hwnd()
         self.callback_api = None
 
     def setup(self) -> None:
