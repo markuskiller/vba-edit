@@ -132,6 +132,45 @@ uvx excel-vba edit                # Start with active workbook — no install re
 excel-vba edit                    # If already installed
 ```
 
+### Experimental bidirectional editing
+
+```powershell
+excel-vba edit -f report.xlsm --bidirectional --in-file-headers
+```
+
+Also available in `word-vba`, `powerpoint-vba`, and `access-vba`. Saved source edits
+reach Office; settled VBE code edits return to source after two scans, about five
+seconds with an idle host. One-way `edit` remains the default.
+
+This mode supports standard modules and Excel workbook/worksheet and Word
+ThisDocument code. Classes, UserForms, Access form/report code, references, and
+Office attribute-only changes are excluded. Imports containing procedure/member
+attributes are paused to prevent the current import path from stripping them.
+Header changes, moves, renames, and deletions require review.
+Access imports explicitly save the named module; save new modules in Access before
+using them in this mode. Automatic creation of new Access modules is excluded.
+
+Existing divergent files and Office changes since the last session pause at
+startup, including reopening a document that was closed without saving. Review
+the preserved snapshots under `<vba-directory>/.vba-edit/conflicts/`, then choose
+authority for one component explicitly:
+
+```powershell
+excel-vba edit -f report.xlsm --bidirectional --in-file-headers --sync-resolve office --sync-component Module1
+# Use --sync-resolve files to choose reviewed source instead.
+```
+
+Use the same encoding, header, and folder settings on restart. Keep `.vba-edit/`
+out of Git; its local baselines and recovery snapshots must be retained for safe
+restart. `--force-overwrite` does not resolve synchronization conflicts. This mode
+rejects `--xlwings`, `--with-references`, and `--detect-encoding`.
+
+Source exports can contain unsaved VBE changes. Each non-Access source import saves
+the Office document, including unrelated document edits. Unsaved external editor
+buffers are invisible to the CLI; alternate editing ownership per component.
+Office remains open on Ctrl+C; unresolved work produces a nonzero exit status.
+Host compatibility is experimental and requires real Office validation.
+
 ### Create a Config File
 ```bash
 uvx excel-vba config-gen          # Open the config generator GUI
@@ -459,6 +498,7 @@ The same file can be reused with `edit`, `import`, `export`, and `references` co
 - `skip_empty` - Skip modules with no meaningful code (true/false)
 - `force_overwrite` - Overwrite existing files without prompting (true/false)
 - `with_references` - Include VBA references in export/import (true/false)
+- `bidirectional` - Experimental two-way code synchronization for edit (true/false)
 - `no_color` - Disable colorized terminal output (true/false)
 
 **[references] section:**

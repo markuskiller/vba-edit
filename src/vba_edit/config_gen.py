@@ -434,6 +434,7 @@ class ConfigGenApp(ttk.Window):  # type: ignore[misc]
             ("keep_open", "Keep document open after export  (--keep-open)"),
             ("skip_empty", "Skip modules with no code  (--skip-empty)"),
             ("with_references", "Include VBA references alongside code  (--with-references)"),
+            ("bidirectional", "Experimental two-way code sync, edit only  (--bidirectional)"),
             ("no_color", "Disable colored terminal output  (--no-color)"),
             # Excel-only options
             ("xlwings", "Use xlwings backend  (--xlwings)  [Excel only]"),

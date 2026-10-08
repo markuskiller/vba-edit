@@ -144,6 +144,7 @@ CONFIG_KEY_SKIP_EMPTY = "skip_empty"
 CONFIG_KEY_NO_COLOR = "no_color"
 CONFIG_KEY_XLWINGS = "xlwings"
 CONFIG_KEY_WITH_REFERENCES = "with_references"
+CONFIG_KEY_BIDIRECTIONAL = "bidirectional"
 
 # TOML configuration keys (references section)
 CONFIG_KEY_REFS_FILE = "refs_file"
@@ -614,6 +615,35 @@ def add_exporting_arguments(parser: argparse.ArgumentParser) -> None:
     )
 
 
+def add_bidirectional_arguments(parser: argparse.ArgumentParser) -> None:
+    """Options confined to edit; resolution is an explicit per-component choice."""
+    group = parser.add_argument_group("Bidirectional Editing (experimental)")
+    group.add_argument(
+        "--bidirectional",
+        dest=CONFIG_KEY_BIDIRECTIONAL,
+        action="store_true",
+        help="Sync saved files and live VBE code both ways; pause conflicts and deletions",
+    )
+    group.add_argument(
+        "--sync-resolve",
+        choices=("office", "files"),
+        help="Choose authority for a reviewed component at startup (requires --sync-component)",
+    )
+    group.add_argument("--sync-component", help="Exact component name to resolve with --sync-resolve")
+
+
+def validate_bidirectional_options(args: argparse.Namespace) -> None:
+    enabled = getattr(args, "bidirectional", False)
+    resolution = getattr(args, "sync_resolve", None)
+    component = getattr(args, "sync_component", None)
+    if bool(resolution) != bool(component) or ((resolution or component) and not enabled):
+        raise ValueError("--sync-resolve and --sync-component must be used together with --bidirectional")
+    if enabled:
+        for option in ("xlwings", "with_references", "detect_encoding"):
+            if getattr(args, option, False):
+                raise ValueError(f"--bidirectional does not support --{option.replace('_', '-')}")
+
+
 def add_importing_arguments(parser: argparse.ArgumentParser) -> None:
     """Add import-specific arguments to a parser.
 
@@ -932,6 +962,8 @@ def get_command_usage(command: str, office_app: str) -> str:
 
             if command in {"edit", "export"}:
                 command_usage = f"{command_usage}{edit_and_export_options}"
+            if command == "edit":
+                command_usage += "\n    [--bidirectional]\n    [--sync-resolve {office,files} --sync-component NAME]"
 
             if command == "export":
                 command_usage = f"{command_usage}{after_export_options}"
