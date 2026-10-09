@@ -243,6 +243,34 @@ class VBADocumentNames:
         "Слайд",  # Russian
     }
 
+    # Access form module prefixes
+    ACCESS_FORM_PREFIXES = {
+        "Form",  # English
+        "Formular",  # German
+        "Formulaire",  # French
+        "Formulario",  # Spanish/Italian
+        "Formulário",  # Portuguese
+        "フォーム",  # Japanese
+        "表單",  # Chinese Traditional
+        "表单",  # Chinese Simplified
+        "양식",  # Korean
+        "Форма",  # Russian
+    }
+
+    # Access report module prefixes
+    ACCESS_REPORT_PREFIXES = {
+        "Report",  # English
+        "Bericht",  # German
+        "Rapport",  # French
+        "Informe",  # Spanish/Italian
+        "Relatório",  # Portuguese
+        "レポート",  # Japanese
+        "報告",  # Chinese Traditional
+        "报告",  # Chinese Simplified
+        "리포트",  # Korean
+        "Отчет",  # Russian
+    }
+
     @classmethod
     def is_document_module(cls, name: str) -> bool:
         """Check if a name matches any known document module name."""
@@ -252,6 +280,13 @@ class VBADocumentNames:
 
         # Handle Excel sheets
         if any(name.startswith(prefix) and name[len(prefix) :].isdigit() for prefix in cls.EXCEL_SHEET_PREFIXES):
+            return True
+
+        # Handle Access forms and reports
+        if any(name.startswith(prefix + "_") for prefix in cls.ACCESS_FORM_PREFIXES):
+            return True
+        
+        if any(name.startswith(prefix + "_") for prefix in cls.ACCESS_REPORT_PREFIXES):
             return True
 
         # Handle PowerPoint slides
