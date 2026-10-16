@@ -1,5 +1,6 @@
 # personal workarea / scratch
 _workbench/
+.vba-edit/
 
 # Demo and debug test files (root directory only)
 /demo_*

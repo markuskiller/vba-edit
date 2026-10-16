@@ -82,6 +82,8 @@ from vba_edit.cli_common import (
     add_vba_files_arguments,
     add_exporting_arguments,
     add_importing_arguments,
+    add_bidirectional_arguments,
+    validate_bidirectional_options,
     add_excel_specific_arguments,
     add_references_file_arguments,
     add_references_filter_arguments,
@@ -338,6 +340,7 @@ class OfficeVBACLI:
         )
         add_command_arguments(edit_parser)
         add_exporting_arguments(edit_parser)
+        add_bidirectional_arguments(edit_parser)
         add_vba_files_arguments(edit_parser)
         add_config_arguments(edit_parser)  # Add config file options to edit command
         add_common_option_group(edit_parser)  # Add common options to edit command
@@ -602,6 +605,18 @@ IMPORTANT: Requires "Trust access to the VBA project object model" enabled in {s
         """Execute the VBA edit/import/export command with error handling."""
         try:
             if args.command == "edit":
+                if getattr(args, "bidirectional", False):
+                    from vba_edit.bidirectional import run_bidirectional
+
+                    validate_bidirectional_options(args)
+                    print("NOTE: File deletion pauses the component for review; it does not delete Office code.")
+                    run_bidirectional(
+                        handler,
+                        save_metadata=getattr(args, "save_metadata", False),
+                        resolve=getattr(args, "sync_resolve", None),
+                        component=getattr(args, "sync_component", None),
+                    )
+                    return
                 print("NOTE: Deleting a VBA module file will also delete it in the VBA editor!")
 
                 # Add office-specific notes
@@ -676,6 +691,7 @@ IMPORTANT: Requires "Trust access to the VBA project object model" enabled in {s
             self.logger.debug(f"Command arguments: {vars(args)}")
 
             # Ensure paths exist early (creates vba_directory if provided)
+            validate_bidirectional_options(args)
             self.validate_paths(args)
 
             if pre_hook := self._get_special_function("pre_command_hook"):
