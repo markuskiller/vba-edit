@@ -8,11 +8,13 @@ ttkbootstrap is included in the standard vba-edit install.
 
 from __future__ import annotations
 
+import re
 import sys
 import tkinter as tk
 import tkinter.filedialog as filedialog
 import tkinter.messagebox as messagebox
 from pathlib import Path
+from typing import Sequence
 
 from vba_edit import __version__ as VBA_EDIT_VERSION
 
@@ -139,6 +141,15 @@ class _FileBrowseRow:
 # ── Pure TOML builder (no Tk required) ────────────────────────────────────────
 
 
+def split_patterns(value: Sequence[str] | str | None) -> list[str]:
+    """Turn GUI text (``"Vendor_*, LockedForm.frm"``) or a TOML array into a clean pattern list."""
+    if value is None:
+        return []
+    if isinstance(value, str):
+        value = re.split(r"[,\s]+", value)
+    return [str(v).strip() for v in value if str(v).strip()]
+
+
 def build_toml(
     *,
     file: str = "",
@@ -148,6 +159,8 @@ def build_toml(
     encoding_value: str = "cp1252",
     header_mode: str = "none",
     bool_flags: dict[str, bool] | None = None,
+    include: Sequence[str] | str | None = None,
+    exclude: Sequence[str] | str | None = None,
     refs_file: str = "",
     refs_bool_flags: dict[str, bool] | None = None,
 ) -> str:
@@ -164,6 +177,9 @@ def build_toml(
         encoding_value: Encoding name used when *encoding_mode* is ``"custom"``.
         header_mode: ``"none"``, ``"save_headers"``, or ``"in_file_headers"``.
         bool_flags: Mapping of CLI flag names to their boolean values.
+        include: Module include patterns (``--include``); a string is split on
+            commas/whitespace, a sequence is used as-is.
+        exclude: Module exclude patterns (``--exclude``), same format as *include*.
         refs_file: Path for the references TOML file.
         refs_bool_flags: Mapping of references filter flag names to boolean values.
     """
@@ -173,6 +189,9 @@ def build_toml(
     def _q(s: str) -> str:
         # Single-quoted TOML avoids backslash-escaping Windows paths.
         return "'" + s.replace("'", "\\'") + "'"
+
+    def _array(values: Sequence[str]) -> str:
+        return "[" + ", ".join(_q(v) for v in values) + "]"
 
     lines: list[str] = [
         "# vba-edit configuration file",
@@ -199,6 +218,10 @@ def build_toml(
     for key, value in bool_flags.items():
         if value:
             lines.append(f"{key} = true")
+
+    for key, patterns in [("include", split_patterns(include)), ("exclude", split_patterns(exclude))]:
+        if patterns:
+            lines.append(f"{key} = {_array(patterns)}")
 
     active_refs_flags = [k for k, v in refs_bool_flags.items() if v]
     if refs_file or active_refs_flags:
@@ -463,6 +486,29 @@ class ConfigGenApp(ttk.Window):  # type: ignore[misc]
             ).grid(row=row + (i // 2), column=col_offset, columnspan=2, sticky="w", padx=20, pady=3)
         row += (len(bool_opts) + 1) // 2 + 1
 
+        # ── Module filter ─────────────────────────────────────────────────────
+        row = self._add_section(inner, "Module Filter  (edit / export / import)", row)
+        self._include_var = tk.StringVar()
+        self._exclude_var = tk.StringVar()
+        for label, var in [
+            ("Include patterns  (--include):", self._include_var),
+            ("Exclude patterns  (--exclude):", self._exclude_var),
+        ]:
+            ttk.Label(inner, text=label).grid(row=row, column=0, sticky="w", padx=4, pady=3)
+            ttk.Entry(inner, textvariable=var, width=44).grid(
+                row=row, column=1, columnspan=2, sticky="ew", padx=4, pady=3
+            )
+            row += 1
+        ttk.Label(
+            inner,
+            text="    Space- or comma-separated names / globs, e.g.  Module1  Helpers_*.cls  Utils/*  (case-insensitive)",
+            font=("Segoe UI", 8),
+            bootstyle="light",  # type: ignore[call-arg]
+        ).grid(row=row, column=0, columnspan=3, sticky="w", padx=4, pady=(0, 4))
+        row += 1
+        self._include_var.trace_add("write", lambda *_: self._update_preview())
+        self._exclude_var.trace_add("write", lambda *_: self._update_preview())
+
         # Trace path fields for live preview
         for row_widget in (self._file_row, self._vba_dir_row, self._logfile_row):
             row_widget.var.trace_add("write", lambda *_: self._update_preview())
@@ -529,6 +575,8 @@ class ConfigGenApp(ttk.Window):  # type: ignore[misc]
             encoding_value=self._encoding_combo.get().strip(),
             header_mode=self._header_mode.get(),
             bool_flags={k: v.get() for k, v in self._bool_vars.items()},
+            include=self._include_var.get(),
+            exclude=self._exclude_var.get(),
             refs_file=self._refs_file_row.get(),
             refs_bool_flags={k: v.get() for k, v in self._refs_bool_vars.items()},
         )
@@ -602,6 +650,10 @@ class ConfigGenApp(ttk.Window):  # type: ignore[misc]
         # Boolean flags
         for key, var in self._bool_vars.items():
             var.set(bool(g.get(key, False)))
+
+        # Module filter patterns
+        self._include_var.set(" ".join(split_patterns(g.get("include"))))
+        self._exclude_var.set(" ".join(split_patterns(g.get("exclude"))))
 
         # References
         self._refs_file_row.var.set(r.get("refs_file", ""))

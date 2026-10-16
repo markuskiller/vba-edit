@@ -106,6 +106,8 @@ def excel_xlwings_handler(cli_instance, args: argparse.Namespace) -> bool:
         import xlwings  # type: ignore[import-not-found]
 
         cli_instance.logger.info(f"Using xlwings {xlwings.__version__}")
+        if getattr(args, "include", None) or getattr(args, "exclude", None):
+            cli_instance.logger.warning("--include/--exclude are not supported by the xlwings wrapper and are ignored")
         handle_xlwings_command(args)
         return True
 

@@ -9,7 +9,7 @@ import time
 from abc import ABC, abstractmethod
 from enum import Enum, auto
 from pathlib import Path
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, Optional, Sequence, Tuple
 
 # Third-party imports
 import win32com.client
@@ -36,6 +36,7 @@ from vba_edit.utils import (
     is_vba_access_error,
 )
 from vba_edit.console import console
+from vba_edit.module_filter import ModuleFilter
 
 from vba_edit.cli_common import (
     get_placeholders_for_config_key,
@@ -836,6 +837,8 @@ class OfficeVBAHandler(ABC):
         open_folder: bool = False,
         in_file_headers: bool = False,
         skip_empty: bool = False,
+        include: Optional[Sequence[str]] = None,
+        exclude: Optional[Sequence[str]] = None,
     ):
         """Initialize the VBA handler."""
         try:
@@ -850,6 +853,7 @@ class OfficeVBAHandler(ABC):
             self.open_folder = open_folder
             self.in_file_headers = in_file_headers
             self.skip_empty = skip_empty
+            self.module_filter = ModuleFilter(include, exclude)
             self.app = None
             self.doc = None
             self.component_handler = VBAComponentHandler(use_rubberduck_folders)
@@ -866,6 +870,8 @@ class OfficeVBAHandler(ABC):
             logger.debug(f"Rubberduck folders: {use_rubberduck_folders}")
             logger.debug(f"Open folder after export: {open_folder}")
             logger.debug(f"Skip empty modules: {skip_empty}")
+            if self.module_filter.active:
+                logger.debug(f"Module filter: {self.module_filter.describe()}")
 
         except DocumentNotFoundError:
             raise  # Let it propagate
@@ -1247,6 +1253,10 @@ class OfficeVBAHandler(ABC):
                     existing_files.extend(self.vba_dir.rglob(f"*{ext}"))
                 else:
                     existing_files.extend(self.vba_dir.glob(f"*{ext}"))
+
+            # Only files the current filter would actually touch count as "existing"
+            if self.module_filter.active:
+                existing_files = [f for f in existing_files if self.module_filter.allows_file(f, self.vba_dir)]
 
             return existing_files
         except Exception as e:
@@ -1863,6 +1873,10 @@ class OfficeVBAHandler(ABC):
             # Only include files with VBA extensions, but exclude temp files
             # Temp files have pattern: *_temp.{bas,cls,frm}
             if path.suffix.lower() in vba_extensions and not path.stem.endswith("_temp"):
+                # --include / --exclude apply to every watcher event, deletions included
+                if self.module_filter.active and not self.module_filter.allows_file(path, self.vba_dir):
+                    logger.debug(f"Ignoring change to filtered-out file: {path.name}")
+                    continue
                 vba_changes.append((change_type, file_path))
             elif watch_references and path.name == refs_toml_name and change_type == Change.modified:
                 toml_changes.append((change_type, file_path))
@@ -1894,6 +1908,8 @@ class OfficeVBAHandler(ABC):
         """
         try:
             logger.info(f"Watching for changes in {self.vba_dir}...")
+            if self.module_filter.active:
+                logger.info(f"Module filter active ({self.module_filter.describe()})")
             last_check_time = time.time()
             check_interval = 5  # Check connection every 5 seconds
 
@@ -1963,6 +1979,18 @@ class OfficeVBAHandler(ABC):
             if not vba_files:
                 logger.info("No VBA files found to import.")
                 return
+
+            # Apply --include / --exclude patterns (relative to the VBA directory)
+            if self.module_filter.active:
+                total = len(vba_files)
+                vba_files = [f for f in vba_files if self.module_filter.allows_file(f, self.vba_dir)]
+                logger.info(
+                    f"Module filter ({self.module_filter.describe()}): "
+                    f"{len(vba_files)} of {total} VBA files selected for import"
+                )
+                if not vba_files:
+                    logger.warning("No VBA files matched the module filter. Nothing to import.")
+                    return
 
             logger.info(f"\nFound {len(vba_files)} VBA files to import:")
             for vba_file in vba_files:
@@ -2048,10 +2076,18 @@ class OfficeVBAHandler(ABC):
             Dictionary mapping component names to encoding metadata.
         """
         encoding_data: Dict[str, Any] = {}
+        filtered_out = 0
+        considered = 0
         for component in components:
             try:
                 info = self.component_handler.get_component_info(component)
                 base_name = info["name"]
+                considered += 1
+
+                if not self._component_passes_filter(component, info):
+                    logger.debug(f"Skipping filtered-out module: {base_name}")
+                    filtered_out += 1
+                    continue
 
                 if self.skip_empty and info["code_lines"] == 0:
                     logger.info(f"Skipping empty module: {base_name}")
@@ -2079,7 +2115,41 @@ class OfficeVBAHandler(ABC):
             except Exception as e:
                 logger.error(f"Failed to export component {component.Name}: {str(e)}")
                 continue
+
+        if self.module_filter.active:
+            selected = considered - filtered_out
+            logger.info(
+                f"Module filter ({self.module_filter.describe()}): "
+                f"{selected} of {considered} VBA components selected for export"
+            )
+            if considered and not selected:
+                logger.warning("No VBA components matched the module filter. Nothing was exported.")
         return encoding_data
+
+    def _component_passes_filter(self, component: Any, info: Dict[str, Any]) -> bool:
+        """Apply --include / --exclude to an in-document component.
+
+        The RubberduckVBA folder is only read (one extra COM call) when a
+        pattern actually contains a path separator.
+        """
+        if not self.module_filter.active:
+            return True
+        folder = ""
+        if self.use_rubberduck_folders and self.module_filter.needs_folder:
+            folder = self._get_component_folder(component)
+        return self.module_filter.allows_component(info["name"], info["extension"], folder)
+
+    def _get_component_folder(self, component: Any) -> str:
+        """Return the RubberduckVBA @Folder path of a component ("" if none)."""
+        try:
+            code_module = component.CodeModule
+            count = int(code_module.CountOfLines)
+            code = str(code_module.Lines(1, count)) if count else ""
+            folder, _ = self.component_handler.get_rubberduck_folder(code)
+            return folder.replace(os.sep, "/")
+        except Exception as e:
+            logger.debug(f"Could not determine folder for {getattr(component, 'Name', '?')}: {e}")
+            return ""
 
     def export_vba(
         self, save_metadata: bool = False, overwrite: bool = True, interactive: bool = True, keep_open: bool = False
@@ -2286,6 +2356,8 @@ class AccessVBAHandler(OfficeVBAHandler):
         open_folder: bool = False,
         in_file_headers: bool = False,
         skip_empty: bool = False,
+        include: Optional[Sequence[str]] = None,
+        exclude: Optional[Sequence[str]] = None,
     ):
         """Initialize the Access VBA handler.
 
@@ -2311,6 +2383,8 @@ class AccessVBAHandler(OfficeVBAHandler):
                 open_folder=open_folder,
                 in_file_headers=in_file_headers,
                 skip_empty=skip_empty,
+                include=include,
+                exclude=exclude,
             )
 
             # Handle Access-specific initialization
