@@ -84,6 +84,7 @@ from vba_edit.cli_common import (
     add_importing_arguments,
     add_bidirectional_arguments,
     validate_bidirectional_options,
+    add_filter_arguments,
     add_excel_specific_arguments,
     add_references_file_arguments,
     add_references_filter_arguments,
@@ -303,6 +304,7 @@ class OfficeVBACLI:
         )
         add_command_arguments(import_parser)
         add_vba_files_arguments(import_parser)
+        add_filter_arguments(import_parser)
         add_importing_arguments(import_parser)
         add_config_arguments(import_parser)  # Add config file options to import command
         add_common_option_group(import_parser)  # Add common options to import command
@@ -326,6 +328,7 @@ class OfficeVBACLI:
         )
         add_after_export_arguments(export_parser)
         add_vba_files_arguments(export_parser)
+        add_filter_arguments(export_parser)
         add_config_arguments(export_parser)  # Add config file options to export command
         add_common_option_group(export_parser)  # Add common options to export command
 
@@ -342,6 +345,7 @@ class OfficeVBACLI:
         add_exporting_arguments(edit_parser)
         add_bidirectional_arguments(edit_parser)
         add_vba_files_arguments(edit_parser)
+        add_filter_arguments(edit_parser)
         add_config_arguments(edit_parser)  # Add config file options to edit command
         add_common_option_group(edit_parser)  # Add common options to edit command
 
@@ -744,6 +748,8 @@ IMPORTANT: Requires "Trust access to the VBA project object model" enabled in {s
                     open_folder=getattr(args, "open_folder", False),
                     in_file_headers=getattr(args, "in_file_headers", True),
                     skip_empty=getattr(args, "skip_empty", False),
+                    include=getattr(args, "include", None),
+                    exclude=getattr(args, "exclude", None),
                 )
             except VBAError as e:
                 app_name = self.config["app_name"]

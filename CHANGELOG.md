@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Module Filtering** (`--include` / `--exclude`): Control exactly which VBA modules `edit`, `export` and `import` touch ([Issue #77](https://github.com/markuskiller/vba-edit/issues/77))
+  - Patterns are case-insensitive shell globs matched against the module name (`Module1`), the file name (`Helpers_*.cls`) and the path relative to `--vba-directory` (`Utils/*` with `--rubberduck-folders`)
+  - `--include` keeps only matching modules; `--exclude` drops matching modules and is applied after `--include`; both accept several patterns and can be repeated
+  - On `import`: re-import only the files you changed (`excel-vba import --include "mod_10*.bas" helper.cls`), e.g. after an intensive editing session in VS Code
+  - On `edit`: exclusions apply to the initial export and to every watcher event, including file deletions, so third-party modules and locked forms stay untouched; also honoured by the experimental `--bidirectional` mode
+  - A UserForm's `.frx` binary always follows the decision made for its `.frm` file
+  - Available as `include = [...]` / `exclude = [...]` in the `[general]` section of TOML config files and as text fields in the Config Generator GUI; command-line patterns override config patterns
+  - Not supported by the `--xlwings` wrapper (a warning is shown and the patterns are ignored)
+
 - **Preliminary Support for Python 3.15**: Test suite passes on Python 3.15 (release candidate); added to the CI test matrix and package classifiers
 
 ### Changed

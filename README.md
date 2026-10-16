@@ -195,6 +195,14 @@ git add . && git commit -m "Updated reports module"
 excel-vba edit --rubberduck-folders --in-file-headers
 ``` 
 
+### Pick Which Modules Are Synced (`--include` / `--exclude`)
+```bash
+excel-vba import --include "mod_10*.bas" helper.cls     # Re-import only the files you changed
+excel-vba edit --exclude "Vendor_*" LockedForm.frm       # Leave third-party modules and forms untouched
+excel-vba export --rubberduck-folders --include "Utils/*" # Patterns may be relative to --vba-directory
+```
+Patterns are case-insensitive globs matched against the module name, the file name, and the path relative to `--vba-directory`. `--exclude` is applied after `--include`. In `edit` mode the filter applies to the initial export and to every file change, including deletions.
+
 ## Quick Reference
 
 ### App-specific tools
@@ -235,6 +243,8 @@ excel-vba edit --rubberduck-folders --in-file-headers
 | `excel-vba config-gen` | Open the config generator GUI |
 | `excel-vba export --open-folder --keep-open` | Export and open folder in explorer, keep document open for inspection |
 | `excel-vba export --force-overwrite` | Export without confirmation prompts |
+| `excel-vba import --include "mod_10*.bas" helper.cls` | Import only the modules matching the given names or glob patterns |
+| `excel-vba edit --exclude "Vendor_*" LockedForm.frm` | Live-edit everything except third-party modules and a locked form |
 | `excel-vba check` | Verify status of *Trust access* to the VBA project object model |
 | `excel-vba references list` | List all VBA library references in the active workbook |
 | `excel-vba references list --no-default` | List only installed and custom references |
@@ -496,6 +506,8 @@ The same file can be reused with `edit`, `import`, `export`, and `references` co
 - `open_folder` - Open export directory after export (true/false)
 - `keep_open` - Keep document open after export (true/false)
 - `skip_empty` - Skip modules with no meaningful code (true/false)
+- `include` - Only process modules matching these names/globs, e.g. `["Module1", "Helpers_*.cls", "Utils/*"]`
+- `exclude` - Skip modules matching these names/globs, e.g. `["Vendor_*", "LockedForm.frm"]` (applied after `include`)
 - `force_overwrite` - Overwrite existing files without prompting (true/false)
 - `with_references` - Include VBA references in export/import (true/false)
 - `bidirectional` - Experimental two-way code synchronization for edit (true/false)

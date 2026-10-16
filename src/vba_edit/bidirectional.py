@@ -155,7 +155,19 @@ class OfficeAdapter:
         self.project_name = str(handler.get_vba_project().Name)
         self.excluded: set[str] = set()
         self.warned_exclusions: set[tuple[str, int]] = set()
+        self.warned_filtered: set[str] = set()
         self.component_names: set[str] = set()
+
+    def _passes_filter(self, component, name: str, kind: int) -> bool:
+        """Apply the handler's --include/--exclude filter to an Office component."""
+        h = self.handler
+        module_filter = h.module_filter
+        folder = ""
+        if h.use_rubberduck_folders and module_filter.needs_folder:
+            count = int(component.CodeModule.CountOfLines)
+            code = str(component.CodeModule.Lines(1, count)) if count else ""
+            folder, _ = h.component_handler.get_rubberduck_folder(code)
+        return module_filter.allows_component(name, EXTENSIONS.get(kind, ".cls"), folder.replace(os.sep, "/"))
 
     def identity(self) -> dict:
         h = self.handler
@@ -183,10 +195,17 @@ class OfficeAdapter:
         result = {}
         self.component_names = set()
         self.excluded = set()
+        module_filter = getattr(h, "module_filter", None)
         for component in project.VBComponents:
             kind = int(component.Type)
             name = str(component.Name)
             self.component_names.add(name)
+            if module_filter and not self._passes_filter(component, name, kind):
+                if name not in self.warned_filtered:
+                    logger.info("Excluded %s: does not match --include/--exclude", name)
+                    self.warned_filtered.add(name)
+                self.excluded.add(name)
+                continue
             if kind != 1 and not (kind == 100 and h.app_name in {"Excel", "Word"}):
                 if (name, kind) not in self.warned_exclusions:
                     logger.warning("Excluded %s: component type %s is not supported in bidirectional mode", name, kind)
@@ -240,6 +259,9 @@ class OfficeAdapter:
             self.path(path.relative_to(self.root).as_posix())
             name = path.stem
             if name in self.excluded:
+                continue
+            module_filter = getattr(h, "module_filter", None)
+            if module_filter and not module_filter.allows_file(path, self.root):
                 continue
             if name not in self.component_names and any(n.casefold() == name.casefold() for n in self.component_names):
                 raise VBAError(f"Source filename case must match the Office component: {name}")
@@ -417,7 +439,8 @@ class SyncSession:
         inventory = self.adapter.inventory()
         files = self.adapter.files()
         fresh_empty = not self.state_path.exists() and not files
-        names = set(inventory) | set(files) | set(self.state["baseline"])
+        # Baselines of components excluded by --include/--exclude are left untouched.
+        names = (set(inventory) | set(files) | set(self.state["baseline"])) - self.adapter.excluded
         if self.component and self.component not in names:
             raise VBAError(f"Unknown component for resolution: {self.component}")
         for name in sorted(names):
@@ -535,7 +558,7 @@ class SyncSession:
             return
         self.read_failed = False
         for name in sorted(set(inventory) | set(files) | set(self.state["baseline"])):
-            if name in self.state["paused"]:
+            if name in self.state["paused"] or name in self.adapter.excluded:
                 continue
             baseline = self.baseline(name)
             office = self.cache.get(name) if name in inventory else None
@@ -638,4 +661,7 @@ def run_bidirectional(handler, *, save_metadata=False, resolve=None, component=N
     logger.info(
         "Source exports may include unsaved VBE changes. Classes/forms/references and attribute-only changes are excluded."
     )
+    module_filter = getattr(handler, "module_filter", None)
+    if module_filter:
+        logger.info("Module filter active (%s)", module_filter.describe())
     SyncSession(adapter, resolve=resolve, component=component).run()

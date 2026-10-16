@@ -141,6 +141,8 @@ CONFIG_KEY_OPEN_FOLDER = "open_folder"
 CONFIG_KEY_FORCE_OVERWRITE = "force_overwrite"
 CONFIG_KEY_KEEP_OPEN = "keep_open"
 CONFIG_KEY_SKIP_EMPTY = "skip_empty"
+CONFIG_KEY_INCLUDE = "include"
+CONFIG_KEY_EXCLUDE = "exclude"
 CONFIG_KEY_NO_COLOR = "no_color"
 CONFIG_KEY_XLWINGS = "xlwings"
 CONFIG_KEY_WITH_REFERENCES = "with_references"
@@ -665,6 +667,54 @@ def add_importing_arguments(parser: argparse.ArgumentParser) -> None:
     )
 
 
+class PatternListAction(argparse.Action):
+    """``nargs="+"`` list option that can be repeated.
+
+    Unlike ``action="extend"``, the first occurrence on the command line
+    *replaces* any default that came from a TOML config file (CLI wins, as for
+    every other option); later occurrences extend the CLI list.
+    """
+
+    def __call__(self, parser, namespace, values, option_string=None):  # type: ignore[override]
+        marker = f"_{self.dest}_from_cli"
+        current = list(getattr(namespace, self.dest, None) or []) if getattr(namespace, marker, False) else []
+        current.extend(values)
+        setattr(namespace, self.dest, current)
+        setattr(namespace, marker, True)
+
+
+def add_filter_arguments(parser: argparse.ArgumentParser) -> None:
+    """Add module include/exclude filter arguments to a parser.
+
+    Available on edit, export and import. Patterns are shell-style globs matched
+    case-insensitively against the module name (``Module1``), the file name
+    (``Module1.bas``) and the path relative to --vba-directory
+    (``Utils/Module1.bas`` with --rubberduck-folders). See GitHub issue #77.
+
+    Args:
+        parser: The argument parser to add arguments to
+    """
+    filter_group = parser.add_argument_group("Module Filter Options")
+    filter_group.add_argument(
+        "--include",
+        dest=CONFIG_KEY_INCLUDE,
+        nargs="+",
+        action=PatternListAction,
+        metavar="PATTERN",
+        default=None,
+        help="Only process modules matching these names or glob patterns, e.g. Module1 'Helpers_*.cls' 'Utils/*'",
+    )
+    filter_group.add_argument(
+        "--exclude",
+        dest=CONFIG_KEY_EXCLUDE,
+        nargs="+",
+        action=PatternListAction,
+        metavar="PATTERN",
+        default=None,
+        help="Skip modules matching these names or glob patterns, e.g. 'Vendor_*' LockedForm.frm (applied after --include)",
+    )
+
+
 def add_after_export_arguments(parser: argparse.ArgumentParser) -> None:
     """Add office file-specific arguments to a parser.
 
@@ -939,7 +989,9 @@ def get_command_usage(command: str, office_app: str) -> str:
 
     vba_handling_options = """
     [--encoding ENCODING | -e ENCODING | --detect-encoding | -d]
-    [--rubberduck-folders]"""
+    [--rubberduck-folders]
+    [--include PATTERN [PATTERN ...]]
+    [--exclude PATTERN [PATTERN ...]]"""
 
     config_options = """
     [--conf FILE | --config FILE]"""
