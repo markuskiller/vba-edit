@@ -2,7 +2,6 @@
 
 import argparse
 import tempfile
-import tomllib
 from pathlib import Path
 from unittest.mock import Mock, patch
 
@@ -12,6 +11,7 @@ from vba_edit.cli_common import (
     _get_cli_explicit_args,
     add_filter_arguments,
     merge_config_with_args,
+    toml_lib,  # stdlib tomllib on 3.11+, tomli on 3.10
 )
 from vba_edit.config_gen import build_toml, split_patterns
 from vba_edit.excel_vba import create_cli_parser, handle_excel_vba_command
@@ -169,7 +169,7 @@ def test_build_toml_include_exclude_arrays():
 
 
 def test_build_toml_filter_arrays_round_trip_through_toml():
-    parsed = tomllib.loads(build_toml(include="Module1 Utils/*", exclude="Vendor_*"))
+    parsed = toml_lib.loads(build_toml(include="Module1 Utils/*", exclude="Vendor_*"))
     assert parsed["general"]["include"] == ["Module1", "Utils/*"]
     assert parsed["general"]["exclude"] == ["Vendor_*"]
 
