@@ -248,7 +248,7 @@ def test_vba_error_handling(mock_word_handler):
 
 def test_component_handler():
     """Test VBA component handler functionality."""
-    handler = VBAComponentHandler()
+    handler = VBAComponentHandler("Excel")
 
     # Test module type identification
     assert handler.get_module_type(Path("test.bas")) == VBAModuleType.STANDARD
@@ -258,6 +258,12 @@ def test_component_handler():
     assert handler.get_module_type(Path("ThisWorkbook.cls")) == VBAModuleType.DOCUMENT
     assert handler.get_module_type(Path("Sheet1.cls")) == VBAModuleType.DOCUMENT
 
+    handler = VBAComponentHandler("Access")
+
+    # Test Access Forms and Reports
+    assert handler.get_module_type(Path("Form_Frm1.cls")) == VBAModuleType.DOCUMENT
+    assert handler.get_module_type(Path("Report_Rpt1.cls")) == VBAModuleType.DOCUMENT
+
     # Test invalid extension
     with pytest.raises(ValueError):
         handler.get_module_type(Path("test.invalid"))
@@ -265,7 +271,7 @@ def test_component_handler():
 
 def test_component_header_handling():
     """Test VBA component header handling."""
-    handler = VBAComponentHandler()
+    handler = VBAComponentHandler("Word")
 
     # Test header splitting
     content = 'Attribute VB_Name = "TestModule"\nOption Explicit\nSub Test()\nEnd Sub'
