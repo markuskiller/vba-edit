@@ -243,20 +243,60 @@ class VBADocumentNames:
         "Слайд",  # Russian
     }
 
+    # Access form module prefixes
+    ACCESS_FORM_PREFIXES = {
+        "Form",  # English
+        "Formular",  # German
+        "Formulaire",  # French
+        "Formulario",  # Spanish/Italian
+        "Formulário",  # Portuguese
+        "フォーム",  # Japanese
+        "表單",  # Chinese Traditional
+        "表单",  # Chinese Simplified
+        "양식",  # Korean
+        "Форма",  # Russian
+    }
+
+    # Access report module prefixes
+    ACCESS_REPORT_PREFIXES = {
+        "Report",  # English
+        "Bericht",  # German
+        "Rapport",  # French
+        "Informe",  # Spanish/Italian
+        "Relatório",  # Portuguese
+        "レポート",  # Japanese
+        "報告",  # Chinese Traditional
+        "报告",  # Chinese Simplified
+        "리포트",  # Korean
+        "Отчет",  # Russian
+    }
+
     @classmethod
-    def is_document_module(cls, name: str) -> bool:
+    def is_document_module(cls, name: str, app_name: str) -> bool:
         """Check if a name matches any known document module name."""
+
         # Handle standard document modules (Excel/Word)
         if name in cls.EXCEL_WORKBOOK_NAMES or name in cls.WORD_DOCUMENT_NAMES:
             return True
 
         # Handle Excel sheets
-        if any(name.startswith(prefix) and name[len(prefix) :].isdigit() for prefix in cls.EXCEL_SHEET_PREFIXES):
+        if (
+            any(name.startswith(prefix) and name[len(prefix) :].isdigit() for prefix in cls.EXCEL_SHEET_PREFIXES) 
+            and app_name == "Excel"
+        ):
+            return True
+
+        # Handle Access forms and reports
+        if any(name.startswith(prefix + "_") for prefix in cls.ACCESS_FORM_PREFIXES) and app_name == "Access":
+            return True
+        
+        if any(name.startswith(prefix + "_") for prefix in cls.ACCESS_REPORT_PREFIXES) and app_name == "Access":
             return True
 
         # Handle PowerPoint slides
-        return any(
-            (name.startswith(prefix) and name[len(prefix) :].isdigit() for prefix in cls.POWERPOINT_SLIDE_PREFIXES)
+        return (
+            any(name.startswith(prefix) and name[len(prefix) :].isdigit() for prefix in cls.POWERPOINT_SLIDE_PREFIXES)
+            and app_name == "PowerPoint"
         )
 
 
@@ -321,12 +361,14 @@ class VBAComponentHandler:
     operations. It serves as a utility class for the main Office-specific handlers.
     """
 
-    def __init__(self, use_rubberduck_folders: bool = False):
+    def __init__(self, app_name: str, use_rubberduck_folders: bool = False):
         """Initialize the component handler.
 
         Args:
+            app_name: The name of the Office application
             use_rubberduck_folders: Whether to process Rubberduck folder annotations
         """
+        self.app_name = app_name
         self.use_rubberduck_folders = use_rubberduck_folders
 
     def get_component_info(self, component: Any) -> Dict[str, Any]:
@@ -411,7 +453,7 @@ class VBAComponentHandler:
         name = file_path.stem
 
         # Check if it's a known document module name in any language
-        if VBADocumentNames.is_document_module(name):
+        if VBADocumentNames.is_document_module(name, self.app_name):
             return VBAModuleType.DOCUMENT
 
         if suffix == ".bas":
@@ -852,7 +894,7 @@ class OfficeVBAHandler(ABC):
             self.skip_empty = skip_empty
             self.app = None
             self.doc = None
-            self.component_handler = VBAComponentHandler(use_rubberduck_folders)
+            self.component_handler = VBAComponentHandler(self.app_name, use_rubberduck_folders)
 
             # Configure logging
             log_level = logging.DEBUG if verbose else logging.INFO
