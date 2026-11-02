@@ -1978,9 +1978,6 @@ class OfficeVBAHandler(ABC):
 
             stop_watching = threading.Event()
             ide_window_monitor = WindowFocusMonitor(self, stop_watching)
-            ide_window_monitor.setup()
-            ide_window_monitor.last_project_save_time = self.get_project_save_time()
-            logger.info(f"Initial project save time: {ide_window_monitor.last_project_save_time}")
 
             while True:
                 for changes in watch(
@@ -2662,9 +2659,6 @@ class WindowFocusMonitor:
         office_vba: Our OfficeVBAHandler owner
         stop_event: A Event object we use to signal the watch() function to stop watching and export some modules
 
-    Attributes:
-        last_project_save_time: Time of last VBProject save.
-
     """
 
     def __init__(self, office_vba: OfficeVBAHandler, stop_event: threading.Event):
@@ -2675,7 +2669,7 @@ class WindowFocusMonitor:
         self.vba_project = office_vba.get_vba_project()
 
         self.office_exe_name = self._get_office_exe_name()
-        # This must be kept alive (no garbage collection).
+        # This must be kept alive to prevent garbage collection.
         self.callback_api = None
         
         # Store the window and executable that currently has focus so we can detect when it loses it.
@@ -2683,12 +2677,10 @@ class WindowFocusMonitor:
         self.current_exe_name = self._get_executable_name(self.current_focus_hwnd)
         logger.debug(f"Initial Active App: {self.current_exe_name}")
 
+        self.last_project_save_time = office_vba.get_project_save_time()
+        logger.info(f"Initial project save time: {self.last_project_save_time}")
 
-    def setup(self) -> None:
-        """Prepare class for use."""
-
-        # Sets up the WinEvent hook.
-
+        # Set up the WinEvent hook.
         WINEVENT_OUTOFCONTEXT = 0x0000
         EVENT_SYSTEM_FOREGROUND = 0x0003
 
@@ -2790,12 +2782,12 @@ class WindowFocusMonitor:
             return
 
         exe_name = self._get_executable_name(hwnd)
-        logger.info(f"New forground window: {exe_name}")
+        logger.debug(f"New forground window: {exe_name}")
 
         if exe_name == self.current_exe_name:
             return
         
-        logger.info(f"New forground application: {exe_name}")
+        logger.debug(f"New forground application: {exe_name}")
 
         # Was the old window the Office IDE?
         if self.office_exe_name == self.current_exe_name:
