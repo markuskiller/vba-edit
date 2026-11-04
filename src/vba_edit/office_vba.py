@@ -1978,6 +1978,7 @@ class OfficeVBAHandler(ABC):
 
             stop_watching = threading.Event()
             ide_window_monitor = WindowFocusMonitor(self, stop_watching)
+            self.export_list = []
 
             while True:
                 for changes in watch(
@@ -2662,45 +2663,48 @@ class WindowFocusMonitor:
     """
 
     def __init__(self, office_vba: OfficeVBAHandler, stop_event: threading.Event):
-        self.user32 = ctypes.windll.user32
-        self.hook = None
-        self.office_vba = office_vba
-        self.stop_watch = stop_event
-        self.vba_project = office_vba.get_vba_project()
+        try:
+            self.user32 = ctypes.windll.user32
+            self.hook = None
+            self.office_vba = office_vba
+            self.stop_watch = stop_event
+            self.vba_project = office_vba.get_vba_project()
 
-        self.office_exe_name = self._get_office_exe_name()
-        # This must be kept alive to prevent garbage collection.
-        self.callback_api = None
-        
-        # Store the window and executable that currently has focus so we can detect when it loses it.
-        self.current_focus_hwnd = self.user32.GetForegroundWindow()
-        self.current_exe_name = self._get_executable_name(self.current_focus_hwnd)
-        logger.debug(f"Initial Active App: {self.current_exe_name}")
+            self.office_exe_name = self._get_office_exe_name()
+            # This must be kept alive to prevent garbage collection.
+            self.callback_api = None
+            
+            # Store the window and executable that currently has focus so we can detect when it loses it.
+            self.current_focus_hwnd = self.user32.GetForegroundWindow()
+            self.current_exe_name = self._get_executable_name(self.current_focus_hwnd)
+            logger.debug(f"Initial Active App: {self.current_exe_name}")
 
-        self.last_project_save_time = office_vba.get_project_save_time()
-        logger.info(f"Initial project save time: {self.last_project_save_time}")
+            self.last_project_save_time = office_vba.get_project_save_time()
+            logger.info(f"Initial project save time: {self.last_project_save_time}")
 
-        # Set up the WinEvent hook.
-        WINEVENT_OUTOFCONTEXT = 0x0000
-        EVENT_SYSTEM_FOREGROUND = 0x0003
+            # Set up the WinEvent hook.
+            WINEVENT_OUTOFCONTEXT = 0x0000
+            EVENT_SYSTEM_FOREGROUND = 0x0003
 
-        # Prepare the callback function type for SetWinEventHook.
-        WinEventProcType = ctypes.WINFUNCTYPE(
-            None, ctypes.wintypes.HANDLE, ctypes.wintypes.DWORD, ctypes.wintypes.HWND,
-            ctypes.wintypes.LONG, ctypes.wintypes.LONG, ctypes.wintypes.DWORD, ctypes.wintypes.DWORD
-        )
-        self.callback_api = WinEventProcType(self._focus_change_cb)
-        self.hook = self.user32.SetWinEventHook(
-            EVENT_SYSTEM_FOREGROUND, EVENT_SYSTEM_FOREGROUND,
-            0, self.callback_api, 0, 0, WINEVENT_OUTOFCONTEXT
-        )
-        if not self.hook:
-            raise RuntimeError("Failed to set WinEvent hook.")
+            # Prepare the callback function type for SetWinEventHook.
+            WinEventProcType = ctypes.WINFUNCTYPE(
+                None, ctypes.wintypes.HANDLE, ctypes.wintypes.DWORD, ctypes.wintypes.HWND,
+                ctypes.wintypes.LONG, ctypes.wintypes.LONG, ctypes.wintypes.DWORD, ctypes.wintypes.DWORD
+            )
+            self.callback_api = WinEventProcType(self._focus_change_cb)
+            self.hook = self.user32.SetWinEventHook(
+                EVENT_SYSTEM_FOREGROUND, EVENT_SYSTEM_FOREGROUND,
+                0, self.callback_api, 0, 0, WINEVENT_OUTOFCONTEXT
+            )
+            if not self.hook:
+                raise RuntimeError("Failed to set WinEvent hook.")
 
-        # Compute hashes for all modules
-        for component in self.vba_project.VBComponents:
-            self.office_vba.component_handler.save_component_hash(component)
-
+            # Compute hashes for all modules
+            for component in self.vba_project.VBComponents:
+                self.office_vba.component_handler.save_component_hash(component)
+        except Exception as e:
+            logger.info(f"Error in WindowFocusMonitor.__init__: {str(e)}")
+            raise
 
     def pump_messages(self) -> None:
         """Flushes the Windows message queue. Call this from the main loop."""
@@ -2828,10 +2832,10 @@ class WindowFocusMonitor:
             return self.office_vba.app.Hwnd
         elif app_name == "Word":
             return self.office_vba.app.ActiveWindow.Hwnd
-        elif app_name == "Powerpoint":
+        elif app_name == "PowerPoint":
             return win32gui.FindWindow("PPTFrameClass", None)
         else:
-            raise VBAError(f"Unexpected Office application ({self.app_name})")
+            raise VBAError(f"Unexpected Office application ({app_name})")
 
     def _get_office_exe_name(self) -> str:
         """Return the executable name of the Office application."""
