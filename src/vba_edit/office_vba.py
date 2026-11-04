@@ -877,8 +877,6 @@ class OfficeVBAHandler(ABC):
             self.app = None
             self.doc = None
             self.component_handler = VBAComponentHandler(use_rubberduck_folders)
-            # Keep track of code module hashes for change detection
-            self.component_hashes = {}
 
             # Configure logging
             log_level = logging.DEBUG if verbose else logging.INFO
