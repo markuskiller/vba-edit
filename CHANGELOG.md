@@ -18,7 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Available as `include = [...]` / `exclude = [...]` in the `[general]` section of TOML config files and as text fields in the Config Generator GUI; command-line patterns override config patterns
   - Not supported by the `--xlwings` wrapper (a warning is shown and the patterns are ignored)
 
-- **Preliminary Support for Python 3.15**: Test suite passes on Python 3.15 (release candidate); added to the CI test matrix and package classifiers
+- **Python 3.15 Support**: Python 3.15 is fully supported; the test suite runs against the final 3.15 release in CI, and vba-edit and all satellite packages (`excel-vba`, `word-vba`, ...) declare it in their classifiers
 
 ### Changed
 
