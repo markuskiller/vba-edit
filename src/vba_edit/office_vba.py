@@ -2390,7 +2390,7 @@ class AccessVBAHandler(OfficeVBAHandler):
             # Handle Access-specific initialization
             try:
                 # Try to get running instance first
-                app = win32com.client.GetObject("Access.Application")
+                app = win32com.client.GetActiveObject("Access.Application")
                 try:
                     current_db = app.CurrentDb()
                     if current_db and str(self.doc_path) == current_db.Name:
