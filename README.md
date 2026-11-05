@@ -139,8 +139,10 @@ excel-vba edit -f report.xlsm --bidirectional --in-file-headers
 ```
 
 Also available in `word-vba`, `powerpoint-vba`, and `access-vba`. Saved source edits
-reach Office; settled VBE code edits return to source after two scans, about five
-seconds with an idle host. One-way `edit` remains the default.
+reach Office; VBE code edits return to source as soon as the Office application
+loses focus (for example when you switch to your editor), otherwise once they have
+settled for two scans, about five seconds with an idle host. One-way `edit` remains
+the default.
 
 This mode supports standard modules and Excel workbook/worksheet and Word
 ThisDocument code. Classes, UserForms, Access form/report code, references, and

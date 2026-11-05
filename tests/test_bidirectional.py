@@ -7,7 +7,17 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from vba_edit.bidirectional import OfficeAdapter, SessionLock, Snapshot, SyncSession, plan, run_bidirectional
+from vba_edit.bidirectional import (
+    FOCUS_TICK_MS,
+    INTERVAL_MS,
+    OfficeAdapter,
+    SessionLock,
+    Snapshot,
+    SyncSession,
+    plan,
+    run_bidirectional,
+    start_focus_monitor,
+)
 from vba_edit.cli_common import merge_config_with_args, validate_bidirectional_options
 from vba_edit.exceptions import VBAError
 from vba_edit.office_cli import OfficeVBACLI
@@ -462,3 +472,74 @@ def test_run_handles_ctrl_c_and_releases_locks(session):
         run_bidirectional(session.adapter.handler)
     with SessionLock(session.directory / "session.bin"):
         pass
+
+
+def test_focus_loss_exports_at_once_but_file_changes_still_settle(session):
+    session.startup()
+    components = session.adapter.handler.get_vba_project().VBComponents
+    component = components("Module1")
+    component.CodeModule.body = "Sub VBE()\nEnd Sub"
+    components.append(Component("NewOffice", body="New Office"))
+    session.scan(office_idle=True)
+    assert "Sub VBE()" in source(session).read_text()
+    assert "New Office" in source(session, "NewOffice").read_text()
+
+    change_file(session, "Sub Editor()\nEnd Sub")
+    session.scan()
+    session.scan(office_idle=True)
+    session.scan(office_idle=True)
+    assert component.CodeModule.body == "Sub VBE()\nEnd Sub"
+    session.scan()
+    assert component.CodeModule.body == "Sub Editor()\nEnd Sub"
+    assert not session.state["paused"]
+
+
+def test_focus_loss_does_not_decide_a_conflict_early(session):
+    session.startup()
+    component = session.adapter.handler.get_vba_project().VBComponents("Module1")
+    component.CodeModule.body = "Sub VBE()\nEnd Sub"
+    change_file(session, "Sub Editor()\nEnd Sub")
+    session.scan(office_idle=True)
+    assert not session.state["paused"]
+    assert "Sub Editor()" in source(session).read_text()
+    assert component.CodeModule.body == "Sub VBE()\nEnd Sub"
+    settle(session)
+    assert "Module1" in session.state["paused"]
+
+
+def test_run_scans_at_once_when_office_loses_focus(session):
+    monitor = Mock()
+    monitor.office_lost_focus.side_effect = [False, True]
+    timeouts = []
+
+    def watcher(*args, **kwargs):
+        timeouts.append(kwargs["rust_timeout"])
+        yield set()
+        yield set()
+        raise KeyboardInterrupt
+
+    with (
+        patch("vba_edit.bidirectional.watch", watcher),
+        patch("vba_edit.bidirectional.start_focus_monitor", return_value=monitor),
+        patch.object(session, "scan") as scan,
+    ):
+        session.run()
+    assert timeouts == [FOCUS_TICK_MS]
+    assert [call.kwargs for call in scan.call_args_list] == [{"office_idle": True}]
+    monitor.stop.assert_called_once()
+
+
+def test_run_polls_as_before_without_a_focus_monitor(session):
+    timeouts = []
+
+    def watcher(*args, **kwargs):
+        timeouts.append(kwargs["rust_timeout"])
+        yield set()
+        raise KeyboardInterrupt
+
+    # The test handler has no Office application, so the monitor cannot start.
+    assert start_focus_monitor(session.adapter.handler) is None
+    with patch("vba_edit.bidirectional.watch", watcher), patch.object(session, "scan") as scan:
+        session.run()
+    assert timeouts == [INTERVAL_MS]
+    assert [call.kwargs for call in scan.call_args_list] == [{"office_idle": False}]
