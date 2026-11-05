@@ -8,14 +8,13 @@ version = "0.0.1"
 description = "Name reservation for future vba-edit support for MS Visio. Not yet implemented."
 authors = [{ name = "Markus Killer", email = "m.killer@langui.ch" }]
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 license = "BSD-3-Clause"
 keywords = ["vba", "visio", "office", "automation", "macro"]
 classifiers = [
     "Development Status :: 1 - Planning",
     "Intended Audience :: Developers",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",

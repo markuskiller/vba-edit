@@ -8,14 +8,13 @@ version = "0.6.0a1"
 description = "Edit, export and import Word VBA code from the command line. Thin entry-point wrapper for vba-edit."
 authors = [{ name = "Markus Killer", email = "m.killer@langui.ch" }]
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 license = "BSD-3-Clause"
 keywords = ["vba", "word", "office", "automation", "macro"]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
