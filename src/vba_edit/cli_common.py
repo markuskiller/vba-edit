@@ -4,21 +4,13 @@ import argparse
 import logging
 import os
 import re
+import tomllib
 from pathlib import Path
 from typing import Any, Dict, Optional
 
 from vba_edit.console import error, info, warning
 from vba_edit.exceptions import VBAExportWarning
 from vba_edit.utils import confirm_action, get_windows_ansi_codepage
-
-# Prefer stdlib tomllib (Py 3.11+), fallback to tomli for older envs
-try:
-    import tomllib as toml_lib  # Python 3.11+ includes tomllib in stdlib
-except ImportError:
-    try:
-        import tomli as toml_lib  # tomli is the recommended TOML parser for Python <3.11 # type: ignore[import-not-found]
-    except ImportError:
-        import toml as toml_lib  # Fall back to toml package if tomli isn't available # type: ignore[import-not-found]
 
 logger = logging.getLogger(__name__)
 
@@ -375,7 +367,7 @@ def load_config_file(config_path: str) -> Dict[str, Any]:
     text = Path(config_path).read_text(encoding="utf-8")
     try:
         # Use loads() so we can re-use the same text for better diagnostics
-        return toml_lib.loads(text)
+        return tomllib.loads(text)
     except Exception as e:
         # Raise a clear message explaining how to write Windows paths in TOML
         raise ValueError(_enhance_toml_error_message(config_path, text, e)) from e

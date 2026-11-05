@@ -42,18 +42,12 @@ def create_build_config():
 
 def get_version():
     """Extract version from pyproject.toml."""
-    try:
-        import tomli
-    except ImportError:
-        try:
-            import tomllib as tomli
-        except ImportError:
-            return "0.4.0"
+    import tomllib
 
     pyproject_path = Path(__file__).parent / "pyproject.toml"
     if pyproject_path.exists():
         with open(pyproject_path, "rb") as f:
-            data = tomli.load(f)
+            data = tomllib.load(f)
             return data.get("project", {}).get("version", "0.4.0")
     return "0.4.0"
 
