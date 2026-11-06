@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Experimental Bidirectional Editing** (`edit --bidirectional`): Keeps the source files and the live VBA project in sync in both directions: saved file edits reach Office, and code edited in the VBA editor is written back to the source files
+  - Available in all four apps (`excel-vba`, `word-vba`, `powerpoint-vba`, `access-vba`); one-way `edit` remains the default
+  - Supports standard modules and Excel workbook/worksheet and Word `ThisDocument` code; classes, UserForms, Access form/report code and references are not synchronized
+  - A change is only applied when the other side is unchanged since the last sync; conflicts, renames, moves and deletions are paused instead of overwritten, with both versions preserved under `<vba-directory>/.vba-edit/conflicts/`
+  - Paused modules are resolved one at a time on restart with `--sync-resolve office|files --sync-component NAME`
+  - Also available as `bidirectional = true` in the `[general]` section of TOML config files
+  - Cannot be combined with `--xlwings`, `--with-references` or `--detect-encoding`
+
 - **Focus-Loss Trigger for Experimental Bidirectional Editing** (`edit --bidirectional`): VBE code edits are written to the source files as soon as the Office application loses focus, instead of only after settling for about five seconds ([PR #123](https://github.com/markuskiller/vba-edit/pull/123), thank you @russ-who!)
   - Only exports are sped up; source file changes and conflicts are still handled after settling, and the per-module baselines keep deciding what is safe to write
   - Falls back to the polling scans alone when the focus monitor cannot be started
