@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Focus-Loss Trigger for Experimental Bidirectional Editing** (`edit --bidirectional`): VBE code edits are written to the source files as soon as the Office application loses focus, instead of only after settling for about five seconds ([PR #123](https://github.com/markuskiller/vba-edit/pull/123), thank you @russ-who!)
+  - Only exports are sped up; source file changes and conflicts are still handled after settling, and the per-module baselines keep deciding what is safe to write
+  - Falls back to the polling scans alone when the focus monitor cannot be started
+  - Plain `edit` without `--bidirectional` remains one-way
+
 - **Module Filtering** (`--include` / `--exclude`): Control exactly which VBA modules `edit`, `export` and `import` touch ([Issue #77](https://github.com/markuskiller/vba-edit/issues/77))
   - Patterns are case-insensitive shell globs matched against the module name (`Module1`), the file name (`Helpers_*.cls`) and the path relative to `--vba-directory` (`Utils/*` with `--rubberduck-folders`)
   - `--include` keeps only matching modules; `--exclude` drops matching modules and is applied after `--include`; both accept several patterns and can be repeated

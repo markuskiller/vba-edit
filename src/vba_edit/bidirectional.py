@@ -25,6 +25,7 @@ from vba_edit.exceptions import DocumentClosedError, RPCError, VBAError
 logger = logging.getLogger(__name__)
 STATE_VERSION = 1
 INTERVAL_MS = 2500
+FOCUS_TICK_MS = 250
 SETTLED_SCANS = 2
 EXTENSIONS = {1: ".bas", 2: ".cls", 3: ".frm", 100: ".cls"}
 MEMBER_ATTRIBUTE = re.compile(r"^\s*Attribute\s+[^=]*\.[^=]*=", re.IGNORECASE)
@@ -544,7 +545,12 @@ class SyncSession:
         self.persist()
         return True
 
-    def scan(self):
+    def scan(self, *, office_idle=False):
+        """Reconcile every component whose state has settled.
+
+        ``office_idle`` marks a scan triggered by Office losing focus: its code is
+        at rest, so pure exports proceed at once. Everything else still settles.
+        """
         # A failed inventory/file read must reset settling, never signal absence.
         try:
             inventory = self.adapter.inventory()
@@ -565,9 +571,14 @@ class SyncSession:
             disk = self.adapter.align(files.get(name), office or baseline)
             signature = (inventory.get(name), disk)
             previous, count = self.settling.get(name, (None, 0))
-            count = count + 1 if previous == signature else 1
+            if previous != signature:
+                count = 1
+            elif not office_idle:
+                # A focus-triggered scan must not shorten the settling of file changes.
+                count += 1
             self.settling[name] = (signature, count)
-            if count < SETTLED_SCANS:
+            settled = count >= SETTLED_SCANS
+            if not settled and not office_idle:
                 continue
             try:
                 if name in inventory and (office is None or (office.kind, office.body) != inventory[name]):
@@ -575,6 +586,10 @@ class SyncSession:
                     self.cache[name] = office
                     disk = self.adapter.align(files.get(name), office)
                 pending = self.state["pending"].get(name)
+                action = plan(baseline, office, disk)
+                new_in_office = baseline is None and office and disk is None and office.kind == 1
+                if not settled and (pending or not (action == "export" or new_in_office)):
+                    continue
                 if pending:
                     expected = Snapshot.load(pending["expected"]) if pending.get("expected") else None
                     actual = self.adapter.export(name, inventory[name][0]) if name in inventory else None
@@ -584,13 +599,12 @@ class SyncSession:
                     else:
                         self.pause(name, "Pending operation changed; review before continuing", baseline, office, disk)
                     continue
-                action = plan(baseline, office, disk)
                 if action == "adopt":
                     if baseline != office:
                         self.adopt(office)
                 elif baseline is None and office is None and disk and disk.kind == 1:
                     self.transfer("import", name, baseline, office, disk)
-                elif baseline is None and office and disk is None and office.kind == 1:
+                elif new_in_office:
                     self.transfer("export", name, baseline, office, disk)
                 elif action == "conflict":
                     self.pause(name, "Both sides changed or a component is missing", baseline, office, disk)
@@ -620,10 +634,14 @@ class SyncSession:
                 self.startup()
                 if getattr(self.adapter.handler, "open_folder", False):
                     os.startfile(str(self.adapter.root))
+                focus = start_focus_monitor(self.adapter.handler)
+                if focus:
+                    stack.callback(focus.stop)
                 for _changes in watch(
                     self.adapter.root,
                     recursive=self.adapter.handler.use_rubberduck_folders,
-                    rust_timeout=INTERVAL_MS,
+                    # The focus monitor only hears events while this thread pumps messages.
+                    rust_timeout=FOCUS_TICK_MS if focus else INTERVAL_MS,
                     yield_on_timeout=True,
                     watch_filter=lambda _change, path: not Path(path).resolve().is_relative_to(self.directory),
                 ):
@@ -632,8 +650,9 @@ class SyncSession:
                         if not self.adapter.handler.is_document_open():
                             raise DocumentClosedError(self.adapter.handler.document_type)
                         last_check = now
-                    if not _changes or now - last_scan >= INTERVAL_MS / 1000:
-                        self.scan()
+                    lost_focus = bool(focus and focus.office_lost_focus())
+                    if lost_focus or now - last_scan >= INTERVAL_MS / 1000 or (not focus and not _changes):
+                        self.scan(office_idle=lost_focus)
                         last_scan = now
                     if now - last_summary >= 30:
                         self.summary()
@@ -644,6 +663,19 @@ class SyncSession:
                 self.summary()
             if self.state["paused"] or self.state["pending"] or self.read_failed:
                 raise VBAError("Edit session ended with unresolved synchronization work; review .vba-edit/state.json.")
+
+
+def start_focus_monitor(handler):
+    """Best effort: without it, VBE edits are still exported by the polling scans."""
+    try:
+        from vba_edit.focus_monitor import WindowFocusMonitor
+
+        monitor = WindowFocusMonitor(handler)
+    except Exception as exc:
+        logger.info("Focus trigger unavailable (%s); VBE edits are exported after settling only.", exc)
+        return None
+    logger.info("VBE edits are exported as soon as %s loses focus.", handler.app_name)
+    return monitor
 
 
 def run_bidirectional(handler, *, save_metadata=False, resolve=None, component=None):
