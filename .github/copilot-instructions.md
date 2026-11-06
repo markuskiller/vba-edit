@@ -338,10 +338,9 @@ This applies to both `gh release create` and `gh release edit`.
 - Dependabot monitors weekly for security updates
 
 ### Python Support
-- Support Python 3.9 - 3.13
+- Support Python 3.11 - 3.15 (3.10 reached end of life in October 2026)
 - Test against all supported versions in CI
-- Don't use features from Python > 3.9 without compatibility checks
-- **Python 3.14**: Not yet supported - waiting for `watchfiles` to release pre-built wheels for cp314
+- Don't use features from Python > 3.11 without compatibility checks
 
 ---
 

@@ -23,11 +23,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Available as `include = [...]` / `exclude = [...]` in the `[general]` section of TOML config files and as text fields in the Config Generator GUI; command-line patterns override config patterns
   - Not supported by the `--xlwings` wrapper (a warning is shown and the patterns are ignored)
 
-- **Preliminary Support for Python 3.15**: Test suite passes on Python 3.15 (release candidate); added to the CI test matrix and package classifiers
+- **Python 3.15 Support**: Python 3.15 is fully supported; the test suite runs against the final 3.15 release in CI, and vba-edit and all satellite packages (`excel-vba`, `word-vba`, ...) declare it in their classifiers
 
 ### Changed
 
+- **Python 3.10 is no longer supported**: Python 3.10 reached end of life on 2026-10-01; the minimum supported version is now Python 3.11
+  - The fixed Pillow and `filelock` releases (see Security) require Python 3.11 or later, so Python 3.10 could no longer pass the security audit
+  - The `tomli` backport is no longer a dependency; configuration and reference files are read with the standard library's `tomllib`
+
+- **Config Generator requires `ttkbootstrap` 2.2.4 or later** (previously 1.10.0): it remains part of the standard install
+
 - **Config Generator Version Display**: The Config Generator now shows the active vba-edit version in the window title, header, TOML preview, and saved configuration files
+
+### Security
+
+- **Pillow advisories via `ttkbootstrap`**: Pillow 12.x is affected by advisories fixed only in Pillow 13.0.0 (released 2026-10-16), which older `ttkbootstrap` releases excluded with a `pillow<13` pin
+  - `ttkbootstrap` 2.2.4 lifted the pin ([ttkbootstrap#1350](https://github.com/israel-dryer/ttkbootstrap/pull/1350)); vba-edit now requires `ttkbootstrap>=2.2.4` and `pillow>=13.0.0`, so an upgrade always brings in the fixed Pillow
+  - vba-edit never opens user-supplied images; Pillow is only used by `ttkbootstrap` for its own bundled theme assets, so the practical exposure was low
+
+- **`filelock` advisories (development dependency)**: the minimum is raised to `filelock` 4.2.1, the first release with the fixes
 
 ## [0.5.1] - 2026-05-17
 

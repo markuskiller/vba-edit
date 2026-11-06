@@ -8,7 +8,7 @@ version = "0.6.0a1"
 description = "Enable seamless MS Office VBA code editing in preferred editor or IDE (facilitating the use of coding assistants and version control workflows)"
 authors = [{ name = "Markus Killer", email = "m.killer@langui.ch" }]
 readme = "README.md"
-requires-python = ">=3.10" # Minimum Python version (3.9 EOL Oct 2025)
+requires-python = ">=3.11" # Minimum Python version (3.10 EOL Oct 2026)
 license = "BSD-3-Clause"
 license-files = ["LICENSE", "LICENSES/*.txt", "AUTHORS.md", "SECURITY.md"]
 keywords = ["vba", "excel", "word", "office", "automation", "macro", "PyPI"]
@@ -16,7 +16,6 @@ classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
@@ -29,9 +28,9 @@ classifiers = [
 dependencies = [
     "pywin32 >= 224;platform_system=='Windows'",
     "watchfiles>=1.1.1",                         # replaced watchgod; 1.1.1+ required for Python 3.14
-    "tomli>=2.0.0; python_version < '3.11'",
     "rich>=13.0.0",                              # Modern terminal output with colors
-    "ttkbootstrap>=1.10.0",                      # GUI framework for config-gen
+    "ttkbootstrap>=2.2.4",                       # GUI framework for config-gen; 2.2.4+ allows Pillow 13
+    "pillow>=13.0.0",                            # Security floor: the 2026 Pillow advisories are fixed only in 13.0.0
 ]
 
 [project.optional-dependencies]
@@ -44,7 +43,7 @@ dev = [
     "twine",
     "wheel",
     "pyinstaller",
-    "filelock>=3.20.1",      # Security fix for GHSA-w853-jp5j-5j7f (symlink race condition)
+    "filelock>=4.2.1",       # Security floor: the 2026 filelock advisories are fixed in 4.2.1
 ]
 all = ["xlwings>=0.28.0"]
 
@@ -72,11 +71,11 @@ Changelog = "https://github.com/markuskiller/vba-edit/blob/main/CHANGELOG.md"
 
 [tool.black]
 line-length = 120
-target-version = ['py313'] # Target Python version
+target-version = ['py311'] # Oldest supported Python version
 
 [tool.ruff]
 line-length = 120
-target-version = 'py313'
+target-version = 'py311' # Oldest supported Python version
 fix = true
 show-fixes = true
 respect-gitignore = true
@@ -103,7 +102,7 @@ src_paths = ["src", "vba_edit", "tests"]
 
 # MyPy Type Checker Configuration
 [tool.mypy]
-python_version = "3.8"
+python_version = "3.11"
 warn_return_any = true
 warn_unused_configs = true
 disallow_untyped_defs = true

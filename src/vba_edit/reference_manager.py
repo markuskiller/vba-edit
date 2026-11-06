@@ -28,7 +28,7 @@ Usage with xlwings (optional convenience):
 
 import logging
 import re
-import sys
+import tomllib
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
@@ -214,17 +214,9 @@ def _serialize_references_to_toml(
 
 
 def _load_toml(path: Path) -> Dict[str, Any]:
-    """Load a TOML file using tomllib (Python 3.11+) or the tomli backport."""
-    if sys.version_info >= (3, 11):
-        import tomllib
-
-        with open(path, "rb") as f:
-            return tomllib.load(f)
-    else:
-        import tomli  # type: ignore[import-not-found]
-
-        with open(path, "rb") as f:
-            return tomli.load(f)
+    """Load a TOML file with the standard library parser."""
+    with open(path, "rb") as f:
+        return tomllib.load(f)
 
 
 class ReferenceManager:
@@ -892,11 +884,6 @@ class ReferenceManager:
 
             return stats
 
-        except ImportError as e:
-            logger.error(f"TOML library not available: {e}")
-            raise VBAReferenceError(
-                "TOML parsing library not available. Please install tomli: pip install tomli"
-            ) from e
         except VBAReferenceError:
             raise
         except Exception as e:
@@ -1041,11 +1028,6 @@ class ReferenceManager:
 
             return stats
 
-        except ImportError as e:
-            logger.error(f"TOML library not available: {e}")
-            raise VBAReferenceError(
-                "TOML parsing library not available. Please install tomli: pip install tomli"
-            ) from e
         except VBAReferenceError:
             raise
         except Exception as e:
