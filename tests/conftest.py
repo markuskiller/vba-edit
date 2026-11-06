@@ -1,7 +1,6 @@
 """Pytest configuration file."""
 
 import pytest
-import win32com.client
 
 # Track which Office apps were actually used by tests (for safe cleanup)
 # Global storage for session-wide application instances
@@ -10,8 +9,13 @@ from pathlib import Path
 import pythoncom
 import os
 
+from tests.office_processes import close_office_apps_started_since, office_pids_at_session_start
+
 # Global storage for session-wide application instances
 _app_instances = {}
+
+# Office applications that were running before the tests started are never closed by the cleanup.
+_office_pids_before_tests = office_pids_at_session_start()
 
 
 def pytest_addoption(parser):
@@ -227,149 +231,38 @@ def powerpoint_only(request):
     return selected == ["powerpoint"]
 
 
-@pytest.fixture(scope="module", autouse=True)
-def cleanup_office_apps_per_module():
-    """Clean up Office applications after each test module."""
-    # Yield first, then cleanup after the module finishes
-    yield
-
-    import subprocess
-
-    print("\n" + "=" * 80)
-    print("Cleaning up Office applications at end of test module...")
-    print("=" * 80)
-
-    # Clear the app instance cache FIRST, before touching any COM objects
-    # This prevents trying to use dead COM references later
+def _close_office_apps_started_by_tests(when: str) -> None:
+    """Drop cached COM references, then close the Office applications the tests started."""
+    # Clear the app instance cache FIRST, before touching any processes.
+    # This prevents trying to use dead COM references later.
     try:
         from tests.cli import helpers
 
-        if hasattr(helpers, "_app_instances"):
-            helpers._app_instances.clear()
-            print("  ✓ Cleared app instance cache")
+        helpers._app_instances.clear()
     except Exception as e:
         print(f"  Warning: Could not clear app cache: {e}")
 
-    # Force-kill any Office processes - skip graceful shutdown as apps may be in bad state
-    print("\nForce-closing Office processes...")
-    office_processes = {
-        "excel": "EXCEL.EXE",
-        "word": "WINWORD.EXE",
-        "powerpoint": "POWERPNT.EXE",
-        "access": "MSACCESS.EXE",
-    }
+    # Skip a graceful shutdown: the applications may be in a bad state after a failed test.
+    closed = close_office_apps_started_since(_office_pids_before_tests)
+    if closed:
+        print(f"\nClosed Office applications started by the tests ({when}): {', '.join(closed)}")
 
-    killed_any = False
-    for app, process in office_processes.items():
-        try:
-            result = subprocess.run(["taskkill", "/F", "/IM", process, "/T"], capture_output=True, text=True, timeout=5)
-            if result.returncode == 0 and "SUCCESS" in result.stdout:
-                print(f"  ✓ Force-killed {process}")
-                killed_any = True
-        except Exception:
-            pass  # Process not running or couldn't kill
 
-    if not killed_any:
-        print("  ✓ No Office processes running")
+@pytest.fixture(scope="module", autouse=True)
+def cleanup_office_apps_per_module():
+    """Close the Office applications a test module started.
 
-    print("=" * 80)
-    print("✓ Office application cleanup complete for module")
-    print("=" * 80)
+    Applications that were already running when the session began are left alone.
+    """
+    yield
+    _close_office_apps_started_by_tests("end of test module")
 
 
 @pytest.fixture(scope="session", autouse=True)
 def cleanup_office_apps():
-    """Clean up Office applications after all tests."""
+    """Close the Office applications the test session started.
+
+    Applications that were already running when the session began are left alone.
+    """
     yield
-
-    import warnings
-    import subprocess
-    import time
-
-    print("\n" + "=" * 80)
-    print("Cleaning up Office applications at end of test session...")
-    print("=" * 80)
-
-    for app_name in ["Word.Application", "Excel.Application", "PowerPoint.Application", "Access.Application"]:
-        try:
-            app = win32com.client.GetObject(Class=app_name)
-            app_display_name = app_name.split(".")[0]
-            print(f"Found running {app_display_name} instance, attempting graceful close...")
-
-            # Suppress all alerts
-            try:
-                app.DisplayAlerts = False
-            except Exception:
-                pass
-
-            # Mark all open documents/workbooks as saved to prevent prompts
-            try:
-                if hasattr(app, "Workbooks"):  # Excel
-                    count = app.Workbooks.Count
-                    print(f"  - {count} Excel workbook(s) open, marking as saved...")
-                    for i in range(count, 0, -1):
-                        try:
-                            app.Workbooks(i).Saved = True
-                        except Exception:
-                            pass
-                elif hasattr(app, "Documents"):  # Word
-                    count = app.Documents.Count
-                    print(f"  - {count} Word document(s) open, marking as saved...")
-                    for i in range(count, 0, -1):
-                        try:
-                            app.Documents(i).Saved = True
-                        except Exception:
-                            pass
-                elif hasattr(app, "Presentations"):  # PowerPoint
-                    count = app.Presentations.Count
-                    print(f"  - {count} PowerPoint presentation(s) open, marking as saved...")
-                    for i in range(count, 0, -1):
-                        try:
-                            app.Presentations(i).Saved = True
-                        except Exception:
-                            pass
-            except Exception:
-                pass
-
-            # Try to quit gracefully with a timeout
-            try:
-                app.Quit()
-                time.sleep(0.3)  # Give it a moment to close
-                print(f"  ✓ {app_display_name} closed gracefully")
-            except Exception:
-                print(f"  ⚠ {app_display_name}.Quit() failed, will force-close...")
-
-        except Exception:
-            # App not running - this is fine
-            pass
-
-    # Force kill any remaining Office processes (in case Quit() hung)
-    time.sleep(0.2)
-    app_to_process = {
-        "Excel.Application": "EXCEL",
-        "Word.Application": "WINWORD",
-        "PowerPoint.Application": "POWERPNT",
-        "Access.Application": "MSACCESS",
-    }
-
-    print("\nForce-closing any remaining Office processes...")
-    killed_count = 0
-    for app_name, process_name in app_to_process.items():
-        try:
-            # Use /T to kill child processes too
-            result = subprocess.run(
-                ["taskkill", "/F", "/IM", f"{process_name}.EXE", "/T"], capture_output=True, timeout=1, text=True
-            )
-            # Only print if process was actually killed (not "not found")
-            if result.returncode == 0:
-                print(f"  ✓ Force-killed {process_name}")
-                killed_count += 1
-        except Exception:
-            pass
-
-    if killed_count == 0:
-        print("  ✓ No Office processes needed force-closing")
-
-    print("=" * 80)
-    print("✓ Office application cleanup complete")
-    print("=" * 80)
+    _close_office_apps_started_by_tests("end of test session")

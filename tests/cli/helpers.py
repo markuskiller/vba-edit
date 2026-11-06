@@ -25,7 +25,10 @@ def check_office_apps_are_safe_to_use():
     Even apps running with 0 open documents are considered unsafe because:
     1. Tests will create documents in these apps
     2. Those documents might not get cleaned up properly
-    3. Force-killing the app at test end loses any test-created documents
+    3. Tests may close documents that are open in these apps
+
+    The cleanup fixtures in tests/conftest.py only force-close Office processes
+    that were started during the test session.
 
     Returns:
         tuple: (is_safe: bool, message: str) - whether it's safe to proceed and a message
@@ -83,8 +86,9 @@ def check_office_apps_are_safe_to_use():
             f"\n⚠️  Even apps with 0 documents are unsafe because:\n"
             f"   - Tests will create documents in these running apps\n"
             f"   - Those test documents might not get cleaned up\n"
-            f"   - Force-quit at test end will lose any test-created work\n\n"
-            f"These integration tests will FORCE QUIT Office apps at the end,\n"
+            f"   - Tests may close documents that are open in these apps\n\n"
+            f"The test cleanup only force-quits Office apps that the tests started,\n"
+            f"but these integration tests attach to apps that are already running,\n"
             f"which could cause DATA LOSS if you have unsaved work.\n\n"
             f"To run these tests safely:\n"
             f"  1. Save all your Office documents\n"
