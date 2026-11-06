@@ -244,20 +244,51 @@ class VBADocumentNames:
         "Слайд",  # Russian
     }
 
+    # Access form and report module prefixes. Unlike the names above, these are not
+    # localized: a German Access calls the modules of "Formular1" and "Bericht1"
+    # Form_Formular1 and Report_Bericht1 (checked with Access 16, UI language 1031).
+    ACCESS_FORM_PREFIXES = {"Form"}
+    ACCESS_REPORT_PREFIXES = {"Report"}
+
     @classmethod
-    def is_document_module(cls, name: str) -> bool:
-        """Check if a name matches any known document module name."""
+    def is_access_object_module(cls, name: str) -> bool:
+        """Check if a name looks like the code module of an Access form or report.
+
+        Access also accepts these names for ordinary modules, so the name alone
+        does not prove it.
+        """
+        return any(name.startswith(prefix + "_") for prefix in cls.ACCESS_FORM_PREFIXES | cls.ACCESS_REPORT_PREFIXES)
+
+    @classmethod
+    def is_document_module(cls, name: str, app_name: Optional[str] = None) -> bool:
+        """Check if a name matches any known document module name.
+
+        Args:
+            name: Module name
+            app_name: Office application the module belongs to ("Excel", "Word",
+                "PowerPoint" or "Access"). Sheet and slide names only count in
+                their own application, form and report names only in Access.
+                Without it, sheet and slide names count everywhere and Access
+                names are not considered, as before detection became
+                application-aware.
+        """
         # Handle standard document modules (Excel/Word)
         if name in cls.EXCEL_WORKBOOK_NAMES or name in cls.WORD_DOCUMENT_NAMES:
             return True
 
         # Handle Excel sheets
-        if any(name.startswith(prefix) and name[len(prefix) :].isdigit() for prefix in cls.EXCEL_SHEET_PREFIXES):
+        if app_name in (None, "Excel") and any(
+            name.startswith(prefix) and name[len(prefix) :].isdigit() for prefix in cls.EXCEL_SHEET_PREFIXES
+        ):
+            return True
+
+        # Handle Access forms and reports
+        if app_name == "Access" and cls.is_access_object_module(name):
             return True
 
         # Handle PowerPoint slides
-        return any(
-            (name.startswith(prefix) and name[len(prefix) :].isdigit() for prefix in cls.POWERPOINT_SLIDE_PREFIXES)
+        return app_name in (None, "PowerPoint") and any(
+            name.startswith(prefix) and name[len(prefix) :].isdigit() for prefix in cls.POWERPOINT_SLIDE_PREFIXES
         )
 
 
@@ -322,13 +353,16 @@ class VBAComponentHandler:
     operations. It serves as a utility class for the main Office-specific handlers.
     """
 
-    def __init__(self, use_rubberduck_folders: bool = False):
+    def __init__(self, use_rubberduck_folders: bool = False, app_name: Optional[str] = None):
         """Initialize the component handler.
 
         Args:
             use_rubberduck_folders: Whether to process Rubberduck folder annotations
+            app_name: The name of the Office application; without it, document
+                module names are matched for every application except Access
         """
         self.use_rubberduck_folders = use_rubberduck_folders
+        self.app_name = app_name
 
     def get_component_info(self, component: Any) -> Dict[str, Any]:
         """Get detailed information about a VBA component.
@@ -412,8 +446,11 @@ class VBAComponentHandler:
         name = file_path.stem
 
         # Check if it's a known document module name in any language
-        if VBADocumentNames.is_document_module(name):
-            return VBAModuleType.DOCUMENT
+        if VBADocumentNames.is_document_module(name, self.app_name):
+            # Access form and report modules are class files; Form_Utils.bas is a standard module.
+            is_access_name = self.app_name == "Access" and VBADocumentNames.is_access_object_module(name)
+            if suffix == ".cls" or not is_access_name:
+                return VBAModuleType.DOCUMENT
 
         if suffix == ".bas":
             return VBAModuleType.STANDARD
@@ -856,7 +893,7 @@ class OfficeVBAHandler(ABC):
             self.module_filter = ModuleFilter(include, exclude)
             self.app = None
             self.doc = None
-            self.component_handler = VBAComponentHandler(use_rubberduck_folders)
+            self.component_handler = VBAComponentHandler(use_rubberduck_folders, app_name=self.app_name)
 
             # Configure logging
             log_level = logging.DEBUG if verbose else logging.INFO
@@ -1385,6 +1422,7 @@ class OfficeVBAHandler(ABC):
             module_type = self.component_handler.get_module_type(
                 file_path, in_file_headers=has_inline_headers, encoding=self.encoding
             )
+            module_type = self._module_type_for_existing_component(name, module_type, components)
 
             logger.debug(f"Processing module: {name} (Type: {module_type}, Inline headers: {has_inline_headers})")
 
@@ -1411,6 +1449,41 @@ class OfficeVBAHandler(ABC):
         except Exception as e:
             logger.error(f"Failed to handle {file_path.name}: {str(e)}")
             raise VBAError(f"Failed to handle {file_path.name}") from e
+
+    def _module_type_for_existing_component(
+        self, name: str, module_type: VBAModuleType, components: Any
+    ) -> VBAModuleType:
+        """Correct a module type derived from the file with what the project actually holds.
+
+        File name and header only suggest whether a module is a document module;
+        an existing component settles it. Document modules can only be updated
+        in place, never removed or imported.
+
+        Args:
+            name: Component name
+            module_type: Module type derived from the file
+            components: VBA components collection
+
+        Returns:
+            The module type to import the file as
+        """
+        try:
+            component_type = int(components(name).Type)
+        except Exception:
+            return module_type  # No such component yet: the file decides.
+
+        if component_type == VBATypes.VBEXT_CT_DOCUMENT:
+            return VBAModuleType.DOCUMENT
+
+        if self.app_name == "Access" and module_type == VBAModuleType.DOCUMENT:
+            # An ordinary module that only carries a Form_ or Report_ name.
+            ordinary_types = {
+                VBATypes.VBEXT_CT_STDMODULE: VBAModuleType.STANDARD,
+                VBATypes.VBEXT_CT_CLASSMODULE: VBAModuleType.CLASS,
+            }
+            return ordinary_types.get(component_type, module_type)
+
+        return module_type
 
     def _import_with_in_file_headers(self, file_path: Path, components: Any, module_type: VBAModuleType) -> None:
         """Import VBA component when headers are embedded in files."""
@@ -2475,8 +2548,9 @@ class AccessVBAHandler(OfficeVBAHandler):
     def _update_document_module(self, name: str, code: str, components: Any) -> None:
         """Update module code in Access.
 
-        Access doesn't have document modules like Word/Excel, but we still need this
-        method for the interface. For Access, we'll use it to update any module's content.
+        Access has no ThisWorkbook/ThisDocument, but the code modules of forms and
+        reports behave like document modules: they belong to their form or report
+        and can only be updated in place.
 
         Args:
             name: Name of the module
@@ -2488,19 +2562,46 @@ class AccessVBAHandler(OfficeVBAHandler):
         """
         try:
             component = components(name)
+        except Exception as e:
+            raise VBAError(
+                f"Access has no module named {name}. The code of a form or report cannot be created by "
+                f"import: create the form or report in Access and set its 'Has Module' property, then "
+                f"import again. An ordinary module needs a name that does not start with Form_ or Report_."
+            ) from e
 
-            # Clear existing code
-            if component.CodeModule.CountOfLines > 0:
-                component.CodeModule.DeleteLines(1, component.CodeModule.CountOfLines)
+        try:
+            module = component.CodeModule
+            previous_code = module.Lines(1, module.CountOfLines) if module.CountOfLines > 0 else ""
 
-            # Add new code if not empty (filter hidden member attributes - Issue #16)
-            if code.strip():
-                component.CodeModule.AddFromString(_filter_attributes(code))
+            try:
+                # Clear existing code
+                if module.CountOfLines > 0:
+                    module.DeleteLines(1, module.CountOfLines)
+
+                # Add new code if not empty (filter hidden member attributes - Issue #16)
+                if code.strip():
+                    module.AddFromString(_filter_attributes(code))
+            except Exception:
+                # Access keeps module changes, so a failed update must not leave the form without code.
+                self._restore_module_code(name, module, previous_code)
+                raise
 
             logger.info(f"Updated module content: {name}")
 
         except Exception as e:
             raise VBAError(f"Failed to update module {name}") from e
+
+    @staticmethod
+    def _restore_module_code(name: str, module: Any, previous_code: str) -> None:
+        """Put back the code a module had before a failed update (best effort)."""
+        try:
+            if module.CountOfLines > 0:
+                module.DeleteLines(1, module.CountOfLines)
+            if previous_code.strip():
+                module.AddFromString(previous_code)
+            logger.warning(f"Update of {name} failed; its previous code was restored.")
+        except Exception as restore_error:
+            logger.error(f"Update of {name} failed and its previous code could not be restored: {restore_error}")
 
     def save_document(self) -> None:
         """Handle saving in Access.

@@ -43,6 +43,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Config Generator Version Display**: The Config Generator now shows the active vba-edit version in the window title, header, TOML preview, and saved configuration files
 
+### Fixed
+
+- **Access Form and Report Code Not Imported**: `import` and `edit` now update the code of Access forms and reports (`Form_<name>.cls`, `Report_<name>.cls`) in place ([PR #117](https://github.com/markuskiller/vba-edit/pull/117), thank you @russ-who!)
+  - Previously these files were treated as class modules: the form code stayed unchanged, a stray class module (`Class1`) was added to the database, and the import still reported success
+  - The existing module decides how a file is imported, so ordinary modules that merely carry a `Form_` or `Report_` name keep working, and document modules in Excel, Word and PowerPoint are recognized even without a header or a default name
+  - Importing code for a form or report that does not exist now fails with a clear message; create the form or report in Access first (property "Has Module")
+  - A failed update restores the previous code of the form or report module
+
 ### Security
 
 - **Pillow advisories via `ttkbootstrap`**: Pillow 12.x is affected by advisories fixed only in Pillow 13.0.0 (released 2026-10-16), which older `ttkbootstrap` releases excluded with a `pillow<13` pin
