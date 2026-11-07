@@ -57,6 +57,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Separate `.header` Files Ignored on Import**: `import` looked for `<Name>.bas.header` while `export --save-headers` writes `<Name>.header`, so headers were never applied and class modules were re-created with default attributes. Import now finds the files export writes, in both header modes
 
+- **UserForms in Rubberduck Folders**: with `--rubberduck-folders`, `export` wrote a UserForm's `.frm` (and `.header`) into its `@Folder` subfolder but left the `.frx` binary in the VBA directory root, where `import` never looked for it. The `.frx` now follows the `.frm` into its folder; trees exported by earlier versions still import, because the root is checked as a fallback
+  - `edit` with `--rubberduck-folders` re-exported every module on start (the existence check only looked in the root) and the header-mode cleanup tried to delete each `.header` file twice; both look into the subfolders now
+  - Files in dot-folders below the VBA directory (`.vba-edit/` state of bidirectional mode, import staging) are ignored by `import` and the `edit` watcher
+
 - **Failed Updates No Longer Empty a Module**: when replacing a module's code fails half-way, the previous code is put back (previously the module could be left empty)
 
 - **Import Errors No Longer Create Stray Modules**: a failure while updating an existing module surfaces as an error; previously it fell through to "create a new module", which added `Class1`/`Module1` duplicates
