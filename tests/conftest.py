@@ -2,17 +2,7 @@
 
 import pytest
 
-# Track which Office apps were actually used by tests (for safe cleanup)
-# Global storage for session-wide application instances
-import sys
-from pathlib import Path
-import pythoncom
-import os
-
 from tests.office_processes import close_office_apps_started_since, office_pids_at_session_start
-
-# Global storage for session-wide application instances
-_app_instances = {}
 
 # Office applications that were running before the tests started are never closed by the cleanup.
 _office_pids_before_tests = office_pids_at_session_start()

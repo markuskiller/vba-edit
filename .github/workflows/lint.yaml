@@ -45,4 +45,8 @@ jobs:
           python -m pip install ruff
 
       - name: Run Ruff
-        run: ruff check --output-format=github
+        # --no-fix: pyproject sets fix = true for local use; CI must report, not repair
+        run: ruff check --no-fix --output-format=github
+
+      - name: Check formatting
+        run: ruff format --check src tests
