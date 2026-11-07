@@ -1030,7 +1030,7 @@ class OfficeVBAHandler(ABC):
             VBAError: If .frm files are found and neither save_headers nor in_file_headers is enabled
         """
         if not self.save_headers and not self.in_file_headers:
-            if form_files := list(vba_dir.glob("*.frm")):
+            if form_files := self._find_vba_files("*.frm", vba_dir):
                 form_names = ", ".join(f.stem for f in form_files)
                 error_msg = (
                     f"\nERROR: Found UserForm files ({form_names}) but preferred header option is not enabled!\n"
@@ -1284,10 +1284,8 @@ class OfficeVBAHandler(ABC):
         from --save-headers to --in-file-headers or no headers.
         """
         try:
-            # Find all .header files
-            header_files = list(self.vba_dir.glob("*.header"))
-            if self.use_rubberduck_folders:
-                header_files.extend(self.vba_dir.rglob("*.header"))
+            # Find all .header files (in the Rubberduck subfolders too)
+            header_files = self._find_vba_files("*.header")
 
             if header_files:
                 logger.info(f"Cleaning up {len(header_files)} old .header file(s)...")
@@ -1312,10 +1310,7 @@ class OfficeVBAHandler(ABC):
 
         try:
             for ext in vba_extensions:
-                if self.use_rubberduck_folders:
-                    existing_files.extend(self.vba_dir.rglob(f"*{ext}"))
-                else:
-                    existing_files.extend(self.vba_dir.glob(f"*{ext}"))
+                existing_files.extend(self._find_vba_files(f"*{ext}"))
 
             # Only files the current filter would actually touch count as "existing"
             if self.module_filter.active:
@@ -1325,6 +1320,37 @@ class OfficeVBAHandler(ABC):
         except Exception as e:
             logger.debug(f"Error checking for existing files: {e}")
             return []
+
+    def _find_vba_files(self, pattern: str, base_dir: Optional[Path] = None) -> list[Path]:
+        """Return the files matching ``pattern`` in the VBA directory.
+
+        With --rubberduck-folders the Rubberduck subfolders are searched too. Hidden
+        folders (the ``.vba-edit`` state of bidirectional mode, import staging) are skipped.
+        """
+        base_dir = Path(base_dir) if base_dir is not None else self.vba_dir
+        if not self.use_rubberduck_folders:
+            return sorted(base_dir.glob(pattern))
+        return sorted(p for p in base_dir.rglob(pattern) if not self._is_hidden_path(p, base_dir))
+
+    @staticmethod
+    def _is_hidden_path(path: Path, base_dir: Path) -> bool:
+        """True when ``path`` lies in a dot-folder below ``base_dir``."""
+        try:
+            relative = Path(path).relative_to(base_dir)
+        except ValueError:
+            return False
+        return any(part.startswith(".") for part in relative.parts[:-1])
+
+    def _component_files_exist(self, base_name: str, extension: str) -> bool:
+        """True when the files a component would export to are already present.
+
+        That is the code file, plus the ``.header`` file in --save-headers mode. With
+        --rubberduck-folders the files may sit in any subfolder.
+        """
+        file_names = [f"{base_name}{extension}"]
+        if self.save_headers and not self.in_file_headers:
+            file_names.append(f"{base_name}.header")
+        return all(self._find_vba_files(file_name) for file_name in file_names)
 
     def _save_metadata(self, encodings: Dict[str, Dict[str, Any]]) -> None:
         """Save metadata including encoding information.
@@ -1393,9 +1419,10 @@ class OfficeVBAHandler(ABC):
             self._write_component_files(name, header, code, info, target_directory)
             logger.debug(f"Component files written for {name} in {target_directory}")
 
-            # Handle form binaries if this is a UserForm
+            # Handle form binaries if this is a UserForm: VBComponent.Export wrote <name>.frx next to the
+            # temp file, so it has to follow the .frm into its Rubberduck folder
             if info["type"] == VBATypes.VBEXT_CT_MSFORM:
-                self._handle_form_binary_export(name)
+                self._handle_form_binary_export(name, directory, target_directory)
 
             logger.info(f"Exported: {name}" + (f" (folder: {folder_path})" if folder_path else ""))
 
@@ -1470,7 +1497,7 @@ class OfficeVBAHandler(ABC):
 
             # Handle any form binaries if needed
             if module_type == VBAModuleType.FORM:
-                self._handle_form_binary_import(name)
+                self._handle_form_binary_import(name, file_path)
 
             logger.info(f"Successfully processed: {file_path.name}")
 
@@ -1597,6 +1624,12 @@ class OfficeVBAHandler(ABC):
         # 2. VBA Import uses VB_Name attribute, not filename
         # 3. Temp files can cause naming conflicts
         if original_file and file_extension == ".frm":
+            frx_source = self._form_binary_source(original_file)
+            if frx_source is not None and frx_source.parent != original_file.parent:
+                # The .frx is not next to the .frm (an older --rubberduck-folders export): stage both together
+                self._import_staged_form(name, full_content + "\n", frx_source, components)
+                logger.info(f"Imported UserForm with embedded headers: {name}")
+                return
             try:
                 logger.debug(f"Importing UserForm directly from original file: {original_file}")
                 components.Import(str(original_file))
@@ -1758,19 +1791,29 @@ class OfficeVBAHandler(ABC):
         header = self._read_header_file(file_path)
         if not header:
             raise VBAError(f"UserForm {name} has no header; export it with --save-headers or --in-file-headers first.")
-        frx_source = file_path.with_suffix(".frx")
+        self._import_staged_form(name, f"{header}\n{code}\n", self._form_binary_source(file_path), components, existing)
+        logger.info(f"Imported UserForm with separate header: {name}")
+
+    def _import_staged_form(
+        self, name: str, frm_content: str, frx_source: Optional[Path], components: Any, existing: Any = None
+    ) -> None:
+        """Import a UserForm from a staging folder holding ``<name>.frm`` and its ``.frx``.
+
+        ``VBComponents.Import`` needs one .frm with header and code, and the .frx next
+        to it under the same base name. Both are prepared before an existing form is
+        removed, so a failure while preparing leaves the form untouched.
+        """
         temp_dir = self.vba_dir / f".{name}_import_tmp"
         try:
             temp_dir.mkdir(exist_ok=True)
             temp_frm = temp_dir / f"{name}.frm"
             with open(temp_frm, "w", encoding=self.encoding) as f:
-                f.write(f"{header}\n{code}\n")
-            if frx_source.exists():
+                f.write(frm_content)
+            if frx_source is not None:
                 shutil.copy2(str(frx_source), str(temp_dir / f"{name}.frx"))
             if existing is not None:
                 components.Remove(existing)
             components.Import(str(temp_frm))
-            logger.info(f"Imported UserForm with separate header: {name}")
         finally:
             shutil.rmtree(temp_dir, ignore_errors=True)
 
@@ -1865,55 +1908,90 @@ class OfficeVBAHandler(ABC):
         self._replace_module_code(name, component, content)
         logger.debug(f"Updated content for: {name}")
 
-    def _handle_form_binary_export(self, name: str) -> None:
-        """Handle form binary (.frx) export.
+    def _handle_form_binary_export(
+        self, name: str, export_directory: Optional[Path] = None, target_directory: Optional[Path] = None
+    ) -> None:
+        """Place a UserForm's .frx next to its exported .frm and make it read-only.
 
-        Sets exported .frx files as read-only to prevent accidental modification,
-        which would corrupt the UserForm and cause deletion from VBA project.
+        ``VBComponent.Export`` writes ``<name>.frx`` beside the file it was given, i.e. into
+        ``export_directory`` (the VBA directory). With --rubberduck-folders the .frm is then
+        written to ``target_directory``, the module's @Folder, and the .frx has to move there
+        too: ``VBComponents.Import`` only finds the binary next to the .frm.
 
-        On re-export, automatically removes read-only flag before overwriting.
+        A relocated .frx is set read-only because editing it corrupts the UserForm, which the
+        VBA project then deletes; on re-export the flag is lifted before overwriting. A .frx the
+        VBE wrote straight to its final place is left as is, so the next Export can overwrite it.
         """
+        export_directory = export_directory or self.vba_dir
+        target_directory = target_directory or export_directory
         try:
-            frx_source = resolve_path(f"{name}.frx", Path(self.doc.FullName).parent)
-            if frx_source.exists():
-                frx_target = resolve_path(f"{name}.frx", self.vba_dir)
-                # Skip copy when source and target are the same file (vba_dir == workbook dir)
+            frx_target = resolve_path(f"{name}.frx", target_directory)
+            candidates = [
+                resolve_path(f"{name}.frx", export_directory),
+                resolve_path(f"{name}.frx", Path(self.doc.FullName).parent),
+            ]
+            frx_source = next((p for p in candidates if p.exists()), None)
+            if frx_source is None:
+                return
+            try:
                 if frx_source.resolve() == frx_target.resolve():
-                    logger.debug(f"Skipping form binary copy for {name}.frx: source and target are the same file")
+                    logger.debug(f"Form binary already in place: {frx_target}")
                     return
-                try:
-                    # If target exists and is read-only, make it writable before copying
-                    if frx_target.exists():
-                        import stat
-
-                        current_mode = os.stat(str(frx_target)).st_mode
-                        if not (current_mode & stat.S_IWRITE):
-                            # File is read-only, make it writable
-                            os.chmod(str(frx_target), current_mode | stat.S_IWRITE)
-                            logger.debug(f"Temporarily removed read-only flag from {frx_target.name}")
-
+                self._make_writable(frx_target)
+                if frx_source.parent.resolve() == Path(export_directory).resolve():
+                    shutil.move(str(frx_source), str(frx_target))  # Export left it in the VBA directory root
+                else:
                     shutil.copy2(str(frx_source), str(frx_target))
-
-                    # Make the exported .frx file read-only to prevent accidental modification
-                    import stat
-
-                    current_mode = os.stat(str(frx_target)).st_mode
-                    os.chmod(str(frx_target), current_mode & ~stat.S_IWRITE)
-                    logger.debug(f"Exported form binary (read-only): {frx_target}")
-                except (OSError, shutil.Error) as e:
-                    logger.error(f"Failed to copy form binary {name}.frx: {e}")
-                    raise VBAError(f"Failed to export form binary {name}.frx") from e
+                self._make_read_only(frx_target)
+                logger.debug(f"Exported form binary (read-only): {frx_target}")
+            except (OSError, shutil.Error) as e:
+                logger.error(f"Failed to copy form binary {name}.frx: {e}")
+                raise VBAError(f"Failed to export form binary {name}.frx") from e
         except PathError as e:
             raise VBAError(f"Failed to handle form binary path: {str(e)}") from e
 
-    def _handle_form_binary_import(self, name: str) -> None:
+    @staticmethod
+    def _make_writable(path: Path) -> None:
+        """Lift the read-only flag from ``path`` if it exists and is read-only."""
+        if path.exists():
+            import stat
+
+            current_mode = os.stat(str(path)).st_mode
+            if not (current_mode & stat.S_IWRITE):
+                os.chmod(str(path), current_mode | stat.S_IWRITE)
+                logger.debug(f"Temporarily removed read-only flag from {path.name}")
+
+    @staticmethod
+    def _make_read_only(path: Path) -> None:
+        """Set the read-only flag on ``path``."""
+        import stat
+
+        current_mode = os.stat(str(path)).st_mode
+        os.chmod(str(path), current_mode & ~stat.S_IWRITE)
+
+    def _form_binary_source(self, frm_path: Path) -> Optional[Path]:
+        """Return the .frx that belongs to a .frm file, or None when there is none.
+
+        The binary is expected next to the form file. Exports made with
+        --rubberduck-folders before 0.6.0 left it in the VBA directory root while
+        the .frm went into its @Folder, so the root is checked as a fallback.
+        """
+        beside = frm_path.with_suffix(".frx")
+        if beside.exists():
+            return beside
+        in_root = self.vba_dir / f"{frm_path.stem}.frx"
+        if in_root.exists():
+            return in_root
+        return None
+
+    def _handle_form_binary_import(self, name: str, frm_path: Optional[Path] = None) -> None:
         """Handle form binary (.frx) import.
 
         Temporarily removes read-only flag if needed to allow copying.
         """
         try:
-            frx_source = resolve_path(f"{name}.frx", self.vba_dir)
-            if frx_source.exists():
+            frx_source = self._form_binary_source(frm_path) if frm_path else resolve_path(f"{name}.frx", self.vba_dir)
+            if frx_source is not None and frx_source.exists():
                 frx_target = resolve_path(f"{name}.frx", Path(self.doc.FullName).parent)
                 # Skip copy when source and target are the same file (vba_dir == workbook dir)
                 if frx_source.resolve() == frx_target.resolve():
@@ -2131,6 +2209,8 @@ class OfficeVBAHandler(ABC):
             # Only include files with VBA extensions, but exclude temp files
             # Temp files have pattern: *_temp.{bas,cls,frm}
             if path.suffix.lower() in vba_extensions and not path.stem.endswith("_temp"):
+                if self._is_hidden_path(path, self.vba_dir):
+                    continue  # import staging folders and .vba-edit state, seen with --rubberduck-folders
                 # --include / --exclude apply to every watcher event, deletions included
                 if self.module_filter.active and not self.module_filter.allows_file(path, self.vba_dir):
                     logger.debug(f"Ignoring change to filtered-out file: {path.name}")
@@ -2229,10 +2309,7 @@ class OfficeVBAHandler(ABC):
             # Find all VBA files, recursively if Rubberduck folders are enabled
             vba_files = []
             for ext in [".cls", ".bas", ".frm"]:
-                if self.use_rubberduck_folders:
-                    vba_files.extend(self.vba_dir.rglob(f"*{ext}"))
-                else:
-                    vba_files.extend(self.vba_dir.glob(f"*{ext}"))
+                vba_files.extend(self._find_vba_files(f"*{ext}"))
 
             if not vba_files:
                 logger.info("No VBA files found to import.")
@@ -2363,24 +2440,11 @@ class OfficeVBAHandler(ABC):
                     logger.info(f"Skipping empty module: {base_name}")
                     continue
 
-                final_file = resolve_path(f"{base_name}{info['extension']}", self.vba_dir)
-                header_file = resolve_path(f"{base_name}.header", self.vba_dir) if self.save_headers else None
-
-                should_export = overwrite
-                if not overwrite:
-                    if self.in_file_headers:
-                        should_export = not final_file.exists()
-                    else:
-                        files_to_check = [final_file]
-                        if header_file:
-                            files_to_check.append(header_file)
-                        should_export = any(not f.exists() for f in files_to_check)
-
-                if should_export:
+                if overwrite or not self._component_files_exist(base_name, info["extension"]):
                     self.export_component(component, self.vba_dir)
                     encoding_data[info["name"]] = {"encoding": self.encoding, "type": info["type_name"]}
                 else:
-                    logger.debug(f"Skipping existing file: {final_file}")
+                    logger.debug(f"Skipping existing file: {base_name}{info['extension']}")
 
             except Exception as e:
                 logger.error(f"Failed to export component {component.Name}: {str(e)}")
@@ -2464,7 +2528,7 @@ class OfficeVBAHandler(ABC):
 
             # Check if we have any UserForms (in exported data or existing files)
             has_forms = any(info.get("type") == "UserForm" for info in encoding_data.values()) or bool(
-                list(self.vba_dir.glob("*.frm"))
+                self._find_vba_files("*.frm")
             )
 
             # Warn about .frx files if forms were exported
