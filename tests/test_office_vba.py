@@ -391,7 +391,7 @@ def test_watchfiles_integration():
     assert hasattr(watchfiles.Change, "deleted")
 
 
-@pytest.mark.skip(reason="File watching too difficult to mock properly, sucessfully tested in live interaction")
+@pytest.mark.skip(reason="File watching too difficult to mock properly, successfully tested in live interaction")
 def test_watchfiles_change_detection(mock_word_handler, temp_dir):
     """Test watchfiles change detection with mocked file changes."""
     handler = mock_word_handler

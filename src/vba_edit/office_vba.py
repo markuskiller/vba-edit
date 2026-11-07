@@ -84,14 +84,28 @@ def _filter_attributes(code: str) -> str:
     lines = code.split("\n")
     filtered_lines = []
     for line in lines:
-        stripped = line.strip().lower()
-        # Filter lines that start with "attribute " and contain a dot before "="
-        # This identifies hidden member attributes like "Attribute MyCtrl.VB_VarHelpID = -1"
-        # while preserving module-level attributes like "Attribute VB_Exposed = False"
-        if stripped.startswith("attribute ") and "." in stripped.split("=")[0]:
+        # Member attributes like "Attribute MyCtrl.VB_VarHelpID = -1" are dropped,
+        # module-level attributes like "Attribute VB_Exposed = False" are kept
+        if _is_member_attribute(line):
             continue  # Skip this line (it's a hidden member attribute)
         filtered_lines.append(line)
     return "\n".join(filtered_lines)
+
+
+def _is_member_attribute(line: str) -> bool:
+    """True for a hidden member-level attribute line such as ``Attribute Prop.VB_UserMemId = 0``."""
+    stripped = line.strip().lower()
+    return stripped.startswith("attribute ") and "." in stripped.split("=")[0]
+
+
+def _has_member_attributes(code: str) -> bool:
+    """True if the code carries member-level attributes, which only VBComponents.Import can apply."""
+    return any(_is_member_attribute(line) for line in code.splitlines())
+
+
+def _normalized_header(header: str) -> str:
+    """Header text without blank lines and surrounding whitespace, for comparing two headers."""
+    return "\n".join(line.strip() for line in header.splitlines() if line.strip())
 
 
 """
@@ -192,9 +206,8 @@ class VBADocumentNames:
         "ThisWorkbook",  # English
         "DieseArbeitsmappe",  # German
         "CeClasseur",  # French
-        "EstaLista",  # Spanish
+        "EstaLista",  # Spanish/Portuguese (unverified)
         "QuestoFoglio",  # Italian
-        "EstaLista",  # Portuguese
         "このブック",  # Japanese
         "本工作簿",  # Chinese Simplified
         "本活頁簿",  # Chinese Traditional
@@ -232,11 +245,10 @@ class VBADocumentNames:
 
     # PowerPoint slide module prefixes
     POWERPOINT_SLIDE_PREFIXES = {
-        "Slide",  # English
+        "Slide",  # English/Portuguese
         "Folie",  # German
         "Diapo",  # French
         "Diapositiva",  # Spanish/Italian
-        "Slide",  # Portuguese
         "スライド",  # Japanese
         "投影片",  # Chinese Traditional
         "幻灯片",  # Chinese Simplified
@@ -468,12 +480,11 @@ class VBAComponentHandler:
                         return self.determine_cls_type(header)
                 except Exception:
                     logger.debug(f"Could not read content from {file_path}, treating as regular class module")
-            else:
-                # Use separate header file
-                header_file = file_path.with_suffix(".header")
-                if header_file.exists():
-                    with open(header_file, "r", encoding=encoding) as f:
-                        return self.determine_cls_type(f.read())
+            # Use separate header file (also when the file was expected to carry its own header but does not)
+            header_file = file_path.with_suffix(".header")
+            if header_file.exists():
+                with open(header_file, "r", encoding=encoding) as f:
+                    return self.determine_cls_type(f.read())
 
             logger.debug(f"No header file found for {file_path}, treating as regular class module")
             return VBAModuleType.CLASS
@@ -692,32 +703,6 @@ class VBAComponentHandler:
 
         return True  # Other types are less strict about headers
 
-    def _update_module_content(self, component: Any, content: str) -> None:
-        """Update the content of an existing module.
-
-        When updating content directly in the VBA editor (without full import),
-        we must not include header information as it can't be processed by
-        the VBA project.
-
-        Args:
-            component: VBA component to update
-            content: New content to set
-        """
-        try:
-            # For direct updates, we want just the code without any header
-            # manipulation - the existing module already has its header
-            if component.CodeModule.CountOfLines > 0:
-                component.CodeModule.DeleteLines(1, component.CodeModule.CountOfLines)
-
-            # Filter out hidden member attributes (Issue #16)
-            if content.strip():
-                component.CodeModule.AddFromString(_filter_attributes(content))
-
-            logger.debug(f"Updated content for: {component.Name}")
-        except Exception as e:
-            logger.error(f"Failed to update content for {component.Name}: {str(e)}")
-            raise VBAError("Failed to update module content") from e
-
     def get_rubberduck_folder(self, code: str) -> Tuple[str, str]:
         """Find Rubberduck @Folder in VBA code.
 
@@ -893,6 +878,9 @@ class OfficeVBAHandler(ABC):
             self.module_filter = ModuleFilter(include, exclude)
             self.app = None
             self.doc = None
+            # Set while attaching: was the application running, was the document open, before vba-edit came?
+            self._app_was_running = False
+            self._document_was_open = False
             self.component_handler = VBAComponentHandler(use_rubberduck_folders, app_name=self.app_name)
 
             # Configure logging
@@ -1022,6 +1010,9 @@ class OfficeVBAHandler(ABC):
             if self.app is None:
                 logger.debug(f"Initializing {self.app_name} application")
                 self.app = win32com.client.Dispatch(self.app_progid)
+                # Dispatch attaches to a running instance when there is one. A freshly started
+                # automation instance is invisible, the user's own instance is visible.
+                self._app_was_running = self.app.Visible is True
                 if self.app_name != "Access":
                     self.app.Visible = True
         except Exception as e:
@@ -1099,8 +1090,15 @@ class OfficeVBAHandler(ABC):
                 self._check_file_extension_mismatch()
 
                 self.initialize_app()
-                logger.debug(f"Opening document: {self.doc_path}")
-                self.doc = self._open_document_impl()
+                already_open = self._already_open_document()
+                if already_open is not None:
+                    logger.debug(f"Document is already open, attaching: {self.doc_path}")
+                    self.doc = already_open
+                    self._document_was_open = True
+                else:
+                    logger.debug(f"Opening document: {self.doc_path}")
+                    self.doc = self._open_document_impl()
+                    self._document_was_open = False
         except Exception as e:
             error_msg = f"Failed to open document: {self.doc_path}"
             logger.error(f"{error_msg}: {str(e)}")
@@ -1110,6 +1108,27 @@ class OfficeVBAHandler(ABC):
     def _open_document_impl(self) -> Any:
         """Implementation-specific document opening logic."""
         pass
+
+    def _open_documents(self) -> Any:
+        """The application's collection of open documents, or None if it has no such collection."""
+        collections = {"Excel": "Workbooks", "Word": "Documents", "PowerPoint": "Presentations"}
+        attribute = collections.get(self.app_name)
+        return getattr(self.app, attribute) if attribute and self.app is not None else None
+
+    def _already_open_document(self) -> Any:
+        """Return the document if the application already has it open, otherwise None."""
+        try:
+            collection = self._open_documents()
+            if collection is None:
+                return None
+            wanted = str(self.doc_path).casefold()
+            for index in range(1, int(collection.Count) + 1):
+                document = collection(index)
+                if str(document.FullName).casefold() == wanted:
+                    return document
+        except Exception as e:
+            logger.debug(f"Could not look for an open document: {e}")
+        return None
 
     def save_document(self) -> None:
         """Save the document if it's open."""
@@ -1121,14 +1140,18 @@ class OfficeVBAHandler(ABC):
                 raise VBAError("Failed to save document") from e
 
     def close_document(self) -> None:
-        """Close the currently open document and application if no other documents are open.
+        """Close the document vba-edit opened, and the application vba-edit started.
 
-        This method closes the document without saving and sets self.doc to None.
-        If there are no other open documents (besides the one being closed),
-        it also closes the application.
-        It's primarily used after export operations to clean up resources.
+        A document that was already open when vba-edit attached to it is left
+        open, together with the application: closing it would discard the
+        user's unsaved changes. Used after export to clean up what the export
+        itself opened.
         """
         if self.doc is None:
+            return
+        if self._document_was_open:
+            logger.info(f"The {self.document_type} was already open and is left open.")
+            self.doc = None
             return
         try:
             # Check document count BEFORE closing to decide if we should close app
@@ -1172,7 +1195,10 @@ class OfficeVBAHandler(ABC):
             self.doc = None
             logger.info(f"{self.document_type.capitalize()} closed successfully")
 
-            # Now close the application if appropriate
+            # Now close the application if appropriate: only one that vba-edit started itself
+            if should_close_app and self._app_was_running:
+                logger.debug(f"{self.app_name} was already running, leaving it open")
+                should_close_app = False
             if should_close_app and self.app is not None:
                 try:
                     logger.debug(f"No other documents open, closing {self.app_name} application")
@@ -1407,8 +1433,8 @@ class OfficeVBAHandler(ABC):
             # Auto-detect header format
             has_inline_headers = self.component_handler.has_inline_headers(file_path, encoding=self.encoding)
 
-            # Check for separate header file
-            header_file = file_path.with_suffix(f"{file_path.suffix}.header")
+            # Check for separate header file (<Name>.header, as written by export --save-headers)
+            header_file = file_path.with_suffix(".header")
             has_separate_header = header_file.exists()
 
             # Warn if both formats exist (conflicting headers)
@@ -1423,6 +1449,14 @@ class OfficeVBAHandler(ABC):
                 file_path, in_file_headers=has_inline_headers, encoding=self.encoding
             )
             module_type = self._module_type_for_existing_component(name, module_type, components)
+
+            if module_type == VBAModuleType.FORM and not (has_inline_headers or self._read_header_file(file_path)):
+                # Without its header a UserForm cannot be imported; trying would delete the form
+                # and leave an empty UserForm1 behind.
+                raise VBAError(
+                    f"{file_path.name} has no header section, which a UserForm needs. Export the form again "
+                    f"with --in-file-headers or --save-headers. The form in the {self.document_type} was left unchanged."
+                )
 
             logger.debug(f"Processing module: {name} (Type: {module_type}, Inline headers: {has_inline_headers})")
 
@@ -1506,28 +1540,41 @@ class OfficeVBAHandler(ABC):
             self._update_document_module(name, code, components)
             return
 
-        try:
-            # Try to get existing component
-            component = components(name)
+        full_import = module_type == VBAModuleType.FORM or (module_type == VBAModuleType.CLASS and header)
+        component = self._existing_component(name, components)
 
-            # For UserForms and Class modules with headers, always use full import via temporary file
-            if module_type == VBAModuleType.FORM or (module_type == VBAModuleType.CLASS and header):
-                logger.debug(f"Using full import for {module_type.name.lower()} with headers: {name}")
-                components.Remove(component)
-                self._import_via_temp_file(name, full_content, components, file_path.suffix, original_file=file_path)
-            else:
-                # For standard modules or class modules without headers, just update content
-                logger.debug(f"Updating existing component: {name}")
-                self._update_module_content(component, code)
-
-        except Exception:
-            # Component doesn't exist, create new
-            if module_type == VBAModuleType.FORM or (module_type == VBAModuleType.CLASS and header):
+        if component is None:
+            if full_import:
                 logger.debug(f"Creating new {module_type.name.lower()} with headers via import: {name}")
                 self._import_via_temp_file(name, full_content, components, file_path.suffix, original_file=file_path)
             else:
                 logger.debug(f"Creating new component: {name}")
                 self._create_new_component(name, code, module_type, components)
+        elif module_type == VBAModuleType.FORM or (
+            full_import and self._class_needs_full_import(component, header, code)
+        ):
+            # UserForms always, class modules only when the header or member attributes changed
+            logger.debug(f"Using full import for {module_type.name.lower()} with headers: {name}")
+            components.Remove(component)
+            self._import_via_temp_file(name, full_content, components, file_path.suffix, original_file=file_path)
+            self._after_full_import(name)
+        else:
+            # Standard modules, and class modules whose header is unchanged: just update the code
+            logger.debug(f"Updating existing component: {name}")
+            self._update_module_content(component, code)
+
+    @staticmethod
+    def _existing_component(name: str, components: Any) -> Any:
+        """Return the component of that name, or None if the project has none.
+
+        Only a missing component justifies creating one; any failure while
+        updating an existing component must surface instead of producing a
+        second, differently named module.
+        """
+        try:
+            return components(name)
+        except Exception:
+            return None
 
     def _import_via_temp_file(
         self, name: str, full_content: str, components: Any, file_extension: str = ".cls", original_file: Path = None
@@ -1612,32 +1659,120 @@ class OfficeVBAHandler(ABC):
             self._update_document_module(name, code, components)
             return
 
-        try:
-            # Try to get existing component
-            component = components(name)
-
-            if self._should_force_import(module_type):
-                # Remove and reimport if required
-                logger.debug(f"Forcing full import for: {name}")
+        component = self._existing_component(name, components)
+        if component is not None:
+            header = self._read_header_file(file_path) if module_type == VBAModuleType.CLASS else ""
+            if module_type == VBAModuleType.CLASS and self._class_needs_full_import(component, header, code):
+                # The header (or member attributes) changed: only VBComponents.Import can apply that
+                logger.debug(f"Header changed, full import for class module: {name}")
                 components.Remove(component)
-                self._import_new_module(name, code, module_type, components)
+                content = self.component_handler.prepare_import_content(name, module_type, header, code)
+                self._import_via_temp_file(name, content, components, file_path.suffix)
+                self._after_full_import(name)
+            elif module_type == VBAModuleType.FORM:
+                # A UserForm needs its header and .frx: only a real Import can apply them
+                logger.debug(f"Full import for UserForm: {name}")
+                self._import_form_with_separate_header(name, file_path, code, components, existing=component)
             else:
                 # Update existing module content in-place
                 logger.debug(f"Updating existing component: {name}")
                 self._update_module_content(component, code)
-
-        except Exception:
+        else:
             # Component doesn't exist, create new
             logger.debug(f"Creating new module: {name}")
+            if module_type == VBAModuleType.FORM:
+                self._import_form_with_separate_header(name, file_path, code, components)
+                return
             # For new modules, we need header information
             header = self._read_header_file(file_path)
-            if not header and module_type in [VBAModuleType.CLASS, VBAModuleType.FORM]:
+            if not header and module_type == VBAModuleType.CLASS:
                 header = self.component_handler.create_minimal_header(name, module_type)
                 logger.debug(f"Created minimal header for new module: {name}")
 
             # Prepare content for new module
             content = self.component_handler.prepare_import_content(name, module_type, header, code)
             self._import_new_module(name, content, module_type, components)
+
+    def _class_needs_full_import(self, component: Any, header: str, code: str) -> bool:
+        """Decide whether an existing class module must be removed and imported again.
+
+        CodeModule.AddFromString cannot change module attributes (VB_PredeclaredId,
+        VB_Exposed, ...) and rejects member attributes (VB_UserMemId, ...); only
+        VBComponents.Import applies them. Re-importing has side effects, though: in
+        Access the module becomes a new, unsaved object that asks for a name on the
+        next save (issue #122). So re-import only when it buys something.
+
+        Args:
+            component: The existing component
+            header: Header section of the file being imported (may be empty)
+            code: Code section of the file being imported
+
+        Returns:
+            True when the header differs from the component's current header or the
+            code carries member attributes; False when replacing the code is enough
+        """
+        if _has_member_attributes(code):
+            logger.debug(f"{component.Name}: member attributes present, full import needed")
+            return True
+        if not header:
+            return False  # Nothing to apply; the module keeps its attributes
+        current_header = self._current_component_header(component)
+        if current_header is None:
+            return True  # Cannot compare: behave as before
+        changed = _normalized_header(current_header) != _normalized_header(header)
+        if changed:
+            logger.debug(f"{component.Name}: header changed, full import needed")
+        return changed
+
+    def _current_component_header(self, component: Any) -> Optional[str]:
+        """Export the component to a temporary file and return its header, or None on failure."""
+        temp_file = self.vba_dir / f"{component.Name}_current.tmp"
+        try:
+            component.Export(str(temp_file))
+            with open(temp_file, "r", encoding=self.encoding, errors="replace") as f:
+                header, _code = self.component_handler.split_vba_content(f.read())
+            return header
+        except Exception as e:
+            logger.debug(f"Could not read the current header of {component.Name}: {e}")
+            return None
+        finally:
+            try:
+                if temp_file.exists():
+                    temp_file.unlink()
+            except OSError:
+                pass
+
+    def _after_full_import(self, name: str) -> None:
+        """Hook for application-specific follow-up after a remove-and-import (Access saves the module)."""
+
+    def _import_form_with_separate_header(
+        self, name: str, file_path: Path, code: str, components: Any, existing: Any = None
+    ) -> None:
+        """Import a UserForm whose header lives in <Name>.header.
+
+        VBComponents.Import needs one .frm file with the header and the code, and
+        the .frx next to it under the same base name. Both are prepared in a
+        temporary folder before an existing form is removed, so a failure while
+        preparing leaves the form untouched.
+        """
+        header = self._read_header_file(file_path)
+        if not header:
+            raise VBAError(f"UserForm {name} has no header; export it with --save-headers or --in-file-headers first.")
+        frx_source = file_path.with_suffix(".frx")
+        temp_dir = self.vba_dir / f".{name}_import_tmp"
+        try:
+            temp_dir.mkdir(exist_ok=True)
+            temp_frm = temp_dir / f"{name}.frm"
+            with open(temp_frm, "w", encoding=self.encoding) as f:
+                f.write(f"{header}\n{code}\n")
+            if frx_source.exists():
+                shutil.copy2(str(frx_source), str(temp_dir / f"{name}.frx"))
+            if existing is not None:
+                components.Remove(existing)
+            components.Import(str(temp_frm))
+            logger.info(f"Imported UserForm with separate header: {name}")
+        finally:
+            shutil.rmtree(temp_dir, ignore_errors=True)
 
     def _should_force_import(self, module_type: VBAModuleType) -> bool:
         """Determine if a module type requires full import instead of content update.
@@ -1724,20 +1859,11 @@ class OfficeVBAHandler(ABC):
             component: VBA component to update
             content: New content to set
         """
-        try:
-            # For direct updates, we want just the code without any header
-            # manipulation - the existing module already has its header
-            if component.CodeModule.CountOfLines > 0:
-                component.CodeModule.DeleteLines(1, component.CodeModule.CountOfLines)
-
-            # Filter out hidden member attributes (Issue #16)
-            if content.strip():
-                component.CodeModule.AddFromString(_filter_attributes(content))
-
-            logger.debug(f"Updated content for: {component.Name}")
-        except Exception as e:
-            logger.error(f"Failed to update content for {component.Name}: {str(e)}")
-            raise VBAError("Failed to update module content") from e
+        # For direct updates, we want just the code without any header
+        # manipulation - the existing module already has its header
+        name = str(component.Name)
+        self._replace_module_code(name, component, content)
+        logger.debug(f"Updated content for: {name}")
 
     def _handle_form_binary_export(self, name: str) -> None:
         """Handle form binary (.frx) export.
@@ -1811,33 +1937,92 @@ class OfficeVBAHandler(ABC):
         except PathError as e:
             raise VBAError(f"Failed to handle form binary path: {str(e)}") from e
 
-    @abstractmethod
     def _update_document_module(self, name: str, code: str, components: Any) -> None:
-        """Update an existing document module."""
-        pass
+        """Replace the code of an existing document module in place.
+
+        Document modules (ThisWorkbook, sheets, ThisDocument, slides, Access forms and
+        reports) belong to their host object and cannot be removed or imported.
+
+        Args:
+            name: Name of the module
+            code: New code to insert
+            components: VBA components collection
+
+        Raises:
+            VBAError: If the module does not exist or the update fails
+        """
+        try:
+            component = components(name)
+        except Exception as e:
+            raise VBAError(self._missing_document_module_message(name)) from e
+
+        self._replace_module_code(name, component, code)
+        logger.info(f"Updated document module: {name}")
+
+    def _missing_document_module_message(self, name: str) -> str:
+        """Explain that a document module is not in the project (overridden per application)."""
+        return f"Document module {name} does not exist in the {self.document_type}."
+
+    def _replace_module_code(self, name: str, component: Any, code: str) -> None:
+        """Replace a module's code; put the previous code back if that fails.
+
+        Office keeps module changes immediately, so a failed update must not leave
+        the module empty.
+        """
+        try:
+            module = component.CodeModule
+            previous_code = module.Lines(1, module.CountOfLines) if module.CountOfLines > 0 else ""
+
+            try:
+                # Clear existing code
+                if module.CountOfLines > 0:
+                    module.DeleteLines(1, module.CountOfLines)
+
+                # Add new code if not empty (filter hidden member attributes - Issue #16)
+                if code.strip():
+                    module.AddFromString(_filter_attributes(code))
+            except Exception:
+                self._restore_module_code(name, module, previous_code)
+                raise
+
+        except Exception as e:
+            raise VBAError(f"Failed to update module {name}") from e
+
+    @staticmethod
+    def _restore_module_code(name: str, module: Any, previous_code: str) -> None:
+        """Put back the code a module had before a failed update (best effort)."""
+        try:
+            if module.CountOfLines > 0:
+                module.DeleteLines(1, module.CountOfLines)
+            if previous_code.strip():
+                module.AddFromString(previous_code)
+            logger.warning(f"Update of {name} failed; its previous code was restored.")
+        except Exception as restore_error:
+            logger.error(f"Update of {name} failed and its previous code could not be restored: {restore_error}")
 
     def _read_header_file(self, code_file: Path) -> str:
-        """Read the header file if it exists."""
-        if self.in_file_headers:
-            # Extract header from the code file itself
-            try:
-                with open(code_file, "r", encoding=self.encoding) as f:
-                    content = f.read().strip()
-                header, _ = self.component_handler.split_vba_content(content)
+        """Return the header for a code file: embedded in the file, or from its <Name>.header file.
+
+        Import detects the header format automatically, so both places are
+        checked whatever --in-file-headers / --save-headers say.
+        """
+        try:
+            with open(code_file, "r", encoding=self.encoding) as f:
+                content = f.read().strip()
+            header, _ = self.component_handler.split_vba_content(content)
+            if header:
                 return header
+        except Exception as e:
+            logger.debug(f"Could not read header from code file {code_file}: {e}")
+
+        header_file = code_file.with_suffix(".header")
+        if header_file.exists():
+            try:
+                with open(header_file, "r", encoding=self.encoding) as f:
+                    return f.read().strip()
             except Exception as e:
-                logger.debug(f"Could not read header from code file {code_file}: {e}")
-                return ""
-        else:
-            # Use existing logic for separate header files
-            header_file = code_file.with_suffix(".header")
-            if header_file.exists():
-                try:
-                    with open(header_file, "r", encoding=self.encoding) as f:
-                        return f.read().strip()
-                except Exception as e:
-                    logger.debug(f"Could not read header file {header_file}: {e}")
-            return ""
+                logger.debug(f"Could not read header file {header_file}: {e}")
+        return ""
 
     def _read_code_file(self, code_file: Path) -> str:
         """Read the code file."""
@@ -2071,18 +2256,30 @@ class OfficeVBAHandler(ABC):
                 logger.info(f"  - {relative_path}")
 
             # Import components
+            failed = []
+            skipped = 0
             for vba_file in vba_files:
                 try:
                     if self.skip_empty and self._is_empty_vba_file(vba_file):
                         logger.info(f"Skipping empty VBA file: {vba_file.name}")
+                        skipped += 1
                         continue
                     self.import_component(vba_file, components)
                 except Exception as e:
                     logger.error(f"Failed to import {vba_file.name}: {str(e)}")
+                    failed.append(vba_file.name)
                     continue
 
-            # Save if we successfully imported files
+            # Save what was imported, even if some files failed
             self.save_document()
+
+            imported = len(vba_files) - len(failed) - skipped
+            summary = f"Imported {imported} of {len(vba_files)} VBA files"
+            if skipped:
+                summary += f" ({skipped} empty file(s) skipped)"
+            if failed:
+                raise VBAError(f"{summary}; {len(failed)} failed: {', '.join(failed)}")
+            logger.info(summary)
 
         except Exception as e:
             if check_rpc_error(e):
@@ -2335,24 +2532,6 @@ class WordVBAHandler(OfficeVBAHandler):
         """Implementation-specific document opening logic."""
         return self.app.Documents.Open(str(self.doc_path))
 
-    def _update_document_module(self, name: str, code: str, components: Any) -> None:
-        """Update an existing document module for Word."""
-        try:
-            doc_component = components(name)
-
-            # Clear existing code
-            if doc_component.CodeModule.CountOfLines > 0:
-                doc_component.CodeModule.DeleteLines(1, doc_component.CodeModule.CountOfLines)
-
-            # Add new code (filter hidden member attributes - Issue #16)
-            if code.strip():
-                doc_component.CodeModule.AddFromString(_filter_attributes(code))
-
-            logger.info(f"Updated document module: {name}")
-
-        except Exception as e:
-            raise VBAError(f"Failed to update document module {name}") from e
-
 
 class ExcelVBAHandler(OfficeVBAHandler):
     """Microsoft Excel specific implementation of VBA operations.
@@ -2384,25 +2563,6 @@ class ExcelVBAHandler(OfficeVBAHandler):
     def _open_document_impl(self) -> Any:
         """Implementation-specific document opening logic."""
         return self.app.Workbooks.Open(str(self.doc_path))
-
-    def _update_document_module(self, name: str, code: str, components: Any) -> None:
-        """Update an existing document module for Excel."""
-        try:
-            # Handle ThisWorkbook and Sheet modules
-            doc_component = components(name)
-
-            # Clear existing code
-            if doc_component.CodeModule.CountOfLines > 0:
-                doc_component.CodeModule.DeleteLines(1, doc_component.CodeModule.CountOfLines)
-
-            # Add new code (filter hidden member attributes - Issue #16)
-            if code.strip():
-                doc_component.CodeModule.AddFromString(_filter_attributes(code))
-
-            logger.info(f"Updated document module: {name}")
-
-        except Exception as e:
-            raise VBAError(f"Failed to update document module {name}") from e
 
 
 class AccessVBAHandler(OfficeVBAHandler):
@@ -2470,6 +2630,8 @@ class AccessVBAHandler(OfficeVBAHandler):
                         logger.debug("Using already open database")
                         self.app = app
                         self.doc = current_db
+                        self._app_was_running = True
+                        self._document_was_open = True
                         return
                 except Exception:
                     pass
@@ -2545,63 +2707,24 @@ class AccessVBAHandler(OfficeVBAHandler):
         """
         return ""
 
-    def _update_document_module(self, name: str, code: str, components: Any) -> None:
-        """Update module code in Access.
+    def _after_full_import(self, name: str) -> None:
+        """Save the freshly imported module as an Access object (acModule = 5).
 
-        Access has no ThisWorkbook/ThisDocument, but the code modules of forms and
-        reports behave like document modules: they belong to their form or report
-        and can only be updated in place.
-
-        Args:
-            name: Name of the module
-            code: New code to insert
-            components: VBA components collection
-
-        Raises:
-            VBAError: If module update fails
+        Without this, Access treats the module as a new, unsaved object and asks for
+        a name on the next save (issue #122).
         """
         try:
-            component = components(name)
+            self.app.DoCmd.Save(5, name)
+            logger.debug(f"Saved re-imported module in Access: {name}")
         except Exception as e:
-            raise VBAError(
-                f"Access has no module named {name}. The code of a form or report cannot be created by "
-                f"import: create the form or report in Access and set its 'Has Module' property, then "
-                f"import again. An ordinary module needs a name that does not start with Form_ or Report_."
-            ) from e
+            logger.debug(f"Could not save re-imported module {name} in Access: {e}")
 
-        try:
-            module = component.CodeModule
-            previous_code = module.Lines(1, module.CountOfLines) if module.CountOfLines > 0 else ""
-
-            try:
-                # Clear existing code
-                if module.CountOfLines > 0:
-                    module.DeleteLines(1, module.CountOfLines)
-
-                # Add new code if not empty (filter hidden member attributes - Issue #16)
-                if code.strip():
-                    module.AddFromString(_filter_attributes(code))
-            except Exception:
-                # Access keeps module changes, so a failed update must not leave the form without code.
-                self._restore_module_code(name, module, previous_code)
-                raise
-
-            logger.info(f"Updated module content: {name}")
-
-        except Exception as e:
-            raise VBAError(f"Failed to update module {name}") from e
-
-    @staticmethod
-    def _restore_module_code(name: str, module: Any, previous_code: str) -> None:
-        """Put back the code a module had before a failed update (best effort)."""
-        try:
-            if module.CountOfLines > 0:
-                module.DeleteLines(1, module.CountOfLines)
-            if previous_code.strip():
-                module.AddFromString(previous_code)
-            logger.warning(f"Update of {name} failed; its previous code was restored.")
-        except Exception as restore_error:
-            logger.error(f"Update of {name} failed and its previous code could not be restored: {restore_error}")
+    def _missing_document_module_message(self, name: str) -> str:
+        return (
+            f"Access has no module named {name}. The code of a form or report cannot be created by "
+            f"import: create the form or report in Access and set its 'Has Module' property, then "
+            f"import again. An ordinary module needs a name that does not start with Form_ or Report_."
+        )
 
     def save_document(self) -> None:
         """Handle saving in Access.
@@ -2715,24 +2838,3 @@ class PowerPointVBAHandler(OfficeVBAHandler):
                 if check_rpc_error(e):
                     raise RPCError(self.app_name) from e
                 raise VBAError("Failed to save presentation") from e
-
-    def _update_document_module(self, name: str, code: str, components: Any) -> None:
-        """Update module code.
-
-        Since PowerPoint has no document module, this acts like a regular module update.
-        """
-        try:
-            component = components(name)
-
-            # Clear existing code
-            if component.CodeModule.CountOfLines > 0:
-                component.CodeModule.DeleteLines(1, component.CodeModule.CountOfLines)
-
-            # Add new code (filter hidden member attributes - Issue #16)
-            if code.strip():
-                component.CodeModule.AddFromString(_filter_attributes(code))
-
-            logger.info(f"Updated module: {name}")
-
-        except Exception as e:
-            raise VBAError(f"Failed to update module {name}") from e

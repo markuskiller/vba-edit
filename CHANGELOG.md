@@ -35,6 +35,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **`export` leaves open documents open**: a document that was already open when `export` ran is attached to and left open afterwards, and an Office application that was already running is no longer quit. Previously the document was closed without saving, which discarded unsaved changes. Only documents and applications that `export` opened itself are closed (`--keep-open` still keeps those open too)
+
+- **Class modules are re-imported only when needed** ([Issue #122](https://github.com/markuskiller/vba-edit/issues/122)): `import` and `edit` compare the header of a class module file with the module's current header and replace the code in place when they match and the code carries no member attributes. Only a changed header or member attributes (`VB_UserMemId`, `VB_VarHelpID`, ...) trigger the remove-and-import, which only `VBComponents.Import` can apply. In Access the re-imported module is saved (`DoCmd.Save acModule`) so the next save no longer asks for a module name; thank you @russ-who for the analysis
+
+- **`import` reports failures**: the command ends with a summary (`Imported 4 of 5 VBA files; 1 failed: ...`) and a non-zero exit code when a file could not be imported, instead of exiting 0 while the error scrolled past
+
+- **Help text**: the "early release" warning became "Beta software: back up important files before use", and the usage synopses list `--skip-empty` and `--with-references`
+
 - **Python 3.10 is no longer supported**: Python 3.10 reached end of life on 2026-10-01; the minimum supported version is now Python 3.11
   - The fixed Pillow and `filelock` releases (see Security) require Python 3.11 or later, so Python 3.10 could no longer pass the security audit
   - The `tomli` backport is no longer a dependency; configuration and reference files are read with the standard library's `tomllib`
@@ -44,6 +52,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Config Generator Version Display**: The Config Generator now shows the active vba-edit version in the window title, header, TOML preview, and saved configuration files
 
 ### Fixed
+
+- **UserForms Lost on Import**: importing a `.frm` whose header was not available (exported without a header option, or with `--save-headers`) removed the form and left an empty `UserForm1` behind while reporting success. UserForms are now imported with a real `Import` in both header modes, and a `.frm` without any header is refused with a clear message
+
+- **Separate `.header` Files Ignored on Import**: `import` looked for `<Name>.bas.header` while `export --save-headers` writes `<Name>.header`, so headers were never applied and class modules were re-created with default attributes. Import now finds the files export writes, in both header modes
+
+- **Failed Updates No Longer Empty a Module**: when replacing a module's code fails half-way, the previous code is put back (previously the module could be left empty)
+
+- **Import Errors No Longer Create Stray Modules**: a failure while updating an existing module surfaces as an error; previously it fell through to "create a new module", which added `Class1`/`Module1` duplicates
+
+- **Access "Multiple Databases Open" Check**: the check used a call that always failed silently (`GetObject("Access.Application")`) and therefore never ran; it now uses `GetActiveObject`
 
 - **Access Form and Report Code Not Imported**: `import` and `edit` now update the code of Access forms and reports (`Form_<name>.cls`, `Report_<name>.cls`) in place ([PR #117](https://github.com/markuskiller/vba-edit/pull/117), thank you @russ-who!)
   - Previously these files were treated as class modules: the form code stayed unchanged, a stray class module (`Class1`) was added to the database, and the import still reported success

@@ -62,8 +62,8 @@ def corrected(app_name, name, module_type, components):
 
 
 def update_access_module(name, code, components):
-    handler = SimpleNamespace(_restore_module_code=AccessVBAHandler._restore_module_code)
-    AccessVBAHandler._update_document_module(handler, name, code, components)
+    handler = AccessVBAHandler.__new__(AccessVBAHandler)  # No COM; only the update methods are used.
+    handler._update_document_module(name, code, components)
 
 
 # --- Names -----------------------------------------------------------------------------------------
