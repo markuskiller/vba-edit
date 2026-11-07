@@ -399,7 +399,7 @@ Simple usage:
             epilog=f"""Use '{self.config["entry_point"]} references <sub-command> --help' for more information on a specific sub-command.
 
 IMPORTANT: Requires "Trust access to the VBA project object model" enabled in {self.config["app_name"]}.
-           Early release - backup important files before use!""",
+           Beta software: back up important files before use.""",
             formatter_class=EnhancedHelpFormatter,
             add_help=False,
         )

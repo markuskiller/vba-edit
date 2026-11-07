@@ -1,6 +1,7 @@
 import argparse
 import logging
 import sys
+from typing import Optional
 
 from vba_edit.exceptions import VBAError
 from vba_edit.office_cli import create_office_main
@@ -41,7 +42,7 @@ def create_cli_parser() -> argparse.ArgumentParser:
 logger = logging.getLogger(__name__)
 
 
-def check_multiple_databases(file_path: str = None) -> None:
+def check_multiple_databases(file_path: Optional[str] = None) -> None:
     """Check for multiple open databases and handle appropriately.
 
     Args:
@@ -53,7 +54,9 @@ def check_multiple_databases(file_path: str = None) -> None:
     try:
         import win32com.client
 
-        app = win32com.client.GetObject("Access.Application")
+        # GetObject("Access.Application") treats the string as a file name and always fails;
+        # GetActiveObject finds the running instance.
+        app = win32com.client.GetActiveObject("Access.Application")
         try:
             # Get current database
             current_db = app.CurrentDb()

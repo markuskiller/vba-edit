@@ -7,6 +7,7 @@ The following individuals have contributed to **vba_edit**.
 
 ## Major Contributors
 - **onderhold** – support for RubberduckVBA & much more
+- **russ-who** – focus-loss trigger for bidirectional editing, Access form and report module fix
 
 ## Other Contributors
 (Automatically tracked in the [GitHub contributors graph](https://github.com/markuskiller/vba-edit/graphs/contributors))

@@ -449,7 +449,7 @@ End Sub
         )
 
         # Create a separate header file (conflicting situation)
-        header_file = tmp_path / "Module1.bas.header"
+        header_file = tmp_path / "Module1.header"
         header_file.write_text(
             """VERSION 1.0 CLASS
 BEGIN
@@ -508,7 +508,7 @@ End Sub
         )
 
         # Create a separate header file (should be ignored)
-        header_file = tmp_path / "TestModule.bas.header"
+        header_file = tmp_path / "TestModule.header"
         header_file.write_text("VERSION 5.0 CLASS\n", encoding="utf-8")
 
         # Verify setup
@@ -552,7 +552,7 @@ End Sub
         )
 
         # Verify NO separate header file exists
-        header_file = tmp_path / "Module1.bas.header"
+        header_file = tmp_path / "Module1.header"
         assert not header_file.exists()
 
         # Create test Excel file
@@ -591,7 +591,7 @@ End Sub
         )
 
         # Create separate header file
-        header_file = tmp_path / "Module1.bas.header"
+        header_file = tmp_path / "Module1.header"
         header_file.write_text('Attribute VB_Name = "Module1"\n', encoding="utf-8")
 
         # Verify setup

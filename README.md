@@ -378,11 +378,13 @@ excel-vba export --vba-directory ./src --force-overwrite
 - Live sync between Office and your editor
 - Full Git/version control support
 - All Office apps: Excel, Word, Access & PowerPoint
+- Experimental bidirectional editing: VBE edits flow back to your files (`--bidirectional`)
 
 **📁 Organization** 
 - RubberduckVBA folder structure support
 - Smart file organization with `@Folder` annotations
-- TOML config files for team standards
+- TOML config files for team standards, with a GUI generator (`config-gen`)
+- Pick which modules are synced with `--include` / `--exclude`
 
 **📚 Reference Management**
 - List, export, import, validate, add, and remove VBA library references
@@ -596,4 +598,4 @@ BSD 3-Clause License
 
 **vba-edit** builds on an excellent idea first implemented for Excel in [xlwings](https://www.xlwings.org/) (BSD-3).
 
-Special thanks to **@onderhold** for many valuable contributions since v0.4.0.
+Special thanks to **@onderhold** for many valuable contributions since v0.4.0, and to **@russ-who** for the focus-loss trigger of bidirectional editing and the Access form/report fix in v0.6.0.
