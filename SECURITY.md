@@ -6,9 +6,9 @@ We take security seriously. The following versions of vba-edit currently receive
 
 | Version | Supported          | Status | End of Support |
 | ------- | ------------------ | ------ | -------------- |
-| 0.4.x   | :white_check_mark: | Active development | Current |
-| 0.3.x   | :warning:          | Critical fixes only | When 0.5.0 releases |
-| < 0.3   | :x:                | No longer supported | - |
+| 0.6.x   | :white_check_mark: | Active development (pre-releases on TestPyPI) | Current |
+| 0.5.x   | :white_check_mark: | Latest stable release; security fixes | When 0.6.0 releases |
+| < 0.5   | :x:                | No longer supported | - |
 
 **Note**: As an alpha/beta project (0.x versions), we focus security support on the latest minor version. When 1.0 is released, we'll establish a longer-term support policy.
 

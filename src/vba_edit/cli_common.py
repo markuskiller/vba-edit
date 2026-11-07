@@ -979,6 +979,12 @@ def get_command_usage(command: str, office_app: str) -> str:
     after_export_options = """
     [--keep-open]"""
 
+    import_and_export_options = """
+    [--skip-empty]"""
+
+    references_option = """
+    [--with-references]"""
+
     vba_handling_options = """
     [--encoding ENCODING | -e ENCODING | --detect-encoding | -d]
     [--rubberduck-folders]
@@ -1011,6 +1017,9 @@ def get_command_usage(command: str, office_app: str) -> str:
 
             if command == "export":
                 command_usage = f"{command_usage}{after_export_options}"
+            if command in {"import", "export"}:
+                command_usage = f"{command_usage}{import_and_export_options}"
+            command_usage = f"{command_usage}{references_option}"
 
             command_usage = f"{command_usage}{vba_handling_options}"
             if office_app == "excel":
@@ -1082,7 +1091,7 @@ Examples:
 Use '{entry_point_name} <command> --help' for more information on a specific command.
     
 IMPORTANT: Requires "Trust access to the VBA project object model" enabled in {app_name}.
-           Early release - backup important files before use!"""
+           Beta software: back up important files before use."""
 
 
 def add_references_file_arguments(parser: argparse.ArgumentParser) -> None:
