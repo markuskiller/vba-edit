@@ -9,6 +9,7 @@ import pytest
 
 from vba_edit.bidirectional import (
     FOCUS_TICK_MS,
+    FULL_READ_SCANS,
     INTERVAL_MS,
     OfficeAdapter,
     SessionLock,
@@ -27,6 +28,7 @@ from vba_edit.office_vba import VBAComponentHandler
 class Code:
     def __init__(self, body="Sub Example()\nEnd Sub"):
         self.body = body
+        self.reads = 0
 
     @property
     def CountOfLines(self):
@@ -34,6 +36,7 @@ class Code:
 
     def Lines(self, start, count):
         assert start == 1 and count == self.CountOfLines
+        self.reads += 1
         return self.body
 
 
@@ -543,3 +546,112 @@ def test_run_polls_as_before_without_a_focus_monitor(session):
         session.run()
     assert timeouts == [INTERVAL_MS]
     assert [call.kwargs for call in scan.call_args_list] == [{"office_idle": False}]
+
+
+def tracked(session, name="Module1"):
+    """Give a component the VBE's Saved flag: True until edited, True again after a save."""
+    component = session.adapter.handler.get_vba_project().VBComponents(name)
+    component.Saved = True
+    return component
+
+
+def edit_in_vbe(component, body):
+    component.CodeModule.body = body
+    component.Saved = False
+
+
+def save_document(session):
+    path = session.adapter.handler.doc_path
+    path.write_bytes(path.read_bytes() + b"saved")
+    for component in session.adapter.handler.get_vba_project().VBComponents:
+        component.Saved = True
+
+
+def test_polling_scans_do_not_reread_components_office_reports_as_saved(session):
+    component = tracked(session)
+    session.startup()
+    reads = component.CodeModule.reads
+    for _ in range(3):
+        session.scan()
+    assert component.CodeModule.reads == reads
+
+
+def test_unsaved_vbe_edit_is_read_on_every_scan_and_exported(session):
+    component = tracked(session)
+    session.startup()
+    edit_in_vbe(component, "Sub VBE()\nEnd Sub")
+    settle(session)
+    assert "Sub VBE()" in source(session).read_text()
+    reads = component.CodeModule.reads
+    session.scan()
+    assert component.CodeModule.reads > reads
+
+
+def test_edit_saved_between_two_scans_is_exported(session):
+    component = tracked(session)
+    session.startup()
+    session.scan()
+    edit_in_vbe(component, "Sub EditedAndSaved()\nEnd Sub")
+    save_document(session)
+    settle(session)
+    assert "Sub EditedAndSaved()" in source(session).read_text()
+
+
+def test_wrong_saved_flag_only_delays_an_export(session):
+    component = tracked(session)
+    session.startup()
+    component.CodeModule.body = "Sub Unnoticed()\nEnd Sub"  # Saved stays True, document unchanged.
+    for _ in range(FULL_READ_SCANS):
+        session.scan()
+    assert "Sub Unnoticed()" not in source(session).read_text()
+    settle(session)  # The full read notices the change, the next scan settles it.
+    assert "Sub Unnoticed()" in source(session).read_text()
+
+
+def test_focus_loss_reads_every_component(session):
+    component = tracked(session)
+    session.startup()
+    component.CodeModule.body = "Sub Unnoticed()\nEnd Sub"  # Saved stays True, document unchanged.
+    session.scan()
+    assert "Sub Unnoticed()" not in source(session).read_text()
+    session.scan(office_idle=True)
+    assert "Sub Unnoticed()" in source(session).read_text()
+
+
+def test_saved_project_is_not_walked_by_polling_scans(session):
+    project = session.adapter.handler.get_vba_project()
+    component = tracked(session)
+    project.Saved = True
+    session.startup()
+    components, project.VBComponents = project.VBComponents, None  # Walking it would fail the read.
+    settle(session)
+    assert not session.read_failed
+    project.VBComponents = components
+    project.Saved = False
+    edit_in_vbe(component, "Sub VBE()\nEnd Sub")
+    settle(session)
+    assert "Sub VBE()" in source(session).read_text()
+
+
+def test_access_components_are_always_read(session):
+    h = session.adapter.handler
+    h.app_name = "Access"
+    h.app = SimpleNamespace(CurrentDb=lambda: SimpleNamespace(Name=str(h.doc_path)))
+    session = SyncSession(OfficeAdapter(h))
+    component = tracked(session)
+    h.get_vba_project().Saved = True
+    session.startup()
+    component.CodeModule.body = "Sub AccessEdit()\nEnd Sub"  # Saved stays True, document unchanged.
+    settle(session)
+    assert "Sub AccessEdit()" in source(session).read_text()
+
+
+def test_import_makes_the_next_scan_read_the_component_again(session):
+    tracked(session)
+    session.startup()
+    assert "Module1" in session.adapter.clean
+    change_file(session, "Sub Editor()\nEnd Sub")
+    settle(session)  # The mocked import neither clears Saved nor changes the document file.
+    assert session.baseline("Module1").body == "Sub Editor()\nEnd Sub"
+    assert "Module1" not in session.adapter.clean
+    assert session.adapter.unchanged is None
