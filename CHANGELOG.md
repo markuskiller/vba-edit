@@ -20,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Focus-Loss Trigger for Experimental Bidirectional Editing** (`edit --bidirectional`): VBE code edits are written to the source files as soon as the Office application loses focus, instead of only after settling for about five seconds ([PR #123](https://github.com/markuskiller/vba-edit/pull/123), thank you @russ-who!)
   - Only exports are sped up; source file changes and conflicts are still handled after settling, and the per-module baselines keep deciding what is safe to write
   - Falls back to the polling scans alone when the focus monitor cannot be started
+  - The polling scans in between no longer re-read code that Excel, Word or PowerPoint report as unchanged since the last save (`VBProject.Saved` / `VBComponent.Saved`), which keeps large projects responsive; every module is still read when Office loses focus and about every 30 seconds. Access modules are always read (idea from @russ-who's two-way editing branch)
   - Plain `edit` without `--bidirectional` remains one-way
 
 - **Module Filtering** (`--include` / `--exclude`): Control exactly which VBA modules `edit`, `export` and `import` touch ([Issue #77](https://github.com/markuskiller/vba-edit/issues/77))

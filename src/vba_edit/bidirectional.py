@@ -27,6 +27,8 @@ STATE_VERSION = 1
 INTERVAL_MS = 2500
 FOCUS_TICK_MS = 250
 SETTLED_SCANS = 2
+# Polling scans trust VBComponent.Saved this many times in a row, then read everything again.
+FULL_READ_SCANS = 12
 EXTENSIONS = {1: ".bas", 2: ".cls", 3: ".frm", 100: ".cls"}
 MEMBER_ATTRIBUTE = re.compile(r"^\s*Attribute\s+[^=]*\.[^=]*=", re.IGNORECASE)
 
@@ -158,6 +160,28 @@ class OfficeAdapter:
         self.warned_exclusions: set[tuple[str, int]] = set()
         self.warned_filtered: set[str] = set()
         self.component_names: set[str] = set()
+        # Bodies read while VBComponent.Saved was True; valid until the document file changes.
+        self.clean: dict[str, tuple[int, str]] = {}
+        self.clean_stamp = None
+        # The whole inventory, kept while every component in it was read as saved.
+        self.unchanged: dict[str, tuple[int, str]] | None = None
+        self.trusted_reads = 0
+
+    def _document_stamp(self):
+        """Changes with every save of the document; None when it cannot be read."""
+        try:
+            stat = self.handler.doc_path.stat()
+        except OSError:
+            return None
+        return stat.st_mtime_ns, stat.st_size
+
+    @staticmethod
+    def _is_saved(item) -> bool:
+        """True only when a VBProject or VBComponent reports no edit since the last save."""
+        try:
+            return item.Saved is True
+        except Exception:
+            return False
 
     def _passes_filter(self, component, name: str, kind: int) -> bool:
         """Apply the handler's --include/--exclude filter to an Office component."""
@@ -181,7 +205,18 @@ class OfficeAdapter:
             "folders": h.use_rubberduck_folders,
         }
 
-    def inventory(self) -> dict[str, tuple[int, str]]:
+    def inventory(self, *, trust_saved=False) -> dict[str, tuple[int, str]]:
+        """Kind and live code of every synchronized component.
+
+        ``trust_saved`` lets a polling scan reuse the code it read last time for
+        components Office reports as not edited since the last save, as long as
+        the document file is unchanged; a project that is saved as a whole is
+        not walked at all. A component edited and saved between two scans
+        changes the file, so everything is read again. Access is always read:
+        its modules are saved one by one. Every ``FULL_READ_SCANS`` trusted scans
+        everything is read regardless, so a wrong flag delays an export but
+        cannot hide an edit for good.
+        """
         h = self.handler
         if not h.is_document_open():
             raise DocumentClosedError(h.document_type)
@@ -193,6 +228,14 @@ class OfficeAdapter:
         # Mode values: run=0, break=1, design=2. Missing/failed reads are unknown.
         if int(project.Mode) != 2:
             raise VBAError("Office is in run/break mode; synchronization is suspended.")
+        track = h.app_name != "Access"
+        stamp = self._document_stamp() if track else None
+        reuse = trust_saved and stamp is not None and stamp == self.clean_stamp and self.trusted_reads < FULL_READ_SCANS
+        self.trusted_reads = self.trusted_reads + 1 if reuse else 0
+        if reuse and self.unchanged is not None and self._is_saved(project):
+            # Nothing in the project was edited since the last scan read all of it.
+            return dict(self.unchanged)
+        clean = {}
         result = {}
         self.component_names = set()
         self.excluded = set()
@@ -215,9 +258,18 @@ class OfficeAdapter:
                 continue
             if not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", name):
                 raise VBAError(f"Unsafe component name: {name!r}")
-            count = int(component.CodeModule.CountOfLines)
-            body = normalize(str(component.CodeModule.Lines(1, count))) if count else ""
-            result[name] = (kind, body)
+            # Read the flag before the code: an edit in between shows up as unsaved next time.
+            saved = track and self._is_saved(component)
+            entry = self.clean.get(name) if reuse and saved else None
+            if entry is None or entry[0] != kind:
+                count = int(component.CodeModule.CountOfLines)
+                body = normalize(str(component.CodeModule.Lines(1, count))) if count else ""
+                entry = (kind, body)
+            if saved:
+                clean[name] = entry
+            result[name] = entry
+        self.clean, self.clean_stamp = clean, stamp
+        self.unchanged = dict(result) if len(clean) == len(result) else None
         return result
 
     def export(self, name: str, kind: int) -> Snapshot:
@@ -301,6 +353,9 @@ class OfficeAdapter:
 
     def apply(self, snapshot: Snapshot, existing: Snapshot | None) -> None:
         h = self.handler
+        # Our own write: read this component again.
+        self.clean.pop(snapshot.name, None)
+        self.unchanged = None
         if h.app_name == "Access":
             # New VBIDE modules can still need an interactive Access Save As.
             # Do not create them or claim they have been persisted automatically.
@@ -553,7 +608,8 @@ class SyncSession:
         """
         # A failed inventory/file read must reset settling, never signal absence.
         try:
-            inventory = self.adapter.inventory()
+            # Losing focus is when VBE edits are exported: read every component then.
+            inventory = self.adapter.inventory(trust_saved=not office_idle)
             files = self.adapter.files()
         except (DocumentClosedError, RPCError):
             raise
