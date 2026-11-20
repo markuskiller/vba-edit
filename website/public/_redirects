@@ -1,0 +1,8 @@
+# Cloudflare Pages redirects. https://developers.cloudflare.com/pages/configuration/redirects/
+/docs            /guide        301
+/documentation   /guide        301
+/start           /quickstart   301
+/getting-started /quickstart   301
+/github          https://github.com/markuskiller/vba-edit            302
+/changelog       https://github.com/markuskiller/vba-edit/blob/dev/CHANGELOG.md   302
+/releases        https://github.com/markuskiller/vba-edit/releases   302
