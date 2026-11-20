@@ -80,7 +80,7 @@ def test_re_export_replaces_the_read_only_frx_in_the_folder(handler):
 
 
 def test_import_finds_header_and_frx_beside_the_form_in_its_folder(handler):
-    existing = Mock(Name="TestForm", Type=3)
+    existing = form_component()
     components = FakeComponents(existing)
 
     handler.import_component(write_form(handler), components)

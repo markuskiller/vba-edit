@@ -155,6 +155,8 @@ PLACEHOLDER_FILE_VBAPROJECT = "{file.vbaproject}"
 
 # Valid placeholders by config key (exported for other modules)
 CONFIG_KEY_PLACEHOLDERS: Dict[str, tuple[str, ...]] = {
+    # The {file.*} placeholders are derived from this value, so only {config.path} can be used in it.
+    CONFIG_KEY_FILE: (PLACEHOLDER_CONFIG_PATH,),
     CONFIG_KEY_VBA_DIRECTORY: (
         PLACEHOLDER_FILE_NAME,
         PLACEHOLDER_FILE_FULLNAME,
@@ -257,19 +259,15 @@ def get_placeholder_values(config_file_path: Optional[str] = None, file_path: Op
         PLACEHOLDER_FILE_VBAPROJECT: "",  # Resolved later
     }
 
-    # Get config file directory for relative path resolution
     if config_file_path:
         config_dir = Path(config_file_path).parent
         placeholders[PLACEHOLDER_CONFIG_PATH] = str(config_dir)
 
     # Extract file information if file path is available
     if file_path and "{" not in file_path:
+        # A relative path is used as given. The document is opened relative to the current
+        # directory, so {file.path} has to name that same place.
         resolved_file_path = Path(file_path)
-
-        # If relative path and we have config directory, resolve relative to config
-        if not resolved_file_path.is_absolute() and config_file_path:
-            config_dir = Path(config_file_path).parent
-            resolved_file_path = config_dir / file_path
 
         file_name = resolved_file_path.stem  # filename without extension
         file_fullname = resolved_file_path.name  # filename with extension
@@ -294,9 +292,12 @@ def resolve_all_placeholders(args: argparse.Namespace, config_file_path: Optiona
     """
     args_dict = vars(args).copy()
 
-    # Get file path from args for placeholder resolution
-    file_path = args_dict.get("file")
-    # Get placeholder values
+    # The document path comes first: it may contain {config.path}, and the {file.*}
+    # placeholders are derived from it.
+    file_path = args_dict.get(CONFIG_KEY_FILE)
+    if isinstance(file_path, str):
+        file_path = resolve_placeholders_in_value(file_path, get_placeholder_values(config_file_path))
+        args_dict[CONFIG_KEY_FILE] = file_path
 
     placeholders = get_placeholder_values(config_file_path, file_path)
 

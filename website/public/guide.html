@@ -1,0 +1,1116 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Guide · vba-edit</title>
+  <meta name="description" content="The complete guide to vba-edit: every command and option for editing, exporting and importing VBA in Excel, Word, PowerPoint and Access, with worked examples.">
+  <link rel="icon" href="favicon.png" type="image/png">
+  <link rel="stylesheet" href="assets/site.css">
+  <script src="assets/theme.js"></script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+
+<header class="topbar">
+  <div class="wrap">
+    <a class="brand" href="index.html" aria-label="vba-edit home">
+      <span class="brand-mark" aria-hidden="true">vba-<br>edit</span>
+      <span class="brand-text">vba-edit<span class="caret" aria-hidden="true"></span></span>
+    </a>
+    <nav class="nav" aria-label="Main">
+      <a href="quickstart.html">Quickstart</a>
+      <a href="guide.html" aria-current="page">Guide</a>
+    </nav>
+    <span class="spacer"></span>
+    <a class="icon-btn" href="https://github.com/markuskiller/vba-edit" aria-label="vba-edit on GitHub">
+      <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg>
+    </a>
+    <button class="icon-btn" type="button" data-theme-toggle aria-label="Switch between light and dark theme">
+      <svg class="only-light" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z"/></svg>
+      <svg class="only-dark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+    </button>
+  </div>
+</header>
+
+<div class="wrap">
+  <div class="page-head">
+    <p class="eyebrow">Guide · describes 0.6.0</p>
+    <h1>Everything vba-edit does</h1>
+    <p class="lede">Every command and option, what ends up on disk, the experimental two-way sync, and worked examples. New here? The <a href="quickstart.html">quickstart</a> takes five minutes.</p>
+    <div class="setup" role="group" aria-label="Your setup">
+      <span class="setup-label">Your setup</span>
+      <span class="seg" role="group" aria-label="Office application">
+        <button type="button" data-tool="excel"><i class="dot"></i>Excel</button>
+        <button type="button" data-tool="word"><i class="dot"></i>Word</button>
+        <button type="button" data-tool="powerpoint"><i class="dot"></i>PowerPoint</button>
+        <button type="button" data-tool="access"><i class="dot"></i>Access</button>
+      </span>
+      <span class="seg" role="group" aria-label="How you run the tool">
+        <button type="button" data-run="installed">installed</button>
+        <button type="button" data-run="uvx">uvx</button>
+        <button type="button" data-run="exe">.exe</button>
+      </span>
+      <span class="setup-hint">Commands follow your choice. Recordings were made with Excel.</span>
+    </div>
+  </div>
+
+  <div class="doc">
+    <div>
+      <button class="btn btn-ghost toc-toggle" type="button" aria-expanded="false">Contents</button>
+      <nav class="toc" aria-label="Guide contents">
+        <input class="toc-search" type="search" placeholder="Filter the guide ( / )" aria-label="Filter the guide by keyword">
+        <p class="none">Nothing matches. Try a shorter word.</p>
+        <h2>Get going</h2>
+        <ul>
+          <li><a href="#overview">Overview</a></li>
+          <li><a href="#install">Install</a></li>
+          <li><a href="#trust">Allow VBA access</a></li>
+          <li><a href="#editor-setup">Editor setup</a></li>
+        </ul>
+        <h2>Concepts</h2>
+        <ul>
+          <li><a href="#files">What ends up on disk</a></li>
+          <li><a href="#document">Which document is used</a></li>
+        </ul>
+        <h2>Commands</h2>
+        <ul>
+          <li><a href="#edit">edit</a></li>
+          <li><a href="#export">export</a></li>
+          <li><a href="#import">import</a></li>
+          <li><a href="#check">check</a></li>
+          <li><a href="#config-gen">config-gen</a></li>
+          <li><a href="#references">references</a></li>
+        </ul>
+        <h2>Options in depth</h2>
+        <ul>
+          <li><a href="#headers">Headers and UserForms</a></li>
+          <li><a href="#folders">Rubberduck folders</a></li>
+          <li><a href="#filter">Module filter</a></li>
+          <li><a href="#encoding">Encoding</a></li>
+          <li><a href="#safety">Safety prompts</a></li>
+          <li><a href="#output">Logs and colours</a></li>
+        </ul>
+        <h2>Two-way sync</h2>
+        <ul>
+          <li><a href="#bidirectional">Bidirectional editing</a></li>
+        </ul>
+        <h2>Configuration</h2>
+        <ul>
+          <li><a href="#config">Config files</a></li>
+        </ul>
+        <h2>Per application</h2>
+        <ul>
+          <li><a href="#apps">Excel, Word, PowerPoint, Access</a></li>
+        </ul>
+        <h2>Use cases</h2>
+        <ul>
+          <li><a href="#uc-git">Version control</a></li>
+          <li><a href="#uc-ai">AI assistants</a></li>
+          <li><a href="#uc-team">Team setup</a></li>
+          <li><a href="#uc-vendor">Vendor code</a></li>
+          <li><a href="#uc-refactor">Offline refactoring</a></li>
+          <li><a href="#uc-access">Access databases</a></li>
+          <li><a href="#uc-auto">Scripts and automation</a></li>
+        </ul>
+        <h2>Reference</h2>
+        <ul>
+          <li><a href="#troubleshooting">Troubleshooting</a></li>
+          <li><a href="#limits">Known limitations</a></li>
+          <li><a href="#versions">Versions</a></li>
+          <li><a href="#help">Getting help</a></li>
+        </ul>
+      </nav>
+    </div>
+
+    <main id="main" class="prose">
+
+      <!-- ═════════════════════════════ GET GOING ═════════════════════════════ -->
+      <section id="overview">
+        <h2>Overview</h2>
+        <p>vba-edit is a set of command-line tools for Windows that move VBA code between an Office file and a folder of text files. There is one tool per application, and they all work the same way:</p>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Tool</th><th>Application</th><th>Typical files</th></tr></thead>
+          <tbody>
+            <tr><td><code data-fixed>excel-vba</code></td><td>Excel</td><td><code data-fixed>.xlsm</code> <code data-fixed>.xlsb</code> <code data-fixed>.xls</code></td></tr>
+            <tr><td><code data-fixed>word-vba</code></td><td>Word</td><td><code data-fixed>.docm</code></td></tr>
+            <tr><td><code data-fixed>powerpoint-vba</code></td><td>PowerPoint</td><td><code data-fixed>.pptm</code></td></tr>
+            <tr><td><code data-fixed>access-vba</code></td><td>Access</td><td><code data-fixed>.accdb</code> <code data-fixed>.mdb</code></td></tr>
+          </tbody>
+        </table></div>
+        <p>Each tool has the same six commands:</p>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Command</th><th>What it does</th></tr></thead>
+          <tbody>
+            <tr><td><a href="#edit"><code data-fixed>edit</code></a></td><td>Exports the code, then watches the folder and copies every saved change into Office until you stop it.</td></tr>
+            <tr><td><a href="#export"><code data-fixed>export</code></a></td><td>Writes all modules to files, once.</td></tr>
+            <tr><td><a href="#import"><code data-fixed>import</code></a></td><td>Reads the files and updates the modules in the document, once.</td></tr>
+            <tr><td><a href="#check"><code data-fixed>check</code></a></td><td>Tests whether Office lets programs reach the VBA project.</td></tr>
+            <tr><td><a href="#config-gen"><code data-fixed>config-gen</code></a></td><td>Opens a window that builds a config file.</td></tr>
+            <tr><td><a href="#references"><code data-fixed>references</code></a></td><td>Lists, validates, exports and restores library references.</td></tr>
+          </tbody>
+        </table></div>
+        <p>Every command explains itself with <code>excel-vba &lt;command&gt; --help</code>.</p>
+        <div class="callout warn">
+          <p class="callout-title">Beta software</p>
+          <p>vba-edit writes into your Office files. Keep a backup of anything important, keep the exported code in version control, and run <code data-fixed>export</code> again after you change a form layout or module properties in Office.</p>
+        </div>
+      </section>
+
+      <section id="install">
+        <h2>Install</h2>
+        <p><strong>Requirements:</strong> Windows, and a desktop installation of the Office application you want to work with. The Python routes need Python 3.11 or later for 0.6.0; the stable 0.5.1 also runs on Python 3.10.</p>
+        <div class="tabs">
+          <div class="tablist" role="tablist" aria-label="Ways to run vba-edit">
+            <button type="button">uvx</button>
+            <button type="button">pip</button>
+            <button type="button">Windows .exe</button>
+          </div>
+          <div class="tabpanel">
+            <p>With <a href="https://docs.astral.sh/uv/">uv</a> installed, <code data-fixed>uvx</code> runs a tool without installing it. This is the quickest way to try vba-edit.</p>
+            <pre class="cmd" data-fixed><span class="p">PS&gt; </span>uvx excel-vba edit -f Budget.xlsm
+<span class="p">PS&gt; </span>uvx word-vba export -f Letter.docm</pre>
+            <p>The first run downloads the latest stable release. Later runs reuse that copy, so a new release does not arrive by itself: add <code data-fixed>@latest</code> to fetch it, and ask for the version when in doubt.</p>
+            <pre class="cmd" data-fixed><span class="p">PS&gt; </span>uvx excel-vba@latest --version    <span class="c"># fetch the newest release and show its number</span>
+<span class="p">PS&gt; </span>uvx excel-vba --version           <span class="c"># the copy that plain uvx runs</span></pre>
+            <p class="muted">If you have installed a tool with <code data-fixed>uv tool install</code>, <code data-fixed>uvx</code> runs that installed version instead; <code data-fixed>uv tool upgrade</code> updates it.</p>
+          </div>
+          <div class="tabpanel">
+            <p>One package installs all four tools into your Python environment.</p>
+            <pre class="cmd" data-fixed><span class="p">PS&gt; </span>pip install -U vba-edit</pre>
+            <p>The optional <a href="#apps-excel">xlwings wrapper</a> for Excel needs xlwings as well: <code data-fixed>pip install -U "vba-edit[all]"</code>.</p>
+          </div>
+          <div class="tabpanel">
+            <p>Standalone executables need no Python. Download them from the <strong>Assets</strong> section of the <a href="https://github.com/markuskiller/vba-edit/releases/latest">latest release</a>: <code data-fixed>excel-vba.exe</code>, <code data-fixed>word-vba.exe</code>, <code data-fixed>powerpoint-vba.exe</code>, <code data-fixed>access-vba.exe</code>.</p>
+            <p>Open a terminal in the folder you saved them to and start them with a leading <code data-fixed>.\</code>, because PowerShell does not run a program from the current folder otherwise. To call them from any folder, add that folder to your <code data-fixed>PATH</code> and leave the <code data-fixed>.\</code> out.</p>
+            <pre class="cmd" data-fixed><span class="p">PS&gt; </span>.\excel-vba.exe --version</pre>
+            <p>The executables are not code-signed. Windows SmartScreen and some antivirus products warn about unsigned programs; the <a href="https://github.com/markuskiller/vba-edit/blob/main/SECURITY_VERIFICATION.md">verification guide</a> explains how to check the published SHA256 checksums and build attestations, and <a href="https://github.com/markuskiller/vba-edit/issues/24">issue 24</a> has the background.</p>
+          </div>
+        </div>
+
+        <h3 id="install-prerelease">Installing the 0.6.0 pre-release</h3>
+        <p>Features marked <span class="badge new">0.6</span> in this guide are in the pre-release 0.6.0a4, not yet in the stable 0.5.1. Pre-releases are published to TestPyPI, with executables on GitHub. None of the routes above picks one up by itself; how you get it depends on how you run the tool.</p>
+        <div class="tabs">
+          <div class="tablist" role="tablist" aria-label="Ways to get the pre-release">
+            <button type="button">pip</button>
+            <button type="button">uv</button>
+            <button type="button">uvx</button>
+            <button type="button">Windows .exe</button>
+          </div>
+          <div class="tabpanel">
+            <p>Name the version, and TestPyPI as the first place to look:</p>
+            <pre class="cmd" data-fixed><span class="p">PS&gt; </span>pip install -i https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ vba-edit==0.6.0a4</pre>
+          </div>
+          <div class="tabpanel">
+            <p>Into an environment managed by uv. One extra flag is needed because TestPyPI carries placeholder packages named like some dependencies:</p>
+            <pre class="cmd" data-fixed><span class="p">PS&gt; </span>uv pip install vba-edit==0.6.0a4 --index https://test.pypi.org/simple/ --default-index https://pypi.org/simple/ --index-strategy unsafe-best-match</pre>
+          </div>
+          <div class="tabpanel">
+            <p>Without installing: name the package and its version with <code data-fixed>--from</code>, and give both package indexes. The tool and its arguments come last.</p>
+            <pre class="cmd" data-fixed><span class="p">PS&gt; </span>uvx --from vba-edit==0.6.0a4 --index https://test.pypi.org/simple/ --default-index https://pypi.org/simple/ --index-strategy unsafe-best-match excel-vba --version</pre>
+          </div>
+          <div class="tabpanel">
+            <p>Open the <a href="https://github.com/markuskiller/vba-edit/releases">releases page</a> and find the entry marked <em>Pre-release</em>; its <strong>Assets</strong> hold the four executables. The <em>latest release</em> link further up always leads to the stable version.</p>
+          </div>
+        </div>
+        <p>Whichever route you take, <code>excel-vba --version</code> should report <code data-fixed>0.6.0a4</code> afterwards.</p>
+      </section>
+
+      <section id="trust">
+        <h2>Allow VBA access</h2>
+        <p>Excel, Word and PowerPoint refuse programmatic access to VBA code until you switch it on, once per application:</p>
+        <p class="crumbs" aria-label="Path in the Office menus"><span>File</span><i>›</i><span>Options</span><i>›</i><span>Trust Center</span><i>›</i><span>Trust Center Settings…</span><i>›</i><span>Macro Settings</span><i>›</i><span>☑ Trust access to the VBA project object model</span></p>
+        <p>Access has no such checkbox. It needs the database to be trusted instead: keep it in a trusted location or enable its content when Access asks.</p>
+        <p>Without this, commands stop with <em>Cannot access VBA project</em> and point you to the Trust Center. The <a href="#check"><code data-fixed>check</code></a> command tests the setting for you.</p>
+        <div class="term" data-cast="check">
+          <div class="term-bar"><span class="term-dots" aria-hidden="true"><i></i><i></i><i></i></span><span class="term-title">check</span></div>
+          <pre class="term-body" tabindex="0">PS C:\Projects\budget&gt; excel-vba check</pre>
+        </div>
+      </section>
+
+      <section id="editor-setup">
+        <h2>Editor setup</h2>
+        <p>Any editor works. Two things are worth setting up: the file <strong>encoding</strong> and <strong>syntax highlighting</strong>.</p>
+        <p>The VBA editor is not Unicode-aware; it stores code in the Windows code page of your system, which is Windows-1252 on Western European and US systems. vba-edit writes files in that same encoding by default, so your editor should read and save them the same way. Otherwise umlauts, accents and symbols such as € get mangled on the way back.</p>
+        <p>For VS Code, add this to your user <code data-fixed>settings.json</code> (and to each profile, if you use profiles). A VBA language extension provides the <code data-fixed>vba</code> language mode.</p>
+        <div class="codebox" data-label="settings.json">
+<pre data-copy data-fixed>"[vba]": {
+    "files.encoding": "windows1252"
+},
+"files.associations": {
+    "*.bas": "vba",
+    "*.cls": "vba",
+    "*.frm": "vba"
+}</pre>
+        </div>
+        <p>If your system uses another code page, or you pass a different <a href="#encoding"><code data-fixed>--encoding</code></a>, set the same one here.</p>
+      </section>
+
+      <!-- ═════════════════════════════ CONCEPTS ═════════════════════════════ -->
+      <p class="part">Concepts</p>
+
+      <section id="files">
+        <h2>What ends up on disk</h2>
+        <p>Each component of the VBA project becomes one file, named after the component:</p>
+        <div class="table-wrap"><table>
+          <thead><tr><th>In the VBA project</th><th>File</th><th>Notes</th></tr></thead>
+          <tbody>
+            <tr><td>Standard module</td><td><code data-fixed>Name.bas</code></td><td></td></tr>
+            <tr><td>Class module</td><td><code data-fixed>Name.cls</code></td><td></td></tr>
+            <tr><td>UserForm</td><td><code data-fixed>Name.frm</code> + <code data-fixed>Name.frx</code></td><td>The <code data-fixed>.frx</code> holds the binary layout. Needs a <a href="#headers">header option</a>.</td></tr>
+            <tr><td>Document module</td><td><code data-fixed>Name.cls</code></td><td><code data-fixed>ThisWorkbook</code>, sheet modules, <code data-fixed>ThisDocument</code>, slide modules, and Access <code data-fixed>Form_…</code> / <code data-fixed>Report_…</code> code.</td></tr>
+          </tbody>
+        </table></div>
+        <p>The sample workbook used throughout these docs exports like this:</p>
+        <div class="term" data-cast="export">
+          <div class="term-bar"><span class="term-dots" aria-hidden="true"><i></i><i></i><i></i></span><span class="term-title">export, then a look at the result</span></div>
+          <pre class="term-body" tabindex="0">PS C:\Projects\budget&gt; excel-vba export -f Budget.xlsm --vba-directory src
+PS C:\Projects\budget&gt; Get-ChildItem src -Name
+PS C:\Projects\budget&gt; Get-Content src\Reporting.bas</pre>
+        </div>
+        <p>Depending on the options you use, a few more files can appear in the same folder:</p>
+        <dl class="opts">
+          <div><dt>Name.header</dt><dd>The module's header (version line, attributes), written by <a href="#headers"><code data-fixed>--save-headers</code></a>.</dd></div>
+          <div><dt>vba_metadata.json</dt><dd>Written by <code data-fixed>--save-metadata</code>, and automatically whenever UserForms are exported. It records the source document, the export date, the header mode and the encoding and type of each module. vba-edit uses it to notice when you switch header mode.</dd></div>
+          <div><dt>&lt;document&gt;_refs.toml</dt><dd>The project's library references, written by <a href="#with-references"><code data-fixed>--with-references</code></a>.</dd></div>
+          <div><dt>.vba-edit/</dt><dd>State and recovery snapshots of <a href="#bidirectional">bidirectional editing</a>. Keep it out of Git, but do not delete it between sessions.</dd></div>
+        </dl>
+        <p><strong>Where the folder is.</strong> By default the files are written next to the document. <code data-fixed>--vba-directory DIR</code> chooses another folder and creates it if needed; a relative path is taken from the directory you run the command in. The value may contain <a href="#placeholders">placeholders</a> such as <code data-fixed>{file.name}</code>.</p>
+        <p><strong>Document modules in other languages.</strong> Office names these modules in its interface language: <code data-fixed>ThisWorkbook</code> is <code data-fixed>DieseArbeitsmappe</code> in German and <code data-fixed>CeClasseur</code> in French, sheets are <code data-fixed>Tabelle1</code> or <code data-fixed>Feuil1</code>. vba-edit recognises the common localized names, and otherwise goes by the module's header and by what already exists in the document.</p>
+      </section>
+
+      <section id="document">
+        <h2>Which document is used</h2>
+        <p>Every command that works on a document accepts <code data-fixed>--file</code> (short <code data-fixed>-f</code>). Without it, the tool uses the document that is currently active in the application. With it, the tool opens the file if it is not open yet.</p>
+        <pre class="cmd"><span class="p">PS&gt; </span>excel-vba export                          <span class="c"># the active <span data-app-noun>workbook</span></span>
+<span class="p">PS&gt; </span>excel-vba export -f Budget.xlsm           <span class="c"># this file</span></pre>
+        <p>If nothing is open and no file is given, the command stops and asks for <code data-fixed>--file</code>.</p>
+        <h3>File types</h3>
+        <p>The everyday formats are <code data-fixed>.xlsm</code>, <code data-fixed>.xlsb</code>, <code data-fixed>.xls</code> for Excel, <code data-fixed>.docm</code> for Word, <code data-fixed>.pptm</code> for PowerPoint, and <code data-fixed>.accdb</code>, <code data-fixed>.mdb</code> for Access. Templates and add-ins (<code data-fixed>.xltm</code>, <code data-fixed>.xlam</code>, <code data-fixed>.dotm</code>, <code data-fixed>.potm</code> and so on) are recognised as belonging to their application and are likely to work, but have seen little testing.</p>
+        <p>Hand a file to the wrong tool, say a workbook to <code data-fixed>word-vba</code>, and you get an <em>extension mismatch</em> message naming the tool to use instead.</p>
+        <h3>What stays open afterwards</h3>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Command</th><th>Document it opened itself</th><th>Document that was already open</th></tr></thead>
+          <tbody>
+            <tr><td><code data-fixed>export</code></td><td>Closed again without saving; the application is closed too if vba-edit started it. <code data-fixed>--keep-open</code> leaves both open.</td><td>Left open, untouched <span class="badge new">0.6</span></td></tr>
+            <tr><td><code data-fixed>import</code></td><td>Saved and left open.</td><td>Saved and left open.</td></tr>
+            <tr><td><code data-fixed>edit</code></td><td>Left open; saved after each synced change.</td><td>Left open; saved after each synced change.</td></tr>
+          </tbody>
+        </table></div>
+        <p class="muted">In 0.5.1, <code data-fixed>export</code> closed a document that was already open without saving it. Save before exporting if you are on the stable release.</p>
+      </section>
+
+      <!-- ═════════════════════════════ COMMANDS ═════════════════════════════ -->
+      <p class="part">Commands</p>
+
+      <section id="edit">
+        <h2>edit</h2>
+        <p>The command you will use most. It exports the code, then keeps running and copies each saved file into the document.</p>
+        <div class="synopsis"><b>excel-vba edit</b> [-f FILE] [--vba-directory DIR]
+    [--save-headers | --in-file-headers] [--save-metadata]
+    [--rubberduck-folders] [--include PATTERN …] [--exclude PATTERN …]
+    [--encoding ENC | --detect-encoding] [--with-references]
+    [--bidirectional [--sync-resolve {office,files} --sync-component NAME]]
+    [--open-folder] [--force-overwrite] [--conf FILE]
+    [--verbose] [--logfile [FILE]] [--no-color]</div>
+        <div class="term" data-cast="edit">
+          <div class="term-bar"><span class="term-dots" aria-hidden="true"><i></i><i></i><i></i></span><span class="term-title">a complete edit session</span></div>
+          <pre class="term-body" tabindex="0">PS C:\Projects\budget&gt; excel-vba edit -f Budget.xlsm --vba-directory src</pre>
+        </div>
+        <h3>What happens, step by step</h3>
+        <ol>
+          <li><strong>Start.</strong> Modules that have no file yet are exported. Files that already exist are left as they are, and they are not pushed into Office at this point either. If your files are newer than the document, run <code data-fixed>import</code> once before you start.</li>
+          <li><strong>Watch.</strong> The folder is watched for <code data-fixed>.bas</code>, <code data-fixed>.cls</code> and <code data-fixed>.frm</code> files (including subfolders with <a href="#folders"><code data-fixed>--rubberduck-folders</code></a>).</li>
+          <li><strong>Save.</strong> When you save a file, its module is updated in the document and the document is saved. A new file becomes a new module.</li>
+          <li><strong>Stop.</strong> <kbd>Ctrl</kbd>+<kbd>C</kbd> ends the session. The document stays open.</li>
+        </ol>
+        <div class="callout warn">
+          <p class="callout-title">Three things to know</p>
+          <ul>
+            <li><strong>Deleting a file deletes the module</strong> in the VBA project. Document modules such as <code data-fixed>ThisWorkbook</code> cannot be deleted and stay.</li>
+            <li><strong>Changes typed into the VBA editor are not copied back</strong> to your files. Run <code data-fixed>export</code> to fetch them, or use <a href="#bidirectional"><code data-fixed>--bidirectional</code></a>.</li>
+            <li><strong>Closing the document ends the session.</strong> Edits you save afterwards are not lost, because they are in your files, but nothing applies them by itself: a new edit session leaves existing files alone (step 1). Run <code data-fixed>import</code> once, then start <code data-fixed>edit</code> again.</li>
+          </ul>
+        </div>
+        <p>Editing a <code data-fixed>.header</code> file on its own does not trigger a sync. Save the matching code file as well and the whole module is brought across.</p>
+        <p>Two options exist only on other commands: <code data-fixed>--skip-empty</code> (export and import) and <code data-fixed>--keep-open</code> (export).</p>
+      </section>
+
+      <section id="export">
+        <h2>export</h2>
+        <p>Writes every module to a file, once. Use it for a first snapshot, before a commit, or to fetch changes that were made in the VBA editor.</p>
+        <div class="synopsis"><b>excel-vba export</b> [-f FILE] [--vba-directory DIR]
+    [--save-headers | --in-file-headers] [--save-metadata]
+    [--rubberduck-folders] [--include PATTERN …] [--exclude PATTERN …]
+    [--encoding ENC | --detect-encoding] [--with-references]
+    [--skip-empty] [--keep-open] [--open-folder] [--force-overwrite]
+    [--conf FILE] [--verbose] [--logfile [FILE]] [--no-color]</div>
+        <dl class="opts">
+          <div><dt>--skip-empty</dt><dd>Leaves out modules without code. Handy for workbooks with dozens of empty sheet modules.</dd></div>
+          <div><dt>--keep-open</dt><dd>Keeps the document open after the export, for a look at the result. Without it, a document that vba-edit opened is closed again.</dd></div>
+          <div><dt>--open-folder</dt><dd>Opens the export folder in File Explorer when done.</dd></div>
+          <div><dt>--force-overwrite</dt><dd>Skips the <a href="#safety">confirmation prompts</a>. Meant for scripts.</dd></div>
+          <div><dt>--save-metadata <small>-m</small></dt><dd>Writes <code data-fixed>vba_metadata.json</code> beside the code (see <a href="#files">what ends up on disk</a>).</dd></div>
+        </dl>
+        <p>If the folder already contains VBA files, <code data-fixed>export</code> asks before it replaces them. See <a href="#safety">safety prompts</a> for what that looks like.</p>
+        <h3 id="export-result">Result and exit code</h3>
+        <p>If a module cannot be exported, the others are still written. The run then ends with a message such as <code data-fixed>1 of 5 VBA components could not be exported: Broken</code> and a non-zero exit code, and an <code data-fixed>edit</code> session does not start. Fix the cause, or leave the module out with <a href="#filter"><code data-fixed>--exclude</code></a>.</p>
+        <p class="muted">Up to 0.6.0a4, such an export logs the error for the module and still ends with exit code 0, even if no module could be exported. Read its output before relying on the files. Reported with an exit code <a href="#after-a4">after 0.6.0a4</a>.</p>
+      </section>
+
+      <section id="import">
+        <h2>import</h2>
+        <p>Reads the files in the folder and updates the document, once. It is the counterpart to <code data-fixed>export</code> and what you run after editing without a live session.</p>
+        <div class="synopsis"><b>excel-vba import</b> [-f FILE] [--vba-directory DIR]
+    [--rubberduck-folders] [--include PATTERN …] [--exclude PATTERN …]
+    [--encoding ENC | --detect-encoding] [--with-references] [--skip-empty]
+    [--conf FILE] [--verbose] [--logfile [FILE]] [--no-color]</div>
+        <p>There are no header options here because none are needed. For each file, <code data-fixed>import</code> looks for a header inside the file first, then for a separate <code data-fixed>.header</code> file, and otherwise creates a minimal one.</p>
+        <h3>What import does to each kind of module</h3>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Module</th><th>How it is updated</th></tr></thead>
+          <tbody>
+            <tr><td>Standard module</td><td>Its code is replaced in place; a new file creates a new module.</td></tr>
+            <tr><td>Class module</td><td>Code is replaced in place when the header is unchanged. Only a changed header, or member attributes such as <code data-fixed>VB_UserMemId</code>, cause the module to be removed and imported afresh. <span class="badge new">0.6</span> A class that is new to the document is imported together with its header, whether that is in the file or in a <code data-fixed>.header</code> file.</td></tr>
+            <tr><td>UserForm</td><td>Imported as a whole, with its <code data-fixed>.frx</code>. A <code data-fixed>.frm</code> without any header is refused, and the form in the document is left as it was. <span class="badge new">0.6</span></td></tr>
+            <tr><td>Document module</td><td>Code is replaced in place. These modules belong to the document and cannot be created by an import.</td></tr>
+          </tbody>
+        </table></div>
+        <p>Modules that exist in the document but have no file are left alone: <code data-fixed>import</code> never deletes anything.</p>
+        <p><strong>If an update fails, the module is put back as it was.</strong> After a failed code replacement that is the previous code. A class module or UserForm that has to be replaced as a whole is copied first, a form together with its layout, and the copy is imported again when the new version cannot be. The file is then reported as failed, and the document still holds the original.</p>
+        <p class="muted">Up to 0.6.0a4 only code replacements are undone. There, a class module or UserForm whose re-import fails is missing from the document afterwards, and stays missing until an import of its file succeeds; your files still have it. Also up to 0.6.0a4, a class that is new to the document and has a separate <code data-fixed>.header</code> file is created with default attributes, so <code data-fixed>VB_PredeclaredId</code> and the like only arrive with a second import. Both are fixed <a href="#after-a4">after 0.6.0a4</a>.</p>
+        <h3>Result and exit code <span class="badge new">0.6</span></h3>
+        <p>The run ends with a summary such as <code data-fixed>Imported 4 of 5 VBA files; 1 failed: Broken.bas</code>, and the exit code is non-zero when a file could not be imported. Scripts and coding agents can rely on that. The document is saved and left open.</p>
+        <p>To import only some files, add a <a href="#filter">module filter</a>:</p>
+        <pre class="cmd"><span class="p">PS&gt; </span>excel-vba import -f Budget.xlsm --vba-directory src --include "Rep*" Helpers.bas</pre>
+      </section>
+
+      <section id="check">
+        <h2>check</h2>
+        <p>Tests whether the application lets vba-edit reach VBA projects, and tells you what to change if not.</p>
+        <pre class="cmd"><span class="p">PS&gt; </span>excel-vba check          <span class="c"># this application</span>
+<span class="p">PS&gt; </span>excel-vba check all      <span class="c"># Excel, Word, PowerPoint and Access</span></pre>
+        <p>The check creates a scratch file in a temporary folder of its own, tries to read its VBA project, then closes the scratch file and removes the folder. It starts the application if needed and closes it again; an application you already had open stays open, with your documents untouched. If Access already has a database open, the check looks at that database's project and creates nothing.</p>
+        <div class="callout warn">
+          <p class="callout-title">Up to 0.6.0a4: empty folder, application closed</p>
+          <p>In 0.5.1 and the pre-releases up to 0.6.0a4, the scratch file is created in the current directory as <code data-fixed>test.xlsm</code>, <code data-fixed>test.docm</code>, <code data-fixed>test.pptm</code> or <code data-fixed>test.accdb</code>. A file of that name that is already there is overwritten or deleted, and the application is closed at the end even if you had it open. With those versions, run <code data-fixed>check</code> from an empty folder and with the application closed. This is fixed <a href="#after-a4">after 0.6.0a4</a>.</p>
+        </div>
+      </section>
+
+      <section id="config-gen">
+        <h2>config-gen</h2>
+        <p>Opens the Config Generator, a small window for building a <a href="#config">config file</a> without writing TOML by hand. It is part of the normal install.</p>
+        <pre class="cmd"><span class="p">PS&gt; </span>excel-vba config-gen</pre>
+        <figure>
+          <div class="shot"><button type="button" aria-label="Enlarge screenshot"><img src="assets/img/config-gen.png" width="1200" height="1148" loading="lazy" alt="The Config Generator window for Excel with file options, header mode choices and a TOML preview"></button></div>
+          <figcaption><b>Screenshot.</b> The Config Generator started with <code data-fixed>excel-vba config-gen</code>, with a sample configuration loaded. The lower pane shows the TOML that will be saved.</figcaption>
+        </figure>
+        <ul>
+          <li>The <strong>General</strong> tab has the document and folder pickers, the header mode, the encoding, switches for the remaining options, and fields for include and exclude patterns.</li>
+          <li>The <strong>References</strong> tab has the references file and its filters.</li>
+          <li>The <strong>TOML Preview</strong> updates as you click. <strong>Open Config…</strong> loads an existing file into the form; <strong>Save Config…</strong> writes it.</li>
+        </ul>
+        <p>Each tool opens the generator for its own application, so the file picker shows the right file types and Excel gets its extra xlwings switch.</p>
+      </section>
+
+      <section id="references">
+        <h2>references</h2>
+        <p>A VBA project can reference external libraries, such as Microsoft Scripting Runtime, ActiveX Data Objects, or another document or add-in. The references live in the document, which makes them invisible in code review and easy to break when a file moves to another machine. This command makes them visible and portable.</p>
+        <div class="callout" data-only="access" hidden>
+          <p class="callout-title">Access needs a version after 0.6.0a4</p>
+          <p>In 0.6.0a4 the <code data-fixed>references</code> commands and <code data-fixed>--with-references</code> stop with a <em>Reference error</em> when used with <code data-fixed>access-vba</code>. This is <a href="#after-a4">fixed after 0.6.0a4</a>. Note that Access lists its database engine library (DAO) as <code data-fixed>INSTALLED</code>, not as <code data-fixed>DEFAULT</code>.</p>
+        </div>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Subcommand</th><th>What it does</th></tr></thead>
+          <tbody>
+            <tr><td><code data-fixed>references list</code></td><td>Shows every reference with name, version, GUID, path and description.</td></tr>
+            <tr><td><code data-fixed>references export</code></td><td>Writes the references to a TOML file.</td></tr>
+            <tr><td><code data-fixed>references import -r FILE</code></td><td>Adds the references from a TOML file. Existing ones are skipped. With <code data-fixed>--sync</code>, also removes references that are not in the file. Exits with code 1 if a reference could not be processed; the others are kept.</td></tr>
+            <tr><td><code data-fixed>references validate</code></td><td>Reports broken references. Exits with code 1 if it finds any.</td></tr>
+            <tr><td><code data-fixed>references add LIBRARY</code></td><td>Adds one reference by file path (<code data-fixed>.xlam</code>, <code data-fixed>.dotm</code>, <code data-fixed>.dll</code>, <code data-fixed>.olb</code>, …).</td></tr>
+            <tr><td><code data-fixed>references remove NAME</code></td><td>Removes one reference by the name shown in <code data-fixed>list</code>.</td></tr>
+          </tbody>
+        </table></div>
+        <p>All of them take <code data-fixed>-f FILE</code> like the other commands. A document that is already open is used as it is and stays open. <code data-fixed>export</code> and <code data-fixed>import</code> take <code data-fixed>-r FILE</code> (<code data-fixed>--refs-file</code>) for the TOML file; the default is <code data-fixed>&lt;document&gt;_refs.toml</code> next to the document.</p>
+        <div class="callout warn">
+          <p class="callout-title">In 0.6.0a4, close the document first</p>
+          <p>Up to 0.6.0a4, a <code data-fixed>references</code> command with <code data-fixed>-f</code> closes the document afterwards without saving, even if you had it open with unsaved changes. Save or close the document before you run one. This is <a href="#after-a4">fixed after 0.6.0a4</a>.</p>
+        </div>
+        <div class="term" data-cast="references">
+          <div class="term-bar"><span class="term-dots" aria-hidden="true"><i></i><i></i><i></i></span><span class="term-title">references: list, filter, export, validate</span></div>
+          <pre class="term-body tall" tabindex="0">PS C:\Projects\budget&gt; excel-vba references list -f Budget.xlsm
+PS C:\Projects\budget&gt; excel-vba references list -f Budget.xlsm --no-default
+PS C:\Projects\budget&gt; excel-vba references export -f Budget.xlsm -r budget-refs.toml --no-default
+PS C:\Projects\budget&gt; excel-vba references validate -f Budget.xlsm</pre>
+        </div>
+        <h3>Three kinds of reference</h3>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Kind</th><th>Meaning</th><th>Examples</th><th>Hide with</th></tr></thead>
+          <tbody>
+            <tr><td><code data-fixed>DEFAULT</code></td><td>Present in every new document.</td><td>VBA, the host application, stdole, Office</td><td><code data-fixed>--no-default</code></td></tr>
+            <tr><td><code data-fixed>INSTALLED</code></td><td>A library registered on the system, identified by its GUID.</td><td>Scripting Runtime, ADO</td><td><code data-fixed>--no-installed</code></td></tr>
+            <tr><td><code data-fixed>CUSTOM</code></td><td>A reference to a file, identified by its path.</td><td>your own <code data-fixed>.dotm</code> or <code data-fixed>.xlam</code></td><td><code data-fixed>--no-custom</code></td></tr>
+          </tbody>
+        </table></div>
+        <p>The three filters work on <code data-fixed>list</code> and <code data-fixed>export</code> and can be combined.</p>
+        <h3>The TOML file</h3>
+        <p>The exported file is plain TOML that you can read, diff and edit. A <code data-fixed>[metadata]</code> table records how it was produced, and each reference is one <code data-fixed>[[references]]</code> entry:</p>
+        <div class="codebox" data-label="shared-refs.toml">
+<pre data-fixed><span class="c"># a registered library, found by GUID on any machine</span>
+<span class="k">[[references]]</span>
+name = <span class="s">"Scripting"</span>
+guid = <span class="s">"{420B2830-E718-11CF-893D-00A0C9054228}"</span>
+major = 1
+minor = 0
+description = <span class="s">"Microsoft Scripting Runtime"</span>
+
+<span class="c"># a file reference, found by path</span>
+<span class="k">[[references]]</span>
+name = <span class="s">"SharedMacros"</span>
+path = <span class="s">'\\server\share\templates\SharedMacros.dotm'</span>
+major = 0
+minor = 0</pre>
+        </div>
+        <h3>Sync: make the document match the file</h3>
+        <p>A plain <code data-fixed>references import</code> only adds. With <code data-fixed>--sync</code>, references that are not in the file are removed as well.</p>
+        <pre class="cmd"><span class="p">PS&gt; </span>excel-vba references import -r shared-refs.toml --sync</pre>
+        <p>Two protections apply unless you add <code data-fixed>--force-overwrite</code>: default references are never removed, and a file that was exported with filters is refused, because syncing from it would remove exactly the references you chose to leave out.</p>
+        <h3 id="with-references">References alongside the code</h3>
+        <p><code data-fixed>--with-references</code> on <code data-fixed>export</code>, <code data-fixed>import</code> and <code data-fixed>edit</code> handles the references in the same run. The file is always named <code data-fixed>&lt;document&gt;_refs.toml</code> and lives in the VBA folder.</p>
+        <ul>
+          <li><code data-fixed>export --with-references</code> writes it after the code.</li>
+          <li><code data-fixed>import --with-references</code> restores the references first, then imports the code.</li>
+          <li><code data-fixed>edit --with-references</code> writes it at the start and reads it again whenever you save it. References you added to the file are added to the document, and the document is saved. Removing an entry from the file does not remove the reference; for that, use <code data-fixed>references remove</code> or <code data-fixed>references import --sync</code>.</li>
+        </ul>
+        <p>If the references cannot be written or restored, <code data-fixed>export</code> and <code data-fixed>import</code> still transfer the code, and end with a non-zero exit code.</p>
+        <p class="muted">Up to 0.6.0a4, a failed reference only produces a warning (the exit code stays 0, also for <code data-fixed>references import</code>), and references added during an edit session are not saved until the next code change or a save of your own. Both changed <a href="#after-a4">after 0.6.0a4</a>.</p>
+        <div class="callout warn">
+          <p class="callout-title">In 0.6.0a4, use the references commands</p>
+          <p>Up to 0.6.0a4, <code data-fixed>export</code> and <code data-fixed>import</code> with <code data-fixed>--with-references</code> only print <em>Could not export references</em> or <em>Could not import references</em> and leave the references alone. There, run <code data-fixed>references export -r FILE</code> and <code data-fixed>references import -r FILE</code> as separate steps. This is <a href="#after-a4">fixed after 0.6.0a4</a>.</p>
+        </div>
+      </section>
+
+      <!-- ═════════════════════════════ OPTIONS ═════════════════════════════ -->
+      <p class="part">Options in depth</p>
+
+      <section id="headers">
+        <h2>Headers and UserForms</h2>
+        <p>Every VBA module carries a header that the VBA editor hides from you: a version line, sometimes a <code data-fixed>BEGIN … END</code> block, and <code data-fixed>Attribute VB_…</code> lines. For a standard module the header says little. For a class it holds settings such as <code data-fixed>VB_PredeclaredId</code>, and for a UserForm it holds the whole link to its layout. You choose where that header goes:</p>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Option</th><th>Code file contains</th><th>Header goes to</th><th>Good for</th></tr></thead>
+          <tbody>
+            <tr><td><em>none</em> (default)</td><td>code only</td><td>nowhere</td><td>Projects with only standard modules and simple classes.</td></tr>
+            <tr><td><code data-fixed>--save-headers</code></td><td>code only</td><td><code data-fixed>Name.header</code></td><td>Clean code files, with headers kept out of sight.</td></tr>
+            <tr><td><code data-fixed>--in-file-headers</code></td><td>header + code</td><td>the same file</td><td>Complete, self-contained modules. The natural choice for Git and for <a href="#bidirectional">bidirectional editing</a>.</td></tr>
+          </tbody>
+        </table></div>
+        <p>The two options exclude each other. With <code data-fixed>--in-file-headers</code>, a class module file looks like this:</p>
+        <div class="term" data-cast="headers">
+          <div class="term-bar"><span class="term-dots" aria-hidden="true"><i></i><i></i><i></i></span><span class="term-title">export with headers in the files, sorted into folders</span></div>
+          <pre class="term-body tall" tabindex="0">PS C:\Projects\budget&gt; excel-vba export -f Budget.xlsm --vba-directory src --in-file-headers --rubberduck-folders
+PS C:\Projects\budget&gt; Get-ChildItem src -Recurse -Name -File
+PS C:\Projects\budget&gt; Get-Content src\Domain\Invoice.cls -TotalCount 12</pre>
+        </div>
+        <h3>UserForms need one of the two</h3>
+        <p>A form without its header cannot be rebuilt. If a project contains UserForms and you give no header option, <code data-fixed>export</code> and <code data-fixed>edit</code> stop with an error that asks you to add <code data-fixed>--in-file-headers</code> or <code data-fixed>--save-headers</code>.</p>
+        <ul>
+          <li>Edit the <code data-fixed>.frm</code> file for code. Leave the <code data-fixed>.frx</code> alone: it is binary, vba-edit marks it read-only, and a damaged one breaks the form.</li>
+          <li>Design the form's layout in the VBA editor, then run <code data-fixed>export</code> again so the files have it.</li>
+        </ul>
+        <p>Access does not have UserForms; its forms are a different thing, and vba-edit handles <a href="#apps-access">only their code</a>.</p>
+        <h3>Changing your mind</h3>
+        <p>You can switch between the modes. When vba-edit sees that the header mode differs from the last export (it reads this from <code data-fixed>vba_metadata.json</code>), it re-exports the modules and removes <code data-fixed>.header</code> files that are no longer needed. With a <a href="#filter">module filter</a>, the <code data-fixed>.header</code> files of modules outside the filter stay where they are, since their code files still need them. <code data-fixed>import</code> does not care which mode produced the files: it finds the header wherever it is, and both modes bring a module back with the same attributes.</p>
+      </section>
+
+      <section id="folders">
+        <h2>Rubberduck folders</h2>
+        <p>The VBA editor shows modules in one flat list. The <a href="https://rubberduckvba.com/">Rubberduck</a> add-in introduced a convention to organise them: a comment at the top of a module names its folder.</p>
+        <pre data-fixed><span class="c">'@Folder("Domain.Billing")</span>
+<span class="k">Option Explicit</span></pre>
+        <p>With <code data-fixed>--rubberduck-folders</code>, vba-edit turns that convention into real directories. Dots separate levels, so the module above is written to <code data-fixed>Domain\Billing\</code> inside your VBA folder. Modules without the annotation stay in the root. You do not need Rubberduck installed.</p>
+        <pre class="cmd"><span class="p">PS&gt; </span>excel-vba edit -f Budget.xlsm --vba-directory src --rubberduck-folders --in-file-headers</pre>
+        <div class="tree"><span class="d">src\</span>
+├── <span class="d">Domain\</span>
+│   └── Invoice.cls        <span class="n">'@Folder("Domain")</span>
+├── <span class="d">Reports\</span>
+│   └── Reporting.bas      <span class="n">'@Folder("Reports")</span>
+├── <span class="d">Shared\</span>
+│   └── Helpers.bas        <span class="n">'@Folder("Shared")</span>
+├── Sheet1.cls             <span class="n">no annotation</span>
+└── ThisWorkbook.cls       <span class="n">no annotation</span></div>
+        <ul>
+          <li>The annotation is recognised as <code data-fixed>'@Folder("A.B")</code> or <code data-fixed>'@Folder "A.B"</code>, in any letter case, among the comment lines at the top of the module. The name must be in quotes.</li>
+          <li>It works both ways: when a file sits in a subfolder, <code data-fixed>import</code> and <code data-fixed>edit</code> write the matching annotation into the module, replacing one that names another folder. Moving a file to another folder is how you move a module. The file itself is not rewritten; the next <code data-fixed>export</code> brings the new annotation into it.</li>
+          <li class="muted">Up to 0.6.0a4, a UserForm, a new class and a class whose header changed are imported with the annotation that is in the file, not with the folder the file is in. Corrected <a href="#after-a4">after 0.6.0a4</a>.</li>
+          <li>A UserForm's <code data-fixed>.frx</code> travels with its <code data-fixed>.frm</code> into the folder.</li>
+          <li>Use the option consistently. A folder exported with it should be imported and edited with it, because it also tells vba-edit to look into subfolders.</li>
+        </ul>
+      </section>
+
+      <section id="filter">
+        <h2>Module filter <span class="badge new">0.6</span></h2>
+        <p><code data-fixed>--include</code> and <code data-fixed>--exclude</code> decide which modules a command touches. They work on <code data-fixed>edit</code>, <code data-fixed>export</code> and <code data-fixed>import</code>.</p>
+        <pre class="cmd"><span class="p">PS&gt; </span>excel-vba import --include "mod_10*.bas" helper.cls        <span class="c"># only what you changed</span>
+<span class="p">PS&gt; </span>excel-vba edit --exclude "Vendor_*" LockedForm.frm         <span class="c"># leave these alone</span>
+<span class="p">PS&gt; </span>excel-vba export --rubberduck-folders --include "Utils/*"  <span class="c"># one folder</span></pre>
+        <p>A pattern is a name or a shell-style glob (<code data-fixed>*</code>, <code data-fixed>?</code>), compared without regard to case against three things: the module name (<code data-fixed>Module1</code>), the file name (<code data-fixed>Helpers_*.cls</code>), and the path relative to the VBA folder (<code data-fixed>Utils/*</code>).</p>
+        <ul>
+          <li><code data-fixed>--include</code> keeps only matching modules. <code data-fixed>--exclude</code> drops matching modules and is applied afterwards, so it wins.</li>
+          <li>Both take several patterns and can be repeated. Quote patterns that contain <code data-fixed>*</code> so the shell passes them through.</li>
+          <li>In an <code data-fixed>edit</code> session the filter applies to the first export and to every later file event, deletions included. An excluded module is never touched, and neither are its files.</li>
+          <li class="muted">One exception up to 0.6.0a4: switching the <a href="#headers">header mode</a> removes the <code data-fixed>.header</code> files of excluded modules too. Do not change the header mode while a filter is set with those versions. Fixed <a href="#after-a4">after 0.6.0a4</a>.</li>
+          <li>A UserForm's <code data-fixed>.frx</code> follows whatever was decided for its <code data-fixed>.frm</code>.</li>
+        </ul>
+        <div class="term" data-cast="filter">
+          <div class="term-bar"><span class="term-dots" aria-hidden="true"><i></i><i></i><i></i></span><span class="term-title">import two modules, export without the document modules</span></div>
+          <pre class="term-body tall" tabindex="0">PS C:\Projects\budget&gt; excel-vba import -f Budget.xlsm --vba-directory src --include "Rep*" Helpers.bas
+PS C:\Projects\budget&gt; excel-vba export -f Budget.xlsm --vba-directory modules-only --exclude "Sheet*" ThisWorkbook</pre>
+        </div>
+        <p>In a <a href="#config">config file</a> the same filter is written as lists. Patterns given on the command line replace the lists from the config file; they are not added to them.</p>
+        <pre data-fixed>include = [<span class="s">"Module1"</span>, <span class="s">"Helpers_*.cls"</span>, <span class="s">"Utils/*"</span>]
+exclude = [<span class="s">"Vendor_*"</span>, <span class="s">"LockedForm.frm"</span>]</pre>
+      </section>
+
+      <section id="encoding">
+        <h2>Encoding</h2>
+        <p>Two encodings are involved. The VBA editor is not Unicode-aware: it reads and writes code in the Windows code page of the system, which is <code data-fixed>cp1252</code> on Western European and US systems. Your files are in that same code page by default, or in an encoding you choose, and vba-edit converts between the two.</p>
+        <dl class="opts">
+          <div><dt>--encoding ENC <small>-e</small></dt><dd>The encoding of the files in the VBA folder, for example <code data-fixed>utf-8</code>. On export, code is converted from the code page into it; on import it is converted back.</dd></div>
+          <div><dt>--detect-encoding <small>-d</small></dt><dd>Works the encoding out for each file: a byte order mark decides, text that is valid UTF-8 is read as UTF-8, anything else as the code page. On export, a file that already exists keeps its encoding and a new file is written in the code page. Cannot be combined with <code data-fixed>--encoding</code> or <code data-fixed>--bidirectional</code>.</dd></div>
+        </dl>
+        <p>For most projects the default is the right choice, together with an <a href="#editor-setup">editor set to the same code page</a>. Whichever encoding you use, use it for every command on that folder.</p>
+        <p>One limit remains whatever the files use: a character the code page cannot represent, such as Japanese text on a Western system, cannot be stored in the VBA editor. When a class module or UserForm containing one has to be imported as a whole, vba-edit stops and names the character instead of importing it damaged.</p>
+        <div class="callout warn">
+          <p class="callout-title">Up to 0.6.0a4, stay with the code page</p>
+          <p>Up to 0.6.0a4, <code data-fixed>--encoding</code> does not convert. Exported code is read in the encoding you name although Office wrote it in the code page, so with <code data-fixed>utf-8</code> a module containing an umlaut or accent fails to export or comes out garbled. <code data-fixed>--detect-encoding</code> detects nothing there and reads every file in the system's default encoding. Use the default encoding with those versions. Both options work as described here <a href="#after-a4">after 0.6.0a4</a>.</p>
+        </div>
+      </section>
+
+      <section id="safety">
+        <h2>Safety prompts</h2>
+        <p>vba-edit asks before it does something you might regret, and refuses a few things outright.</p>
+        <div class="term" data-cast="safety">
+          <div class="term-bar"><span class="term-dots" aria-hidden="true"><i></i><i></i><i></i></span><span class="term-title">export over existing files: declined, then accepted with a new header mode</span></div>
+          <pre class="term-body tall" tabindex="0">PS C:\Projects\budget&gt; excel-vba export -f Budget.xlsm --vba-directory src --save-headers
+PS C:\Projects\budget&gt; excel-vba export -f Budget.xlsm --vba-directory src --in-file-headers</pre>
+        </div>
+        <dl class="opts">
+          <div><dt>Existing files</dt><dd><code data-fixed>export</code> counts the VBA files already in the folder and asks before overwriting them. The default answer is No.</dd></div>
+          <div><dt>Header mode change</dt><dd>When the header option differs from the previous export, vba-edit tells you, re-exports the modules and cleans up <code data-fixed>.header</code> files that are no longer needed.</dd></div>
+          <div><dt>UserForms without headers</dt><dd>Never silently accepted, on export or on import. See <a href="#headers">headers</a>.</dd></div>
+          <div><dt>Failed updates</dt><dd>If replacing a module's code fails half-way, the previous code is restored rather than leaving the module empty. A class module or UserForm that is replaced as a whole is copied first and put back if the new version cannot be imported (<a href="#after-a4">after 0.6.0a4</a>).</dd></div>
+        </dl>
+        <h3>--force-overwrite</h3>
+        <p>For scripts, <code data-fixed>--force-overwrite</code> answers the prompts for you and proceeds. It does not switch off the UserForm check.</p>
+        <pre class="cmd"><span class="p">PS&gt; </span>excel-vba export -f Budget.xlsm --vba-directory src --force-overwrite</pre>
+        <p>Without it, a run that cannot ask (because nobody is at the keyboard) treats the question as answered with No and exports nothing.</p>
+      </section>
+
+      <section id="output">
+        <h2>Logs and colours</h2>
+        <dl class="opts">
+          <div><dt>--verbose <small>-v</small></dt><dd>Prints more detail: the options in effect, resolved paths, per-module decisions, and full error traces.</dd></div>
+          <div><dt>--logfile [FILE] <small>-l</small></dt><dd>Also writes a detailed log to a file. Without a name it is <code data-fixed>vba_edit.log</code> in the current directory. The name may contain <a href="#placeholders">placeholders</a>.</dd></div>
+          <div><dt>--no-color <small>--no-colour</small></dt><dd>Switches coloured output off.</dd></div>
+        </dl>
+        <p>In a terminal, success is shown in green, warnings in yellow, errors in red, and paths and technical terms are highlighted. Colours are left out automatically when the output is redirected or piped, and when the <code data-fixed>NO_COLOR</code> environment variable is set.</p>
+      </section>
+
+      <!-- ═════════════════════════════ BIDIRECTIONAL ═════════════════════════════ -->
+      <p class="part">Two-way sync</p>
+
+      <section id="bidirectional">
+        <h2>Bidirectional editing <span class="badge exp">experimental</span> <span class="badge new">0.6</span></h2>
+        <p>A plain <code data-fixed>edit</code> session moves code one way, from files to Office. With <code data-fixed>--bidirectional</code>, code you change in the VBA editor is written back to your files too. You can fix a line in the debugger, switch to your editor, and find it there.</p>
+        <pre class="cmd"><span class="p">PS&gt; </span>excel-vba edit -f Budget.xlsm --vba-directory src --bidirectional --in-file-headers</pre>
+        <div class="callout exp">
+          <p class="callout-title">Experimental</p>
+          <p>This mode is new and deliberately cautious: when it is not sure which side is right, it stops and asks instead of guessing. It has been exercised with real Excel, Word, PowerPoint and Access, but it has far fewer hours behind it than the one-way mode. Use it on projects that are in version control.</p>
+        </div>
+
+        <h3>How it decides</h3>
+        <p>For each module, vba-edit remembers the last state in which the file and Office agreed. That remembered state is the baseline. A change is copied only when the other side still equals the baseline:</p>
+        <div class="table-wrap"><table>
+          <thead><tr><th>File vs. baseline</th><th>Office vs. baseline</th><th>Result</th></tr></thead>
+          <tbody>
+            <tr><td>changed</td><td>same</td><td class="yes">File is imported into Office</td></tr>
+            <tr><td>same</td><td>changed</td><td class="yes">Office code is exported to the file</td></tr>
+            <tr><td>changed</td><td>changed, to the same text</td><td class="yes">Nothing to do; new baseline</td></tr>
+            <tr><td>changed</td><td>changed, differently</td><td class="part">Paused as a conflict</td></tr>
+          </tbody>
+        </table></div>
+        <p><strong>Timing.</strong> A saved file reaches Office once it has been stable for two scans, about five seconds. Code edited in the VBA editor is written to the file as soon as the Office application loses focus, which is exactly the moment you switch to your editor; without that trigger it follows after the same five seconds of quiet.</p>
+
+        <div class="term" data-cast="bidirectional">
+          <div class="term-bar"><span class="term-dots" aria-hidden="true"><i></i><i></i><i></i></span><span class="term-title">both directions, then a conflict and its resolution</span></div>
+          <pre class="term-body tall" tabindex="0">PS C:\Projects\budget&gt; excel-vba edit -f Budget.xlsm --vba-directory src --bidirectional --in-file-headers
+PS C:\Projects\budget&gt; excel-vba edit -f Budget.xlsm --vba-directory src --bidirectional --in-file-headers --sync-resolve files --sync-component Reporting</pre>
+          <p class="term-foot">In this recording the VBA-editor edits were made by a script through Office automation, and the focus change did not happen, so the first export arrived after the settling time.</p>
+        </div>
+
+        <h3>What is synchronised</h3>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Component</th><th>Two-way?</th></tr></thead>
+          <tbody>
+            <tr><td>Standard modules</td><td class="yes">Yes, in all four applications</td></tr>
+            <tr><td>Excel workbook and worksheet code, Word <code data-fixed>ThisDocument</code></td><td class="yes">Yes</td></tr>
+            <tr><td>New standard module, created on either side</td><td class="yes">Yes (in Access, save a new module in Access first)</td></tr>
+            <tr><td>Class modules, UserForms</td><td class="no">No, reported as excluded at start</td></tr>
+            <tr><td>Access form and report code</td><td class="no">No</td></tr>
+            <tr><td>References, and changes that affect only hidden attributes</td><td class="no">No</td></tr>
+          </tbody>
+        </table></div>
+        <p>Excluded components are simply not part of the session. To change them, stop and use <code data-fixed>import</code> or a one-way <code data-fixed>edit</code>.</p>
+
+        <h3>When it pauses</h3>
+        <p>A paused module is left alone on both sides until you decide. Other modules keep syncing. A module is paused when:</p>
+        <ul>
+          <li>both sides changed differently since the baseline;</li>
+          <li>a file was deleted, renamed or moved, or a module disappeared in Office. Nothing is ever deleted for you in this mode;</li>
+          <li>the header or the module type changed;</li>
+          <li>an import would strip procedure or member attributes;</li>
+          <li>at start, the file and Office differ from what the last session left, for example after reopening a document that was closed without saving.</li>
+        </ul>
+        <p>For each pause, both versions and the baseline are saved under <code data-fixed>&lt;vba-directory&gt;\.vba-edit\conflicts\</code>, and the message tells you where. Compare them with your diff tool. What clears the pause depends on why it happened.</p>
+
+        <h3 id="paused">Clearing a pause</h3>
+        <p>A disagreement about the <em>code</em> of a module is settled by restarting the session and naming the side that is right:</p>
+        <pre class="cmd"><span class="p">PS&gt; </span>excel-vba edit -f Budget.xlsm --vba-directory src --bidirectional --in-file-headers --sync-resolve office --sync-component Module1</pre>
+        <p><code data-fixed>--sync-resolve office</code> keeps the code that is in Office and writes it to the file. <code data-fixed>--sync-resolve files</code> keeps your file and imports it. Either applies to the one component named with <code data-fixed>--sync-component</code>; resolve several by restarting once for each. <code data-fixed>--force-overwrite</code> does not resolve conflicts.</p>
+        <p>These two options alone do not settle a pause that is about where a module is, what it is called, or whether it exists. Those need a step of your own first:</p>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Why it paused</th><th>What clears it</th></tr></thead>
+          <tbody>
+            <tr><td>Both sides changed the code, or file and Office differ at start</td><td>Restart with <code data-fixed>--sync-resolve office</code> or <code data-fixed>--sync-resolve files</code>.</td></tr>
+            <tr><td>A file was deleted; the module is still in Office</td><td>To get the file back, restart with <code data-fixed>--sync-resolve office</code>.</td></tr>
+            <tr><td>A standard module was removed in Office; the file is still there</td><td>To get the module back, restart with <code data-fixed>--sync-resolve files</code>.</td></tr>
+            <tr><td>You want the module gone for good</td><td>Remove it on both sides, the module in the VBA editor and its file, then <a href="#reset-state">reset the session state</a>.</td></tr>
+            <tr><td>A file was renamed</td><td>Rename it back, then <a href="#reset-state">reset the session state</a>. To rename a module, rename it in the VBA editor instead: it arrives as a new file. Delete the old file, then reset the session state.</td></tr>
+            <tr><td>A file was moved to another folder (<code data-fixed>--rubberduck-folders</code>)</td><td>To undo: move the file back and restart with <code data-fixed>--sync-resolve office</code>. To make the move real: set the module's <code data-fixed>'@Folder</code> annotation in the VBA editor to the new folder, then restart with <code data-fixed>--sync-resolve office</code>.</td></tr>
+            <tr><td>The <code data-fixed>'@Folder</code> annotation was changed in the VBA editor</td><td>Delete the file in the old folder, then restart with <code data-fixed>--sync-resolve office</code>: the file is written to the new folder.</td></tr>
+            <tr><td>The header in the file was changed</td><td>Headers are not imported in this mode. <code data-fixed>--sync-resolve office</code> brings the file back in line with Office.</td></tr>
+            <tr><td>The file changed, and the module has procedure or member attributes</td><td><code data-fixed>--sync-resolve files</code> is refused, because the import would strip the attributes. Make the change in the VBA editor, then restart with <code data-fixed>--sync-resolve office</code>. That overwrites the file; your edited version stays in the conflict folder.</td></tr>
+          </tbody>
+        </table></div>
+
+        <h3 id="reset-state">Resetting the session state</h3>
+        <p>When a module no longer exists on either side there is nothing left to resolve, but the session still remembers it and keeps reporting the pause. To start from a clean slate, stop the session, delete <code data-fixed>&lt;vba-directory&gt;\.vba-edit\state.json</code>, and start again without <code data-fixed>--sync-resolve</code>. Every module whose file and Office code are identical becomes the new baseline. A module that differs, or exists on one side only, is paused as a difference at start, and <code data-fixed>--sync-resolve</code> settles it as described above.</p>
+
+        <h3>Rules of the road</h3>
+        <ul>
+          <li><strong>Keep the settings stable.</strong> Restart with the same encoding, header and folder options. The session state records them and refuses to continue with different ones.</li>
+          <li><strong>Keep <code data-fixed>.vba-edit\</code>.</strong> It holds the baselines and recovery snapshots. Add it to <code data-fixed>.gitignore</code>, and do not delete it between sessions.</li>
+          <li><strong>Imports save the document.</strong> In Excel, Word and PowerPoint, every import saves the whole document, including unrelated changes you made to it. In Access, the changed module is saved.</li>
+          <li><strong>Exports can contain unsaved code.</strong> What you see in the VBA editor is what gets written, whether or not the document has been saved.</li>
+          <li><strong>Unsaved editor buffers are invisible.</strong> vba-edit sees files, not what is typed in your editor. Work on a module on one side at a time.</li>
+          <li><strong>Nothing happens in run or break mode.</strong> While a macro is running or stopped in the debugger, synchronisation waits.</li>
+          <li><strong>Stopping.</strong> <kbd>Ctrl</kbd>+<kbd>C</kbd> leaves Office open. If modules are still paused or pending, the command ends with a non-zero exit code.</li>
+        </ul>
+        <p>The mode cannot be combined with <code data-fixed>--xlwings</code>, <code data-fixed>--with-references</code> or <code data-fixed>--detect-encoding</code>. In a config file it is <code data-fixed>bidirectional = true</code>.</p>
+        <p class="muted">Performance note for large projects: between syncs, code that Excel, Word or PowerPoint report as unchanged since the last save is not read again, so the background scans stay light. This refinement landed after 0.6.0a4.</p>
+      </section>
+
+      <!-- ═════════════════════════════ CONFIG ═════════════════════════════ -->
+      <p class="part">Configuration</p>
+
+      <section id="config">
+        <h2>Config files</h2>
+        <p>Once a project has settled on its options, put them in a TOML file and pass it with <code data-fixed>--conf</code> (or <code data-fixed>--config</code>). The same file serves <code data-fixed>edit</code>, <code data-fixed>export</code>, <code data-fixed>import</code> and <code data-fixed>references</code>. The <a href="#config-gen">Config Generator</a> writes it for you.</p>
+        <p>A config file that cannot be read, because it is missing or not valid TOML, stops the command before any document is touched. The message names the problem and, for a syntax error, the line.</p>
+        <p class="muted">Up to 0.6.0a4 the command prints that error and then carries on with default settings, which can mean the active document and the folder next to it. With those versions, try a new config file with a harmless command such as <code data-fixed>references list --conf FILE</code> first. Fixed <a href="#after-a4">after 0.6.0a4</a>.</p>
+        <div class="term" data-cast="config">
+          <div class="term-bar"><span class="term-dots" aria-hidden="true"><i></i><i></i><i></i></span><span class="term-title">a config file at work</span></div>
+          <pre class="term-body tall" tabindex="0">PS C:\Projects\budget&gt; Get-Content vba-config.toml
+PS C:\Projects\budget&gt; excel-vba export --conf vba-config.toml</pre>
+        </div>
+        <h3>Keys</h3>
+        <p>Keys are the long option names with underscores instead of dashes. Switches take <code data-fixed>true</code> or <code data-fixed>false</code>.</p>
+        <div class="table-wrap"><table>
+          <thead><tr><th>[general]</th><th>Value</th><th>Same as</th></tr></thead>
+          <tbody>
+            <tr><td><code data-fixed>file</code></td><td>path</td><td><code data-fixed>--file</code></td></tr>
+            <tr><td><code data-fixed>vba_directory</code></td><td>path, placeholders allowed</td><td><code data-fixed>--vba-directory</code></td></tr>
+            <tr><td><code data-fixed>in_file_headers</code>, <code data-fixed>save_headers</code></td><td>switch (one of the two)</td><td><a href="#headers">header options</a></td></tr>
+            <tr><td><code data-fixed>save_metadata</code></td><td>switch</td><td><code data-fixed>--save-metadata</code></td></tr>
+            <tr><td><code data-fixed>rubberduck_folders</code></td><td>switch</td><td><code data-fixed>--rubberduck-folders</code></td></tr>
+            <tr><td><code data-fixed>include</code>, <code data-fixed>exclude</code></td><td>list of patterns</td><td><a href="#filter">module filter</a></td></tr>
+            <tr><td><code data-fixed>encoding</code></td><td>name, e.g. <code data-fixed>"cp1252"</code></td><td><code data-fixed>--encoding</code></td></tr>
+            <tr><td><code data-fixed>detect_encoding</code></td><td>switch</td><td><code data-fixed>--detect-encoding</code></td></tr>
+            <tr><td><code data-fixed>with_references</code></td><td>switch</td><td><code data-fixed>--with-references</code></td></tr>
+            <tr><td><code data-fixed>bidirectional</code></td><td>switch</td><td><code data-fixed>--bidirectional</code> (edit)</td></tr>
+            <tr><td><code data-fixed>skip_empty</code></td><td>switch</td><td><code data-fixed>--skip-empty</code> (export, import)</td></tr>
+            <tr><td><code data-fixed>keep_open</code>, <code data-fixed>open_folder</code></td><td>switch</td><td><code data-fixed>--keep-open</code> (export), <code data-fixed>--open-folder</code></td></tr>
+            <tr><td><code data-fixed>force_overwrite</code></td><td>switch</td><td><code data-fixed>--force-overwrite</code></td></tr>
+            <tr><td><code data-fixed>verbose</code>, <code data-fixed>logfile</code></td><td>switch, path</td><td><code data-fixed>--verbose</code>, <code data-fixed>--logfile</code></td></tr>
+            <tr><td><code data-fixed>no_color</code></td><td>switch</td><td><code data-fixed>--no-color</code></td></tr>
+          </tbody>
+        </table></div>
+        <div class="table-wrap"><table>
+          <thead><tr><th>[references]</th><th>Value</th><th>Same as</th></tr></thead>
+          <tbody>
+            <tr><td><code data-fixed>refs_file</code></td><td>path</td><td><code data-fixed>--refs-file</code> of the <code data-fixed>references</code> commands</td></tr>
+            <tr><td><code data-fixed>no_default</code>, <code data-fixed>no_installed</code>, <code data-fixed>no_custom</code></td><td>switch</td><td>the list and export filters</td></tr>
+          </tbody>
+        </table></div>
+        <p>A key that does not apply to the command you run is ignored, so one file can hold export-only and edit-only settings side by side. The sections <code data-fixed>[office]</code>, <code data-fixed>[excel]</code>, <code data-fixed>[word]</code>, <code data-fixed>[access]</code> and <code data-fixed>[powerpoint]</code> are reserved for later use.</p>
+        <div class="callout">
+          <p class="callout-title">Colours in 0.6.0a4</p>
+          <p>Up to 0.6.0a4 the <code data-fixed>no_color</code> key is ignored; there, pass <code data-fixed>--no-color</code> on the command line or set the <code data-fixed>NO_COLOR</code> environment variable. The key works in versions <a href="#after-a4">after 0.6.0a4</a>.</p>
+        </div>
+
+        <h3 id="placeholders">Placeholders</h3>
+        <p><code data-fixed>vba_directory</code> and <code data-fixed>logfile</code> may contain placeholders, in the config file and on the command line alike. <code data-fixed>file</code> accepts one of them, <code data-fixed>{config.path}</code>.</p>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Placeholder</th><th>Becomes</th><th>For <code data-fixed>C:\Projects\budget\Budget.xlsm</code></th></tr></thead>
+          <tbody>
+            <tr><td><code data-fixed>{file.name}</code></td><td>document name without extension</td><td><code data-fixed>Budget</code></td></tr>
+            <tr><td><code data-fixed>{file.fullname}</code></td><td>document name with extension</td><td><code data-fixed>Budget.xlsm</code></td></tr>
+            <tr><td><code data-fixed>{file.path}</code></td><td>folder of the document</td><td><code data-fixed>C:\Projects\budget</code></td></tr>
+            <tr><td><code data-fixed>{file.vbaproject}</code></td><td>name of the VBA project (folder only)</td><td><code data-fixed>VBAProject</code></td></tr>
+            <tr><td><code data-fixed>{config.path}</code></td><td>folder of the config file</td><td></td></tr>
+          </tbody>
+        </table></div>
+        <pre data-fixed><span class="k">[general]</span>
+file = <span class="s">"C:/Projects/budget/Budget.xlsm"</span>
+vba_directory = <span class="s">"{file.path}/{file.name}-vba"</span>   <span class="c"># C:/Projects/budget/Budget-vba</span></pre>
+        <p>The <code data-fixed>{file.…}</code> placeholders need to know the document, so give it with <code data-fixed>file</code> or <code data-fixed>--file</code> when you use them.</p>
+
+        <h3>Paths</h3>
+        <ul>
+          <li>A relative <code data-fixed>file</code> or <code data-fixed>vba_directory</code> is taken from the directory you run the command in, not from where the config file lies. The simplest habit is to keep the config file in the project root and run commands from there.</li>
+          <li>To tie a path to the config file wherever you run from, start it with <code data-fixed>{config.path}</code>: <code data-fixed>file = "{config.path}/Budget.xlsm"</code>, <code data-fixed>vba_directory = "{config.path}/src"</code>. In <code data-fixed>file</code> this needs a version <a href="#after-a4">after 0.6.0a4</a>.</li>
+          <li>In double-quoted TOML strings a backslash is an escape character. Write Windows paths with forward slashes, with doubled backslashes, or in single quotes: <code data-fixed>'C:\Projects\budget'</code>.</li>
+        </ul>
+
+        <h3>Command line beats config</h3>
+        <p>Anything you type on the command line overrides the file for that run. That includes switching header mode, and pattern lists, which replace the ones in the file.</p>
+        <pre class="cmd"><span class="p">PS&gt; </span>excel-vba export --conf vba-config.toml --vba-directory build/vba   <span class="c"># another folder, this once</span>
+<span class="p">PS&gt; </span>excel-vba export --conf vba-config.toml --save-headers             <span class="c"># although the file says in_file_headers</span></pre>
+      </section>
+
+      <!-- ═════════════════════════════ APPS ═════════════════════════════ -->
+      <p class="part">Per application</p>
+
+      <section id="apps">
+        <h2>Excel, Word, PowerPoint, Access</h2>
+        <p>The four tools behave alike. These are the differences.</p>
+        <div class="table-wrap"><table>
+          <thead><tr><th></th><th>Excel</th><th>Word</th><th>PowerPoint</th><th>Access</th></tr></thead>
+          <tbody>
+            <tr><td>Standard and class modules</td><td class="yes">yes</td><td class="yes">yes</td><td class="yes">yes</td><td class="yes">yes</td></tr>
+            <tr><td>UserForms</td><td class="yes">yes</td><td class="yes">yes</td><td class="yes">yes</td><td class="no">none in Access</td></tr>
+            <tr><td>Document modules</td><td class="yes">workbook, sheets</td><td class="yes">ThisDocument</td><td class="yes">slide modules</td><td class="yes">form and report code</td></tr>
+            <tr><td><code data-fixed>references</code> commands</td><td class="yes">yes</td><td class="yes">yes</td><td class="yes">yes</td><td class="part">after 0.6.0a4</td></tr>
+            <tr><td>Bidirectional: document modules</td><td class="yes">yes</td><td class="yes">yes</td><td class="no">no</td><td class="no">no</td></tr>
+            <tr><td>Document saved after a sync</td><td class="yes">yes</td><td class="yes">yes</td><td class="yes">yes</td><td class="part">Access saves the module</td></tr>
+            <tr><td>Extra option</td><td><code data-fixed>--xlwings</code></td><td></td><td></td><td></td></tr>
+          </tbody>
+        </table></div>
+
+        <h3 id="apps-excel">Excel</h3>
+        <p><code data-fixed>ThisWorkbook</code> and every sheet have their own module, which exports as a <code data-fixed>.cls</code> file. Workbooks often carry many empty sheet modules; <code data-fixed>--skip-empty</code> keeps them out of your folder.</p>
+        <p><strong>The xlwings wrapper.</strong> vba-edit grew out of the VBA editing feature of <a href="https://www.xlwings.org/">xlwings</a>. <code data-fixed>--xlwings</code> (short <code data-fixed>-x</code>) hands the command to xlwings instead, for comparison or as a fallback. xlwings must be installed. In this mode only the file, the folder and <code data-fixed>--verbose</code> are passed on: headers, folders, filters, references and config files are features of the native mode and do not apply.</p>
+        <pre class="cmd" data-fixed><span class="p">PS&gt; </span>excel-vba edit -f Budget.xlsm --vba-directory src --xlwings</pre>
+
+        <h3 id="apps-word">Word</h3>
+        <p><code data-fixed>ThisDocument</code> exports as a <code data-fixed>.cls</code> file. Word projects often reference templates such as <code data-fixed>Normal</code> or your own <code data-fixed>.dotm</code> files; those appear as <a href="#references">references</a>, and a reference to your own template is the classic case for a shared references file.</p>
+
+        <h3 id="apps-powerpoint">PowerPoint</h3>
+        <p>Without <code data-fixed>--file</code>, the tool uses the presentation in the active window, so a presentation must be open in a window. If a slide show is running, the tool uses that presentation.</p>
+
+        <h3 id="apps-access">Access</h3>
+        <ul>
+          <li><strong>The database stays open.</strong> An edit session leaves the database open in Access; close it yourself when you are done.</li>
+          <li><strong>Form and report code.</strong> The code behind a form or report is a module named <code data-fixed>Form_&lt;name&gt;</code> or <code data-fixed>Report_&lt;name&gt;</code>. It exports as a <code data-fixed>.cls</code> file, and <code data-fixed>import</code> and <code data-fixed>edit</code> update it in place <span class="badge new">0.6</span>. The form itself, with its controls and layout, is not exported.</li>
+          <li><strong>Such modules cannot be created by an import.</strong> Create the form or report in Access and set its <em>Has Module</em> property first. For an ordinary module, pick a name that does not start with <code data-fixed>Form_</code> or <code data-fixed>Report_</code>.</li>
+          <li><strong>Saving.</strong> Access saves modules individually rather than as part of one document; vba-edit saves a module it has re-imported so that Access does not ask for a name later.</li>
+          <li><strong>Trust.</strong> Access needs a trusted database rather than the Trust Center checkbox; see <a href="#trust">allow VBA access</a>.</li>
+          <li><strong>References.</strong> The <a href="#references"><code data-fixed>references</code></a> commands work with Access in versions <a href="#after-a4">after 0.6.0a4</a>.</li>
+        </ul>
+      </section>
+
+      <!-- ═════════════════════════════ USE CASES ═════════════════════════════ -->
+      <p class="part">Use cases</p>
+
+      <section id="uc-git">
+        <div class="usecase">
+          <header><p class="who">You maintain a <span data-app-noun>workbook</span> that matters</p><h3>Put it under version control</h3></header>
+          <div class="body">
+            <p>Until now, "what changed since last month?" had no answer. After this, it is one <code data-fixed>git diff</code>.</p>
+            <ol>
+              <li>Export the code with complete headers, so the files are full modules, and commit the result as your baseline.</li>
+              <li>Work with <code data-fixed>edit</code> running. Commit when a change is done.</li>
+              <li>If you also changed code in the VBA editor, run <code data-fixed>export</code> before committing so the files have it.</li>
+            </ol>
+            <pre class="cmd"><span class="p">PS&gt; </span>excel-vba export -f Budget.xlsm --vba-directory src --in-file-headers
+<span class="p">PS&gt; </span>git init -b main
+<span class="p">PS&gt; </span>git add src
+<span class="p">PS&gt; </span>git commit -m "Baseline export of Budget.xlsm"</pre>
+            <div class="term" data-cast="git">
+              <div class="term-bar"><span class="term-dots" aria-hidden="true"><i></i><i></i><i></i></span><span class="term-title">baseline, a day's work, and its diff</span></div>
+              <pre class="term-body tall" tabindex="0">PS C:\Projects\budget&gt; git status --short
+PS C:\Projects\budget&gt; git diff src/Helpers.bas</pre>
+            </div>
+            <p>A sensible <code data-fixed>.gitignore</code> for such a repository:</p>
+            <div class="codebox" data-label=".gitignore">
+<pre data-copy data-fixed>.vba-edit/        <span class="c"># state of bidirectional sessions</span>
+vba_edit.log*     <span class="c"># log files</span>
+~$*               <span class="c"># Office lock files</span></pre>
+            </div>
+            <p>Do commit the <code data-fixed>.frx</code> files of UserForms: they are binary, but the forms cannot be rebuilt without them. Whether to commit the Office file itself is your call. It is the one thing that contains everything (sheets, data, forms), but it is binary and changes on every save.</p>
+            <p>Tell Git not to convert line endings in VBA files, since the VBA editor expects Windows line endings:</p>
+            <div class="codebox" data-label=".gitattributes">
+<pre data-copy data-fixed>*.bas  text eol=crlf working-tree-encoding=CP1252
+*.cls  text eol=crlf working-tree-encoding=CP1252
+*.frm  text eol=crlf working-tree-encoding=CP1252
+*.frx  binary</pre>
+            </div>
+            <p class="muted">The <code data-fixed>working-tree-encoding</code> part is optional. It makes Git store the files as UTF-8 internally, so that diffs on hosting sites show special characters correctly.</p>
+          </div>
+        </div>
+      </section>
+
+      <section id="uc-ai">
+        <div class="usecase">
+          <header><p class="who">You want help from a coding assistant</p><h3>Let an AI assistant work on your macros</h3></header>
+          <div class="body">
+            <p>Assistants such as Copilot or Claude work on files. An Office document is a locked box to them; an exported folder is ordinary source code.</p>
+            <ol>
+              <li>Start an edit session in a terminal and leave it running.</li>
+              <li>Open the folder in your editor and let the assistant read and change the files there.</li>
+              <li>Each change it saves reaches Office within moments. Run the macro, look at the result, and tell the assistant what you saw.</li>
+            </ol>
+            <pre class="cmd"><span class="p">PS&gt; </span>excel-vba edit -f Budget.xlsm --vba-directory src --in-file-headers</pre>
+            <p>A few lines of context save the assistant from the common mistakes. Put something like this in the instructions file your assistant reads:</p>
+            <div class="codebox" data-label="notes for the assistant">
+<pre data-copy>This folder holds VBA modules exported from Budget.xlsm with vba-edit.
+- Files are encoded in Windows-1252 with CRLF line endings. Keep both.
+- Do not edit the header at the top of a file (VERSION, BEGIN...END,
+  Attribute lines) unless asked to.
+- Never edit or create .frx files. Change UserForm code in the .frm only.
+- Deleting a file deletes the module in the <span data-app-noun>workbook</span>. Do not delete files
+  to "clean up".
+- An edit session is running: saving a file updates the <span data-app-noun>workbook</span>.</pre>
+            </div>
+            <p>For an agent that works without a live session, <code data-fixed>import</code> is the better fit: it reports how many files were imported and exits with a non-zero code if one failed <span class="badge new">0.6</span>, which an agent can check before it claims success.</p>
+          </div>
+        </div>
+      </section>
+
+      <section id="uc-team">
+        <div class="usecase">
+          <header><p class="who">Several people work on the same VBA project</p><h3>Share one setup across the team</h3></header>
+          <div class="body">
+            <p>Two small files in the repository make every checkout behave the same: one for vba-edit's options, one for the project's library references.</p>
+            <div class="codebox" data-label="vba-config.toml">
+<pre data-copy><span class="k">[general]</span>
+file = <span class="s">"Budget.xlsm"</span>
+vba_directory = <span class="s">"src"</span>
+in_file_headers = true
+rubberduck_folders = true
+with_references = true</pre>
+            </div>
+            <p>The paths are relative, so the file works wherever the repository is cloned. Relative paths are taken from the directory a command is run in, so everyone runs the same short commands from the repository root. (To run them from any directory, anchor both paths with <a href="#placeholders"><code data-fixed>{config.path}</code></a>.)</p>
+            <pre class="cmd"><span class="p">PS&gt; </span>excel-vba import --conf vba-config.toml     <span class="c"># after pulling: bring the <span data-app-noun>workbook</span> up to date</span>
+<span class="p">PS&gt; </span>excel-vba edit --conf vba-config.toml       <span class="c"># while working</span>
+<span class="p">PS&gt; </span>excel-vba references validate -f Budget.xlsm <span class="c"># is every library there on this machine?</span></pre>
+            <p>With <code data-fixed>with_references</code> switched on, the references travel in <code data-fixed>src\<span data-doc-stem>Budget</span>_refs.toml</code> and are restored on import. A new colleague no longer has to tick the right boxes under <em>Tools › References</em> by hand.</p>
+          </div>
+        </div>
+      </section>
+
+      <section id="uc-vendor">
+        <div class="usecase">
+          <header><p class="who">Your project contains code that is not yours</p><h3>Edit your code, not the vendor's <span class="badge new">0.6</span></h3></header>
+          <div class="body">
+            <p>Many workbooks carry third-party modules, generated code, or a form nobody dares to touch. Exclude them once and no command will export, overwrite or delete them.</p>
+            <div class="codebox" data-label="vba-config.toml">
+<pre data-copy><span class="k">[general]</span>
+file = <span class="s">"Budget.xlsm"</span>
+vba_directory = <span class="s">"src"</span>
+in_file_headers = true
+exclude = [<span class="s">"Vendor_*"</span>, <span class="s">"JsonConverter"</span>, <span class="s">"LockedForm.frm"</span>]</pre>
+            </div>
+            <p>The reverse works too. To look after a handful of modules in a large project, list them with <code data-fixed>include</code> and everything else is left out.</p>
+          </div>
+        </div>
+      </section>
+
+      <section id="uc-refactor">
+        <div class="usecase">
+          <header><p class="who">You have a long editing session ahead</p><h3>Refactor offline, import selectively</h3></header>
+          <div class="body">
+            <p>A live session is not required. Export, close Office, work for as long as you like with search-and-replace across all modules, and push the result back when you are ready.</p>
+            <pre class="cmd"><span class="p">PS&gt; </span>excel-vba export -f Budget.xlsm --vba-directory src --in-file-headers
+<span class="c"># ... edit, rename, reorganise; Office does not need to be running ...</span>
+<span class="p">PS&gt; </span>excel-vba import -f Budget.xlsm --vba-directory src</pre>
+            <p>If you only touched a few modules of a large project, import just those <span class="badge new">0.6</span>. It is faster, and nothing else in the document is rewritten:</p>
+            <pre class="cmd"><span class="p">PS&gt; </span>excel-vba import -f Budget.xlsm --vba-directory src --include "mod_10*.bas" helper.cls</pre>
+            <p>Check the summary line at the end. Then open the VBA editor and choose <em>Debug › Compile</em>: a refactoring that looks fine as text can still fail to compile.</p>
+          </div>
+        </div>
+      </section>
+
+      <section id="uc-access">
+        <div class="usecase">
+          <header><p class="who">Your application lives in an .accdb</p><h3>Work on an Access database</h3></header>
+          <div class="body">
+            <p>Access projects are mostly code behind forms and reports, plus a set of standard and class modules. All of that exports to files.</p>
+            <pre class="cmd" data-fixed><span class="p">PS&gt; </span>access-vba edit -f Orders.accdb --vba-directory src</pre>
+            <div class="tree"><span class="d">src\</span>
+├── Form_Customers.cls     <span class="n">code behind the form "Customers"</span>
+├── Form_OrderEntry.cls    <span class="n">code behind the form "OrderEntry"</span>
+├── Report_Invoice.cls     <span class="n">code behind the report "Invoice"</span>
+├── modPricing.bas
+└── clsOrder.cls</div>
+            <ul>
+              <li>Saving <code data-fixed>Form_OrderEntry.cls</code> updates the form's code in place <span class="badge new">0.6</span>. The form's layout stays in Access, where you design it.</li>
+              <li>A new form needs to exist in Access, with <em>Has Module</em> set, before its code file can be imported.</li>
+              <li>Keep the database in a trusted location, and close it yourself after the session.</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <section id="uc-auto">
+        <div class="usecase">
+          <header><p class="who">You want this in a script</p><h3>Scripts and automation</h3></header>
+          <div class="body">
+            <p>The commands are built to run unattended on a Windows machine that has Office installed.</p>
+            <pre class="cmd"><span class="p">PS&gt; </span>excel-vba export -f Budget.xlsm --vba-directory src --in-file-headers --force-overwrite --no-color
+<span class="p">PS&gt; </span>git diff --quiet -- src; if ($LASTEXITCODE -ne 0) { Write-Host "Workbook and repository differ" }
+<span class="p">PS&gt; </span>excel-vba references validate -f Budget.xlsm; if ($LASTEXITCODE -ne 0) { throw "Broken references" }</pre>
+            <ul>
+              <li><code data-fixed>--force-overwrite</code> answers the prompts, <code data-fixed>--no-color</code> keeps logs clean, <code data-fixed>--logfile</code> keeps the details.</li>
+              <li><code data-fixed>import</code> exits non-zero if a file failed <span class="badge new">0.6</span>, and <code data-fixed>export</code> if a module could not be written (<a href="#after-a4">after 0.6.0a4</a>). <code data-fixed>references validate</code> exits with 1 for broken references, <code data-fixed>references import</code> if a reference could not be added (<a href="#after-a4">after 0.6.0a4</a>).</li>
+              <li>Hosted CI runners rarely have Office, so this is for your own build machine or a scheduled task. Office automation needs a logged-in desktop session.</li>
+            </ul>
+            <p>The export-then-diff line is a cheap way to catch the classic problem: someone changed the macro in the workbook and never told the repository.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ═════════════════════════════ REFERENCE ═════════════════════════════ -->
+      <p class="part">Reference</p>
+
+      <section id="troubleshooting">
+        <h2>Troubleshooting</h2>
+        <div class="table-wrap"><table>
+          <thead><tr><th>What you see</th><th>What to do</th></tr></thead>
+          <tbody>
+            <tr><td><em>Cannot access VBA project</em>, or a "Trust access" message</td><td>Switch on <a href="#trust">access to the VBA project</a>, then run <code>excel-vba check</code>.</td></tr>
+            <tr><td><em>No active … document found</em></td><td>Open the document first, or name it with <code data-fixed>--file</code>.</td></tr>
+            <tr><td>Saved changes do not arrive in Office</td><td>Is the edit session still running, and did you save the file in the watched folder? With subfolders, start the session with <code data-fixed>--rubberduck-folders</code>. If the document was closed, run <code data-fixed>import</code> to apply what you saved in the meantime, then restart the session.</td></tr>
+            <tr><td><em>Found UserForm files … but preferred header option is not enabled</em></td><td>Add <code data-fixed>--in-file-headers</code> or <code data-fixed>--save-headers</code>. See <a href="#headers">headers</a>.</td></tr>
+            <tr><td>A <code data-fixed>.frm</code> is refused on import for having no header</td><td>Export the form again with a header option. The form in the document was not changed.</td></tr>
+            <tr><td>Umlauts, accents or symbols turn into odd characters</td><td>Editor and vba-edit disagree about the encoding. Set your <a href="#editor-setup">editor</a> to the code page vba-edit uses, or pass a matching <code data-fixed>--encoding</code>.</td></tr>
+            <tr><td><em>File extension mismatch</em></td><td>The file belongs to another application. Use the tool named in the message.</td></tr>
+            <tr><td>Excel: <em>… cannot open a second one with the same name</em>; in 0.6.0a4: <em>'NoneType' object has no attribute 'VBProject'</em></td><td>Another workbook with the same file name is open in Excel, which cannot open two of them. Close the other one.</td></tr>
+            <tr><td><em>Unexpected error: 'charmap' codec can't encode character</em> when the output is piped or redirected</td><td>Seen up to 0.6.0a4: the output contains a symbol such as ✓ that the redirected output cannot represent. The command itself has usually done its work. With the Python package, set <code data-fixed>$env:PYTHONIOENCODING = "utf-8"</code> before running it.</td></tr>
+            <tr><td><em>Error loading configuration file</em></td><td>The file named with <code data-fixed>--conf</code> is missing or not valid TOML. Nothing was done; correct the file and run the command again. See <a href="#config">config files</a> for how Windows paths are written.</td></tr>
+            <tr><td><em>… VBA components could not be exported</em></td><td>The modules named in the message failed; the others were written. The lines above the message give the reason for each. See <a href="#export-result">result and exit code</a>.</td></tr>
+            <tr><td><em>… contains a character the VBA editor cannot store in its code page</em></td><td>The module has a character outside the Windows code page, which Office cannot hold. Replace it, for example with <code data-fixed>ChrW()</code> in a string. See <a href="#encoding">encoding</a>.</td></tr>
+            <tr><td>Bidirectional: <em>PAUSED …</em></td><td>Both sides changed, or something was deleted, renamed or moved. Compare the saved versions, then see <a href="#paused">clearing a pause</a>: only a disagreement about the code is settled by <code data-fixed>--sync-resolve</code> alone.</td></tr>
+            <tr><td>Bidirectional: <em>Cannot reuse … state.json</em></td><td>The session was started with other encoding, header or folder options than before. Restart with the original ones, or <a href="#reset-state">reset the session state</a> to carry on with the new ones.</td></tr>
+            <tr><td><code data-fixed>access-vba references …</code> ends with <em>Reference error</em></td><td>The references commands support Access in versions <a href="#after-a4">after 0.6.0a4</a>.</td></tr>
+            <tr><td>The <code data-fixed>.exe</code> is blocked or flagged</td><td>The executables are unsigned. Verify the checksum as described in the <a href="https://github.com/markuskiller/vba-edit/blob/main/SECURITY_VERIFICATION.md">verification guide</a>, or use the Python package.</td></tr>
+          </tbody>
+        </table></div>
+        <p>When something is unclear, run the command again with <code data-fixed>--verbose --logfile</code> and read <code data-fixed>vba_edit.log</code>. Attach it when you open an issue.</p>
+      </section>
+
+      <section id="limits">
+        <h2>Known limitations</h2>
+        <ul>
+          <li><strong>Windows and desktop Office only.</strong> vba-edit drives Office through its Windows automation interface. Office for Mac and Office on the web are not supported.</li>
+          <li><strong>Form layouts are designed in Office.</strong> The <code data-fixed>.frx</code> of a UserForm is carried along but not editable as text, and Access forms and reports export only their code.</li>
+          <li><strong>One-way <code data-fixed>edit</code> does not notice changes in the VBA editor.</strong> Use <code data-fixed>export</code>, or the experimental <a href="#bidirectional">bidirectional mode</a>.</li>
+          <li><strong>Bidirectional editing covers standard and document modules only,</strong> and is experimental.</li>
+          <li><strong>A <code data-fixed>.header</code> file edited alone is not synced.</strong> Save the matching code file too.</li>
+          <li><strong>Templates and add-ins</strong> (<code data-fixed>.xltm</code>, <code data-fixed>.xlam</code>, <code data-fixed>.dotm</code>, <code data-fixed>.potm</code>) are likely to work but little tested.</li>
+          <li><strong>Password-protected VBA projects</strong> must be unlocked in the VBA editor before Office allows access to their code.</li>
+        </ul>
+      </section>
+
+      <section id="versions">
+        <h2>Versions</h2>
+        <p>The stable release is <strong>0.5.1</strong>. This guide describes <strong>0.6.0</strong>, currently available as the pre-release 0.6.0a4. The full history is in the <a href="https://github.com/markuskiller/vba-edit/blob/dev/CHANGELOG.md">changelog</a>.</p>
+        <h3>New in 0.6.0</h3>
+        <ul>
+          <li><a href="#bidirectional">Bidirectional editing</a> (experimental), with the focus-loss trigger contributed by @russ-who.</li>
+          <li><a href="#filter">Module filter</a>: <code data-fixed>--include</code> and <code data-fixed>--exclude</code>.</li>
+          <li><code data-fixed>export</code> leaves a document that was already open, and its application, open and untouched.</li>
+          <li><code data-fixed>import</code> ends with a summary and a non-zero exit code on failures.</li>
+          <li>Class modules are re-imported only when their header changed or they carry member attributes.</li>
+          <li>Access form and report code is updated by <code data-fixed>import</code> and <code data-fixed>edit</code>.</li>
+          <li>UserForm fixes: forms are no longer lost on import in either header mode, separate <code data-fixed>.header</code> files are found, and the <code data-fixed>.frx</code> follows its form into Rubberduck folders.</li>
+          <li>Python 3.11 is the minimum; Python 3.15 is supported.</li>
+        </ul>
+        <h3 id="after-a4">Fixed after 0.6.0a4</h3>
+        <p>These fixes are in the development branch and will be part of the next pre-release. Where this guide says "after 0.6.0a4", it means them.</p>
+        <ul>
+          <li>The <a href="#references"><code data-fixed>references</code></a> commands and <code data-fixed>--with-references</code> work with Access.</li>
+          <li>A <code data-fixed>references</code> command no longer closes a document that was already open.</li>
+          <li><a href="#with-references"><code data-fixed>--with-references</code></a> works on <code data-fixed>export</code> and <code data-fixed>import</code>.</li>
+          <li><code data-fixed>powerpoint-vba export</code> closes the presentation it opened.</li>
+          <li><code data-fixed>no_color = true</code> in a <a href="#config">config file</a> switches colours off.</li>
+          <li><a href="#placeholders"><code data-fixed>{config.path}</code></a> can be used in <code data-fixed>file</code>, and <code data-fixed>{file.path}</code> always names the folder the document is opened from.</li>
+          <li>A second Excel workbook with the same file name is reported in plain words.</li>
+          <li>Symbols such as ✓ no longer make a command fail when its output is piped or redirected.</li>
+          <li>Bidirectional scans skip code that Office reports as unchanged since the last save.</li>
+          <li><a href="#check"><code data-fixed>check</code></a> works in a temporary folder and no longer deletes a <code data-fixed>test.accdb</code> (or overwrites a <code data-fixed>test.xlsm</code>) in the current directory, nor closes an application you had open.</li>
+          <li>A <a href="#config">config file</a> that cannot be read stops the command instead of letting it run on default settings.</li>
+          <li>A class module or UserForm whose replacement cannot be imported is <a href="#import">put back</a>, a form with its layout.</li>
+          <li>Switching the header mode leaves the <code data-fixed>.header</code> files of modules outside the <a href="#filter">module filter</a> alone.</li>
+          <li><a href="#encoding"><code data-fixed>--encoding</code></a> converts between the files and the code page of the VBA editor, and <code data-fixed>--detect-encoding</code> detects the encoding of each file.</li>
+          <li><code data-fixed>export</code> and <code data-fixed>references import</code> end with a non-zero exit code when a module or reference failed, as does <code data-fixed>--with-references</code>.</li>
+          <li>A new class with a separate <code data-fixed>.header</code> file gets the attributes from that file.</li>
+          <li>The <a href="#folders">Rubberduck folder</a> annotation follows the file's folder for UserForms and re-imported classes too.</li>
+          <li>References added through the references file during an edit session are saved with the document.</li>
+        </ul>
+        <h3>Where features came from</h3>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Version</th><th>Introduced</th></tr></thead>
+          <tbody>
+            <tr><td>0.6.0</td><td>Bidirectional editing, module filter</td></tr>
+            <tr><td>0.5.1</td><td>Config Generator (<code data-fixed>config-gen</code>)</td></tr>
+            <tr><td>0.5.0</td><td><code data-fixed>references</code> commands, <code data-fixed>--with-references</code>, <code data-fixed>--skip-empty</code></td></tr>
+            <tr><td>0.4.4</td><td>Running through <code data-fixed>uvx</code></td></tr>
+            <tr><td>0.4.1</td><td>Windows executables, coloured output, <code data-fixed>--keep-open</code></td></tr>
+            <tr><td>0.4.0</td><td>PowerPoint, <code data-fixed>--in-file-headers</code>, <code data-fixed>--rubberduck-folders</code>, config files, safety prompts, <code data-fixed>check all</code></td></tr>
+            <tr><td>0.3.0</td><td>Access, <code data-fixed>check</code></td></tr>
+          </tbody>
+        </table></div>
+      </section>
+
+      <section id="help">
+        <h2>Getting help</h2>
+        <ul>
+          <li><strong>Built-in help.</strong> <code>excel-vba --help</code> and <code>excel-vba &lt;command&gt; --help</code> list every option of the version you have installed.</li>
+          <li><strong>Questions, bugs, ideas.</strong> Open an <a href="https://github.com/markuskiller/vba-edit/issues">issue on GitHub</a>. A log from <code data-fixed>--verbose --logfile</code> makes a report far easier to act on.</li>
+          <li><strong>Source and releases.</strong> <a href="https://github.com/markuskiller/vba-edit">github.com/markuskiller/vba-edit</a>, <a href="https://pypi.org/project/vba-edit/">PyPI</a>.</li>
+        </ul>
+        <p>vba-edit is released under the BSD 3-Clause licence. It builds on an idea first implemented for Excel in xlwings, with many contributions from @onderhold since 0.4.0 and from @russ-who in 0.6.0.</p>
+      </section>
+
+    </main>
+  </div>
+</div>
+
+<footer class="footer">
+  <div class="wrap">
+    <p>vba-edit is open source under the BSD 3-Clause licence. Beta software: keep a backup of important files.</p>
+    <nav aria-label="Footer">
+      <a href="index.html">Home</a>
+      <a href="quickstart.html">Quickstart</a>
+      <a href="https://github.com/markuskiller/vba-edit">GitHub</a>
+      <a href="https://github.com/markuskiller/vba-edit/blob/dev/CHANGELOG.md">Changelog</a>
+      <a href="https://github.com/markuskiller/vba-edit/issues">Issues</a>
+    </nav>
+  </div>
+</footer>
+
+<script src="assets/casts.js"></script>
+<script src="assets/site.js"></script>
+</body>
+</html>

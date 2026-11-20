@@ -5,11 +5,12 @@ import os
 import re
 import shutil
 import sys
+import tempfile
 import time
 from abc import ABC, abstractmethod
 from enum import Enum, auto
 from pathlib import Path
-from typing import Any, Dict, Optional, Sequence, Tuple
+from typing import Any, Callable, Dict, Optional, Sequence, Tuple
 
 # Third-party imports
 import win32com.client
@@ -32,7 +33,9 @@ from vba_edit.path_utils import (
     resolve_path,
 )
 from vba_edit.utils import (
+    detect_vba_encoding,
     get_vba_error_details,
+    get_windows_ansi_codepage,
     is_vba_access_error,
 )
 from vba_edit.console import console
@@ -136,6 +139,38 @@ interface for interacting with VBA code across different Microsoft Office applic
 
 # Configure module logger
 logger = logging.getLogger(__name__)
+
+
+def find_open_document(collection: Any, attribute: str, wanted: str) -> Any:
+    """Return the open document whose Name or FullName equals `wanted` (ignoring case), otherwise None.
+
+    `collection` is an application's Workbooks, Documents or Presentations collection, or None.
+    """
+    try:
+        if collection is None:
+            return None
+        wanted = wanted.casefold()
+        for index in range(1, int(collection.Count) + 1):
+            document = collection(index)
+            if str(getattr(document, attribute)).casefold() == wanted:
+                return document
+    except Exception as e:
+        logger.debug(f"Could not look for an open document: {e}")
+    return None
+
+
+def open_refused_message(collection: Any, app_name: str, document_type: str, doc_path: Path) -> str:
+    """Explain why an application returned no document instead of opening `doc_path`.
+
+    Excel does that, without an error, when another workbook with the same file name is open.
+    """
+    other = find_open_document(collection, "Name", Path(doc_path).name)
+    if other is not None:
+        return (
+            f"{app_name} already has a {document_type} named '{other.Name}' open ({other.FullName}) "
+            f"and cannot open a second one with the same name. Close it and run the command again."
+        )
+    return f"{app_name} did not open the {document_type}."
 
 
 # Office app configuration
@@ -440,13 +475,20 @@ class VBAComponentHandler:
 
         return VBAModuleType.CLASS
 
-    def get_module_type(self, file_path: Path, in_file_headers: bool = False, encoding: str = "utf-8") -> VBAModuleType:
+    def get_module_type(
+        self,
+        file_path: Path,
+        in_file_headers: bool = False,
+        encoding: str = "utf-8",
+        header_encoding: Optional[str] = None,
+    ) -> VBAModuleType:
         """Determine VBA module type from file extension and content.
 
         Args:
             file_path: Path to the VBA module file
             in_file_headers: Whether headers are embedded in files
             encoding: Character encoding for reading files
+            header_encoding: Encoding of the separate .header file, if it differs
 
         Returns:
             Appropriate VBAModuleType
@@ -483,7 +525,7 @@ class VBAComponentHandler:
             # Use separate header file (also when the file was expected to carry its own header but does not)
             header_file = file_path.with_suffix(".header")
             if header_file.exists():
-                with open(header_file, "r", encoding=encoding) as f:
+                with open(header_file, "r", encoding=header_encoding or encoding) as f:
                     return self.determine_cls_type(f.read())
 
             logger.debug(f"No header file found for {file_path}, treating as regular class module")
@@ -868,7 +910,12 @@ class OfficeVBAHandler(ABC):
             self.doc_path, self.vba_dir = get_document_paths(
                 doc_path, None, vba_dir, get_placeholders_for_config_key(CONFIG_KEY_VBA_DIRECTORY)
             )
+            # Encoding of the source files in the VBA directory; None means "detect it for each file".
             self.encoding = encoding
+            # Encoding of the files the VBA editor itself reads and writes (VBComponent.Export,
+            # VBComponents.Import): always the Windows ANSI code page, whatever the source files use.
+            self.office_encoding = get_windows_ansi_codepage() or "cp1252"
+            self._failed_exports: list[str] = []
             self.verbose = verbose
             self.save_headers = save_headers
             self.use_rubberduck_folders = use_rubberduck_folders
@@ -889,7 +936,8 @@ class OfficeVBAHandler(ABC):
 
             logger.debug(f"Initialized {self.__class__.__name__} with document: {doc_path}")
             logger.debug(f"VBA directory: {self.vba_dir}")
-            logger.debug(f"Using encoding: {encoding}")
+            logger.debug(f"Source file encoding: {encoding or 'detected per file'}")
+            logger.debug(f"VBA editor encoding: {self.office_encoding}")
             logger.debug(f"Save headers: {save_headers}")
             logger.debug(f"In-file headers: {in_file_headers}")
             logger.debug(f"Rubberduck folders: {use_rubberduck_folders}")
@@ -919,6 +967,59 @@ class OfficeVBAHandler(ABC):
     def document_type(self) -> str:
         """Get the document type string for error messages."""
         return "workbook" if self.app_name == "Excel" else "document"
+
+    def _file_encoding(self, path: Path) -> str:
+        """Encoding of a source file: the one given with --encoding, or detected for this file.
+
+        With --detect-encoding an existing file keeps the encoding it has; a file that does
+        not exist yet (or is empty) gets the Windows code page, like every file by default.
+        """
+        if self.encoding:
+            return self.encoding
+        try:
+            if Path(path).stat().st_size:
+                detected, _confidence = detect_vba_encoding(str(path))
+                # "utf-16" reads the byte order mark instead of leaving it in the text
+                return "utf-16" if detected.startswith("utf-16") else detected
+        except Exception as e:
+            logger.debug(f"Could not detect the encoding of {path}: {e}")
+        return self.office_encoding
+
+    def _read_source_file(self, path: Path, errors: str = "strict") -> str:
+        """Read a file from the VBA directory in its own encoding."""
+        with open(path, "r", encoding=self._file_encoding(path), errors=errors) as f:
+            return f.read()
+
+    def _write_source_file(self, path: Path, text: str) -> str:
+        """Write a file to the VBA directory and return the encoding that was used."""
+        encoding = self._file_encoding(path)
+        with open(path, "w", encoding=encoding) as f:
+            f.write(text)
+        return encoding
+
+    def _check_office_encoding(self, name: str, text: str) -> None:
+        """Refuse text that cannot be written for VBComponents.Import, before anything is changed."""
+        try:
+            text.encode(self.office_encoding)
+        except UnicodeEncodeError as e:
+            raise VBAError(
+                f"{name} contains a character the VBA editor cannot store in its code page "
+                f"({self.office_encoding}): {text[e.start : e.end]!r}"
+            ) from e
+
+    def _write_office_file(self, path: Path, text: str) -> None:
+        """Write a file for VBComponents.Import, which reads the Windows code page only."""
+        self._check_office_encoding(path.stem, text)
+        with open(path, "w", encoding=self.office_encoding) as f:
+            f.write(text)
+
+    def _vbe_reads_file_as(self, path: Path, content: str) -> bool:
+        """True if the VBA editor, importing ``path`` as it is, would get exactly ``content``."""
+        try:
+            as_office = Path(path).read_bytes().decode(self.office_encoding)
+        except (OSError, UnicodeError):
+            return False
+        return as_office.replace("\r\n", "\n").strip() == content.replace("\r\n", "\n").strip()
 
     def _resolve_vbaproject_placeholder(self, vba_project_name: str) -> None:
         """Resolve {vbaproject} placeholder in vba_dir after VBA project name is known."""
@@ -1099,10 +1200,16 @@ class OfficeVBAHandler(ABC):
                     logger.debug(f"Opening document: {self.doc_path}")
                     self.doc = self._open_document_impl()
                     self._document_was_open = False
+                    if self.doc is None:
+                        raise VBAError(self._open_refused_message())
         except Exception as e:
             error_msg = f"Failed to open document: {self.doc_path}"
             logger.error(f"{error_msg}: {str(e)}")
             raise VBAError(error_msg) from e
+
+    def _open_refused_message(self) -> str:
+        """Explain why the application returned no document instead of opening it."""
+        return open_refused_message(self._open_documents(), self.app_name, self.document_type, self.doc_path)
 
     @abstractmethod
     def _open_document_impl(self) -> Any:
@@ -1117,18 +1224,7 @@ class OfficeVBAHandler(ABC):
 
     def _already_open_document(self) -> Any:
         """Return the document if the application already has it open, otherwise None."""
-        try:
-            collection = self._open_documents()
-            if collection is None:
-                return None
-            wanted = str(self.doc_path).casefold()
-            for index in range(1, int(collection.Count) + 1):
-                document = collection(index)
-                if str(document.FullName).casefold() == wanted:
-                    return document
-        except Exception as e:
-            logger.debug(f"Could not look for an open document: {e}")
-        return None
+        return find_open_document(self._open_documents(), "FullName", str(self.doc_path))
 
     def save_document(self) -> None:
         """Save the document if it's open."""
@@ -1189,8 +1285,12 @@ class OfficeVBAHandler(ABC):
             if self.app_name == "Access":
                 # Access handles close differently
                 self.app.CloseCurrentDatabase()
+            elif self.app_name == "PowerPoint":
+                # Presentation.Close takes no arguments; marked as saved, it closes without asking
+                self.doc.Saved = True
+                self.doc.Close()
             else:
-                # Excel, Word, PowerPoint use Close method
+                # Excel and Word
                 self.doc.Close(SaveChanges=False)
             self.doc = None
             logger.info(f"{self.document_type.capitalize()} closed successfully")
@@ -1287,6 +1387,14 @@ class OfficeVBAHandler(ABC):
             # Find all .header files (in the Rubberduck subfolders too)
             header_files = self._find_vba_files("*.header")
 
+            # --include / --exclude: the header of a module this run does not touch stays,
+            # otherwise its code file would be left without the header it needs for import.
+            if self.module_filter.active:
+                in_scope = [f for f in header_files if self._header_file_in_scope(f)]
+                if kept := len(header_files) - len(in_scope):
+                    logger.info(f"Keeping {kept} .header file(s) of modules outside the module filter.")
+                header_files = in_scope
+
             if header_files:
                 logger.info(f"Cleaning up {len(header_files)} old .header file(s)...")
                 for header_file in header_files:
@@ -1298,6 +1406,15 @@ class OfficeVBAHandler(ABC):
         except Exception as e:
             logger.warning(f"Error during header file cleanup: {e}")
             # Don't fail the export if cleanup fails
+
+    def _header_file_in_scope(self, header_file: Path) -> bool:
+        """True if a .header file belongs to a module the active filter selects.
+
+        A header follows its code file. One without a code file cannot be matched
+        against file-name patterns and is left alone while a filter is active.
+        """
+        code_files = [f for ext in (".bas", ".cls", ".frm") if (f := header_file.with_suffix(ext)).exists()]
+        return bool(code_files) and all(self.module_filter.allows_file(f, self.vba_dir) for f in code_files)
 
     def _check_existing_vba_files(self) -> list:
         """Check if VBA files already exist in the export directory.
@@ -1365,7 +1482,7 @@ class OfficeVBAHandler(ABC):
             metadata = {
                 "source_document": str(self.doc_path),
                 "export_date": datetime.datetime.now().isoformat(),
-                "encoding_mode": "fixed",
+                "encoding_mode": "fixed" if self.encoding else "detect",
                 "header_mode": "inline" if self.in_file_headers else ("separate" if self.save_headers else "none"),
                 "encodings": encodings,
             }
@@ -1381,8 +1498,8 @@ class OfficeVBAHandler(ABC):
             logger.error(f"{error_msg}: {str(e)}")
             raise VBAError(error_msg) from e
 
-    def export_component(self, component: Any, directory: Path) -> None:
-        """Export a single VBA component."""
+    def export_component(self, component: Any, directory: Path) -> str:
+        """Export a single VBA component and return the encoding its code file was written in."""
         temp_file = None
         try:
             logger.debug(f"Starting component export for {component.Name}")
@@ -1396,8 +1513,8 @@ class OfficeVBAHandler(ABC):
             component.Export(str(temp_file))
             logger.debug("Component.Export completed")
 
-            # Read and process content
-            with open(temp_file, "r", encoding=self.encoding) as f:
+            # Read and process content. The VBA editor writes its code page, whatever the source files use.
+            with open(temp_file, "r", encoding=self.office_encoding) as f:
                 content = f.read()
 
             # Split content
@@ -1416,7 +1533,7 @@ class OfficeVBAHandler(ABC):
                 logger.debug(f"Created folder structure: {target_directory}")
 
             # Write files
-            self._write_component_files(name, header, code, info, target_directory)
+            used_encoding = self._write_component_files(name, header, code, info, target_directory)
             logger.debug(f"Component files written for {name} in {target_directory}")
 
             # Handle form binaries if this is a UserForm: VBComponent.Export wrote <name>.frx next to the
@@ -1425,6 +1542,7 @@ class OfficeVBAHandler(ABC):
                 self._handle_form_binary_export(name, directory, target_directory)
 
             logger.info(f"Exported: {name}" + (f" (folder: {folder_path})" if folder_path else ""))
+            return used_encoding
 
         except Exception as e:
             logger.error(f"Failed to export component {component.Name}: {str(e)}")
@@ -1458,7 +1576,8 @@ class OfficeVBAHandler(ABC):
             name = file_path.stem
 
             # Auto-detect header format
-            has_inline_headers = self.component_handler.has_inline_headers(file_path, encoding=self.encoding)
+            file_encoding = self._file_encoding(file_path)
+            has_inline_headers = self.component_handler.has_inline_headers(file_path, encoding=file_encoding)
 
             # Check for separate header file (<Name>.header, as written by export --save-headers)
             header_file = file_path.with_suffix(".header")
@@ -1473,7 +1592,10 @@ class OfficeVBAHandler(ABC):
 
             # Pass detected format to get_module_type
             module_type = self.component_handler.get_module_type(
-                file_path, in_file_headers=has_inline_headers, encoding=self.encoding
+                file_path,
+                in_file_headers=has_inline_headers,
+                encoding=file_encoding,
+                header_encoding=self._file_encoding(header_file),
             )
             module_type = self._module_type_for_existing_component(name, module_type, components)
 
@@ -1551,8 +1673,7 @@ class OfficeVBAHandler(ABC):
         name = file_path.stem
 
         # Read the complete file content
-        with open(file_path, "r", encoding=self.encoding) as f:
-            full_content = f.read().strip()
+        full_content = self._read_source_file(file_path).strip()
 
         # Split into header and code
         header, code = self.component_handler.split_vba_content(full_content)
@@ -1560,7 +1681,12 @@ class OfficeVBAHandler(ABC):
         # Add Rubberduck folder annotation if enabled
         if self.use_rubberduck_folders:
             if folder_path := self.component_handler.get_folder_from_file_path(file_path, self.vba_dir):
-                code = self.component_handler.add_rubberduck_folder(code, folder_path)
+                annotated = self.component_handler.add_rubberduck_folder(code, folder_path)
+                if annotated != code:
+                    # A complete import (new classes, re-imported classes, UserForms) has to
+                    # carry the annotation too, not only the code-only updates further down.
+                    code = annotated
+                    full_content = f"{header}\n{code}" if header else code
 
         # Handle based on module type
         if module_type == VBAModuleType.DOCUMENT:
@@ -1570,10 +1696,13 @@ class OfficeVBAHandler(ABC):
         full_import = module_type == VBAModuleType.FORM or (module_type == VBAModuleType.CLASS and header)
         component = self._existing_component(name, components)
 
+        def import_complete_module() -> None:
+            self._import_via_temp_file(name, full_content, components, file_path.suffix, original_file=file_path)
+
         if component is None:
             if full_import:
                 logger.debug(f"Creating new {module_type.name.lower()} with headers via import: {name}")
-                self._import_via_temp_file(name, full_content, components, file_path.suffix, original_file=file_path)
+                import_complete_module()
             else:
                 logger.debug(f"Creating new component: {name}")
                 self._create_new_component(name, code, module_type, components)
@@ -1582,8 +1711,8 @@ class OfficeVBAHandler(ABC):
         ):
             # UserForms always, class modules only when the header or member attributes changed
             logger.debug(f"Using full import for {module_type.name.lower()} with headers: {name}")
-            components.Remove(component)
-            self._import_via_temp_file(name, full_content, components, file_path.suffix, original_file=file_path)
+            self._check_office_encoding(name, full_content)
+            self._replace_component(name, component, components, file_path.suffix, import_complete_module)
             self._after_full_import(name)
         else:
             # Standard modules, and class modules whose header is unchanged: just update the code
@@ -1618,32 +1747,28 @@ class OfficeVBAHandler(ABC):
             file_extension: Original file extension (.frm, .cls, or .bas) - crucial for VBA to detect type!
             original_file: Optional path to original file (to avoid temp file issues with UserForms)
         """
-        # For UserForms with binary files (.frx), use the original file directly
-        # The temp file approach causes issues because:
-        # 1. Binary .frx files aren't copied
-        # 2. VBA Import uses VB_Name attribute, not filename
-        # 3. Temp files can cause naming conflicts
+        # A UserForm needs its .frx next to the .frm, under the same base name. The original
+        # file is imported as it is when that gives the VBA editor exactly this content: same
+        # code page, no annotation added by vba-edit, .frx beside it. Otherwise a copy is staged.
         if original_file and file_extension == ".frm":
             frx_source = self._form_binary_source(original_file)
-            if frx_source is not None and frx_source.parent != original_file.parent:
-                # The .frx is not next to the .frm (an older --rubberduck-folders export): stage both together
-                self._import_staged_form(name, full_content + "\n", frx_source, components)
-                logger.info(f"Imported UserForm with embedded headers: {name}")
-                return
-            try:
-                logger.debug(f"Importing UserForm directly from original file: {original_file}")
-                components.Import(str(original_file))
-                logger.info(f"Imported UserForm with embedded headers: {name}")
-                return
-            except Exception as e:
-                logger.warning(f"Direct import failed for {name}, falling back to temp file: {e}")
+            frx_beside = frx_source is None or frx_source.parent == original_file.parent
+            if frx_beside and self._vbe_reads_file_as(original_file, full_content):
+                try:
+                    logger.debug(f"Importing UserForm directly from original file: {original_file}")
+                    components.Import(str(original_file))
+                    logger.info(f"Imported UserForm with embedded headers: {name}")
+                    return
+                except Exception as e:
+                    logger.warning(f"Direct import failed for {name}, falling back to a staged copy: {e}")
+            self._import_staged_form(name, full_content + "\n", frx_source, components)
+            logger.info(f"Imported UserForm with embedded headers: {name}")
+            return
 
-        # Use temp file for class modules or as fallback
+        # Class modules go through a temporary file in the VBA editor's code page
         temp_file = self.vba_dir / f"{name}_temp{file_extension}"
         try:
-            # Write complete content to temp file
-            with open(temp_file, "w", encoding=self.encoding) as f:
-                f.write(full_content)
+            self._write_office_file(temp_file, full_content)
 
             # Import the complete module using VBA's built-in import
             # This preserves all header attributes including VB_PredeclaredId
@@ -1656,6 +1781,76 @@ class OfficeVBAHandler(ABC):
             # Clean up temp file
             if temp_file.exists():
                 temp_file.unlink()
+
+    def _replace_component(
+        self, name: str, component: Any, components: Any, extension: str, import_replacement: Callable[[], None]
+    ) -> None:
+        """Remove a component and import its replacement; put the original back if that fails.
+
+        Office applies a removal at once, so a failed import would leave the project
+        without the class module or UserForm. The original is therefore exported first
+        (a UserForm together with its .frx) and imported again when the replacement
+        cannot be imported.
+        """
+        backup_dir = Path(tempfile.mkdtemp(prefix="vba-edit-backup-"))
+        backup_file = backup_dir / f"{name}{extension}"
+        try:
+            component.Export(str(backup_file))
+            if not backup_file.exists():
+                raise VBAError("the VBA editor wrote no export file")
+        except Exception as e:
+            shutil.rmtree(backup_dir, ignore_errors=True)
+            raise VBAError(
+                f"Could not make a safety copy of {name} before replacing it: {e}. "
+                f"The {self.document_type} was left unchanged."
+            ) from e
+
+        names_before = self._component_names(components)
+        components.Remove(component)
+        try:
+            import_replacement()
+        except Exception:
+            self._restore_component(name, components, backup_file, names_before)
+            raise
+        shutil.rmtree(backup_dir, ignore_errors=True)
+
+    @staticmethod
+    def _component_names(components: Any) -> Optional[set]:
+        """Names of all components, or None when the collection cannot be listed.
+
+        Right after a removal the VBA editor can still enumerate the removed component,
+        as an entry whose properties fail with "invalid handle"; such entries are skipped.
+        """
+        try:
+            listed = list(components)
+        except Exception:
+            return None
+        names = set()
+        for component in listed:
+            try:
+                names.add(str(component.Name))
+            except Exception:
+                continue
+        return names
+
+    def _restore_component(self, name: str, components: Any, backup_file: Path, names_before: Optional[set]) -> None:
+        """Import the safety copy of a component whose replacement could not be imported."""
+        try:
+            # A failed import can leave something behind: a half-built module, an empty UserForm1
+            names_now = self._component_names(components)
+            if names_before is not None and names_now is not None:
+                for leftover in sorted(names_now - (names_before - {name})):
+                    components.Remove(components(leftover))
+            components.Import(str(backup_file))
+            self._after_full_import(name)
+        except Exception as e:
+            logger.error(
+                f"Import of {name} failed and the original could not be put back: {e}. A copy of the "
+                f"original is in {backup_file.parent}; import it in the VBA editor with File > Import File."
+            )
+            return
+        logger.warning(f"Import of {name} failed; the original {name} was put back.")
+        shutil.rmtree(backup_file.parent, ignore_errors=True)
 
     def _create_new_component(self, name: str, code: str, module_type: VBAModuleType, components: Any) -> None:
         """Create a new VBA component with just the code portion."""
@@ -1698,9 +1893,15 @@ class OfficeVBAHandler(ABC):
             if module_type == VBAModuleType.CLASS and self._class_needs_full_import(component, header, code):
                 # The header (or member attributes) changed: only VBComponents.Import can apply that
                 logger.debug(f"Header changed, full import for class module: {name}")
-                components.Remove(component)
                 content = self.component_handler.prepare_import_content(name, module_type, header, code)
-                self._import_via_temp_file(name, content, components, file_path.suffix)
+                self._check_office_encoding(name, content)
+                self._replace_component(
+                    name,
+                    component,
+                    components,
+                    file_path.suffix,
+                    lambda: self._import_via_temp_file(name, content, components, file_path.suffix),
+                )
                 self._after_full_import(name)
             elif module_type == VBAModuleType.FORM:
                 # A UserForm needs its header and .frx: only a real Import can apply them
@@ -1718,6 +1919,13 @@ class OfficeVBAHandler(ABC):
                 return
             # For new modules, we need header information
             header = self._read_header_file(file_path)
+            if header and module_type == VBAModuleType.CLASS:
+                # Module attributes from the .header file (VB_PredeclaredId, VB_Exposed, ...) only
+                # arrive with a real import, exactly as with in-file headers.
+                logger.debug(f"Creating new class module with its header via import: {name}")
+                content = self.component_handler.prepare_import_content(name, module_type, header, code)
+                self._import_via_temp_file(name, content, components, file_path.suffix)
+                return
             if not header and module_type == VBAModuleType.CLASS:
                 header = self.component_handler.create_minimal_header(name, module_type)
                 logger.debug(f"Created minimal header for new module: {name}")
@@ -1762,7 +1970,7 @@ class OfficeVBAHandler(ABC):
         temp_file = self.vba_dir / f"{component.Name}_current.tmp"
         try:
             component.Export(str(temp_file))
-            with open(temp_file, "r", encoding=self.encoding, errors="replace") as f:
+            with open(temp_file, "r", encoding=self.office_encoding, errors="replace") as f:
                 header, _code = self.component_handler.split_vba_content(f.read())
             return header
         except Exception as e:
@@ -1801,19 +2009,20 @@ class OfficeVBAHandler(ABC):
 
         ``VBComponents.Import`` needs one .frm with header and code, and the .frx next
         to it under the same base name. Both are prepared before an existing form is
-        removed, so a failure while preparing leaves the form untouched.
+        removed, so a failure while preparing leaves the form untouched; if the import
+        itself fails, the removed form is put back.
         """
         temp_dir = self.vba_dir / f".{name}_import_tmp"
         try:
             temp_dir.mkdir(exist_ok=True)
             temp_frm = temp_dir / f"{name}.frm"
-            with open(temp_frm, "w", encoding=self.encoding) as f:
-                f.write(frm_content)
+            self._write_office_file(temp_frm, frm_content)
             if frx_source is not None:
                 shutil.copy2(str(frx_source), str(temp_dir / f"{name}.frx"))
             if existing is not None:
-                components.Remove(existing)
-            components.Import(str(temp_frm))
+                self._replace_component(name, existing, components, ".frm", lambda: components.Import(str(temp_frm)))
+            else:
+                components.Import(str(temp_frm))
         finally:
             shutil.rmtree(temp_dir, ignore_errors=True)
 
@@ -2085,8 +2294,7 @@ class OfficeVBAHandler(ABC):
         checked whatever --in-file-headers / --save-headers say.
         """
         try:
-            with open(code_file, "r", encoding=self.encoding) as f:
-                content = f.read().strip()
+            content = self._read_source_file(code_file).strip()
             header, _ = self.component_handler.split_vba_content(content)
             if header:
                 return header
@@ -2096,8 +2304,7 @@ class OfficeVBAHandler(ABC):
         header_file = code_file.with_suffix(".header")
         if header_file.exists():
             try:
-                with open(header_file, "r", encoding=self.encoding) as f:
-                    return f.read().strip()
+                return self._read_source_file(header_file).strip()
             except Exception as e:
                 logger.debug(f"Could not read header file {header_file}: {e}")
         return ""
@@ -2105,8 +2312,7 @@ class OfficeVBAHandler(ABC):
     def _read_code_file(self, code_file: Path) -> str:
         """Read the code file."""
         try:
-            with open(code_file, "r", encoding=self.encoding) as f:
-                content = f.read().strip()
+            content = self._read_source_file(code_file).strip()
 
             if not self.in_file_headers:
                 return content
@@ -2117,8 +2323,8 @@ class OfficeVBAHandler(ABC):
             logger.error(f"Failed to read code file {code_file}: {str(e)}")
             raise VBAError(f"Failed to read VBA code file: {code_file}") from e
 
-    def _write_component_files(self, name: str, header: str, code: str, info: Dict[str, Any], directory: Path) -> None:
-        """Write component files with proper encoding.
+    def _write_component_files(self, name: str, header: str, code: str, info: Dict[str, Any], directory: Path) -> str:
+        """Write component files and return the encoding of the code file.
 
         Args:
             name: Name of the VBA component
@@ -2127,38 +2333,42 @@ class OfficeVBAHandler(ABC):
             info: Component information dictionary
             directory: Target directory
         """
+        code_file = directory / f"{name}{info['extension']}"
         if self.in_file_headers and header:
             # Combine header and code in single file
-            combined_content = f"{header}\n{code}"
-            code_file = directory / f"{name}{info['extension']}"
-            with open(code_file, "w", encoding=self.encoding) as f:
-                f.write(combined_content + "\n")
+            used_encoding = self._write_source_file(code_file, f"{header}\n{code}\n")
             logger.debug(f"Saved code file with embedded header: {code_file}")
         else:
             # Save header if enabled and header content exists
             if self.save_headers and header:
                 header_file = directory / f"{name}.header"
-                with open(header_file, "w", encoding=self.encoding) as f:
-                    f.write(header + "\n")
+                self._write_source_file(header_file, header + "\n")
                 logger.debug(f"Saved header file: {header_file}")
 
             # Save code file
-            code_file = directory / f"{name}{info['extension']}"
-            with open(code_file, "w", encoding=self.encoding) as f:
-                f.write(code + "\n")
+            used_encoding = self._write_source_file(code_file, code + "\n")
             logger.debug(f"Saved code file: {code_file}")
+        return used_encoding
 
     def _handle_toml_change(self, toml_path: str) -> None:
         """Re-import VBA references when a refs.toml file changes."""
         try:
             from vba_edit.reference_manager import ReferenceManager
 
-            manager = ReferenceManager(self.doc)
+            manager = ReferenceManager(self.doc, vb_project=self.get_vba_project())
             stats = manager.import_from_toml(toml_path)
             added = stats.get("added", 0)
             skipped = stats.get("skipped", 0)
             failed = stats.get("failed", 0)
-            logger.info(f"References re-imported: {added} added, {skipped} skipped, {failed} failed")
+            summary = f"References re-imported: {added} added, {skipped} skipped, {failed} failed"
+            if failed:
+                logger.warning(f"{summary} - see the messages above")
+            else:
+                logger.info(summary)
+            if added:
+                # Like a synced code change: without a save the new references are gone
+                # when the document is closed without saving.
+                self.save_document()
         except Exception as e:
             logger.warning(f"Could not re-import references: {e}")
 
@@ -2288,8 +2498,7 @@ class OfficeVBAHandler(ABC):
         Used by import_vba to skip empty module files when skip_empty is set.
         """
         try:
-            with open(vba_file, "r", encoding=self.encoding, errors="replace") as f:
-                content = f.read()
+            content = self._read_source_file(vba_file, errors="replace")
             _, code = self.component_handler.split_vba_content(content)
             return not code.strip()
         except Exception:
@@ -2420,9 +2629,11 @@ class OfficeVBAHandler(ABC):
             overwrite: Whether to overwrite existing files.
 
         Returns:
-            Dictionary mapping component names to encoding metadata.
+            Dictionary mapping component names to encoding metadata. Components that
+            could not be exported are collected in ``self._failed_exports``.
         """
         encoding_data: Dict[str, Any] = {}
+        self._failed_exports = []
         filtered_out = 0
         considered = 0
         for component in components:
@@ -2441,13 +2652,16 @@ class OfficeVBAHandler(ABC):
                     continue
 
                 if overwrite or not self._component_files_exist(base_name, info["extension"]):
-                    self.export_component(component, self.vba_dir)
-                    encoding_data[info["name"]] = {"encoding": self.encoding, "type": info["type_name"]}
+                    used_encoding = self.export_component(component, self.vba_dir)
+                    if not isinstance(used_encoding, str):
+                        used_encoding = self.encoding or self.office_encoding
+                    encoding_data[info["name"]] = {"encoding": used_encoding, "type": info["type_name"]}
                 else:
                     logger.debug(f"Skipping existing file: {base_name}{info['extension']}")
 
             except Exception as e:
                 logger.error(f"Failed to export component {component.Name}: {str(e)}")
+                self._failed_exports.append(str(component.Name))
                 continue
 
         if self.module_filter.active:
@@ -2498,8 +2712,12 @@ class OfficeVBAHandler(ABC):
 
         Raises:
             VBAExportWarning: When user confirmation is needed (only if interactive=True)
+            VBAError: When the export fails, or when some components could not be exported
+                (the others are written first, and the document is closed as usual)
         """
         logger.debug("Starting export_vba operation")
+        self._failed_exports = []
+        exported = 0
         try:
             # Ensure document is open
             if not self.is_document_open():
@@ -2523,6 +2741,7 @@ class OfficeVBAHandler(ABC):
 
             # Export all components and track metadata
             encoding_data = self._export_components(components, overwrite)
+            exported = len(encoding_data)
 
             self._check_form_safety(self.vba_dir)  # Check for forms before proceeding
 
@@ -2563,6 +2782,13 @@ class OfficeVBAHandler(ABC):
             error_msg = "Failed to export VBA content"
             logger.error(f"{error_msg}: {str(e)}")
             raise VBAError(error_msg) from e
+
+        if failed := list(self._failed_exports):
+            raise VBAError(
+                f"{len(failed)} of {exported + len(failed)} VBA components could not be exported: "
+                f"{', '.join(failed)}. The others were written. Fix the cause and export again, "
+                f"or leave these modules out with --exclude."
+            )
 
 
 class WordVBAHandler(OfficeVBAHandler):

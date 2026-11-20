@@ -74,6 +74,63 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Importing code for a form or report that does not exist now fails with a clear message; create the form or report in Access first (property "Has Module")
   - A failed update restores the previous code of the form or report module
 
+- **`access-vba references` Did Not Work**: every `references` subcommand, and `--with-references` on `export`, `import` and `edit`, ended with "Document object does not support VBA projects" in Access, because an Access database object has no VBA project of its own. The project is now taken from the Access application
+  - A database that is already open in Access is used as it is and left open
+  - The `document` entry in an exported references file is the file name of the database, not its full path
+
+- **`references -f FILE` Closed an Open Document Without Saving**: when the document named with `--file` was already open in Excel, Word or PowerPoint, the `references` commands closed it afterwards and discarded unsaved changes. An open document is now used as it is and left open
+
+- **`--with-references` Did Nothing on `export` and `import`**: `export --with-references` closed the document before reading its references, and `import --with-references` tried to restore them before the document was open. Both ended with a "Could not export/import references" warning and exit code 0, without a references file being written or applied (Access `import` excepted). The references are now handled while the document is open
+
+- **`powerpoint-vba export` Left the Presentation Open**: closing failed with "Close() got an unexpected keyword argument 'SaveChanges'", so the presentation, and a PowerPoint that vba-edit had started, stayed open after every export
+
+- **`no_color` in Config Files Had No Effect**: `no_color = true` in the `[general]` section now switches colors off like `--no-color`
+
+- **Config File Paths**: the document path and the `{file.path}` placeholder could point to different folders
+  - `{config.path}` can now be used in `file` (`file = "{config.path}/MyWorkbook.xlsm"`), so a config file works from any directory
+  - With a relative `file`, `{file.path}` was derived from the folder of the config file although the document is opened relative to the current directory; both now refer to the same location
+  - Relative paths remain relative to the directory the command is run in
+
+- **Second Excel Workbook With the Same Name**: Excel cannot open two workbooks with the same file name and returns nothing when asked to. The commands failed with `'NoneType' object has no attribute 'VBProject'` (or "No active workbook found" for `references`); they now name the workbook that is in the way
+
+- **`check` Could Delete Files in the Current Directory**: the check created its scratch file as `test.accdb`, `test.xlsm`, `test.docm` or `test.pptm` in the current directory, deleted an existing `test.accdb` first, removed the file of that name afterwards, and quit the application even when the user had it open
+  - The scratch file is now created in a temporary folder that only this check uses, and the folder is removed afterwards
+  - An application that was already running is left running; only the scratch document is closed
+  - If Access already has a database open, the check reads that database's VBA project and creates nothing
+
+- **Unreadable Config File Did Not Stop the Command**: a `--conf` file that was missing or not valid TOML printed an error, after which the command ran on default settings, that is on the active document and the folder next to it. The command now stops with exit code 1 before any document is touched
+
+- **Class Modules and UserForms Could Be Lost When a Re-Import Failed**: a UserForm, or a class module whose header changed, is replaced by removing it and importing the file. If that import failed, the component was gone, and a batch `import` then saved the document in that state
+  - The component is exported to a temporary folder first (a UserForm with its `.frx`) and imported again if the replacement cannot be imported; the file is reported as failed and the document keeps the original
+  - Anything the failed import left behind (such as an empty `UserForm1`) is removed before the original is put back
+  - If the original cannot be put back either, the message names the folder that holds the copy
+  - A component that cannot be exported is not replaced at all
+
+- **Header Cleanup Ignored `--include` / `--exclude`**: switching the header mode deleted every `.header` file in the VBA directory, including those of modules outside the module filter, which left their code files without the header they need for import. Headers of filtered-out modules are kept now
+
+- **`--encoding` Did Not Convert, `--detect-encoding` Did Not Detect**: the encoding given with `--encoding` was also used for the files the VBA editor itself writes and reads, which are always in the Windows code page. With `--encoding utf-8`, a module containing a non-ASCII character failed to export or was garbled, and a class or UserForm was handed to Office as UTF-8. `--detect-encoding` read every file in the system's default encoding
+  - `--encoding` now names the encoding of the files in the VBA directory only; code is converted between it and the code page of the VBA editor in both directions
+  - `--detect-encoding` detects the encoding of each file (byte order mark, valid UTF-8, otherwise the code page). On export, an existing file keeps its encoding and a new file is written in the code page
+  - A UserForm file that the VBA editor could not read correctly as it is (another encoding) is imported from a converted copy
+  - A character that the code page cannot represent stops the import of a class module or UserForm with a message that names it, before the existing component is removed
+  - `vba_metadata.json` records the encoding each file was written in, and `"encoding_mode": "detect"` for `--detect-encoding`
+  - Bidirectional editing reads Office's exports in the code page as well
+
+- **Failures Were Reported as Success**: several commands ended with exit code 0 although part of the work had failed
+  - `export` (and the first export of `edit`): if components cannot be exported, the others are still written, then the command ends with "N of M VBA components could not be exported: ..." and exit code 1. Previously the errors were only logged, even when no component could be exported
+  - `references import` (with or without `--sync`): exit code 1 if a reference could not be processed, after the document was saved with the references that could
+  - `export --with-references` and `import --with-references`: exit code 1 if the references could not be written or restored; the code is still transferred, and `export` closes the document it opened
+
+- **New Class Modules Lost Their Attributes With `--save-headers`**: a class that was new to the document and had a separate `.header` file was created empty and filled with the code, so attributes such as `VB_PredeclaredId = True` were not applied (they were with `--in-file-headers`). It is now imported together with its header in both modes
+
+- **Rubberduck Folder Not Applied on Complete Imports**: with `--rubberduck-folders`, a UserForm, a new class and a re-imported class with in-file headers were imported with the `@Folder` annotation from the file instead of the folder the file is in. Moving such a file to another folder now moves the module, as it already did for standard modules
+
+- **References Added During an Edit Session Were Not Saved**: with `edit --with-references`, saving the references file added the new references to the document but did not save it, so they were lost if the document was closed without a later code change. The document is saved after references were added. (As before, removing an entry from the file does not remove the reference; use `references import --sync`.)
+
+- **Bidirectional Pause Message**: the message for a paused component suggested that `--sync-resolve` settles every pause. It now says that a moved, renamed or deleted component needs a step by the user first; the steps are in the guide and pinned by tests
+
+- **Symbols in Redirected Output**: messages containing `✓` or `⚠` made a command fail with a `UnicodeEncodeError` (reported as "Unexpected error", exit code 1) when its output was piped or redirected to a file on a system with an ANSI code page, for example `excel-vba references validate > result.txt`. Characters the output encoding cannot represent are now replaced
+
 ### Security
 
 - **Pillow advisories via `ttkbootstrap`**: Pillow 12.x is affected by advisories fixed only in Pillow 13.0.0 (released 2026-10-16), which older `ttkbootstrap` releases excluded with a `pillow<13` pin

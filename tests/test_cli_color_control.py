@@ -371,5 +371,36 @@ class TestColorWithTTY:
             pytest.skip("No colors detected in easter egg output")
 
 
+class TestNoColorFromConfig:
+    """`no_color = true` in a config file switches colors off, like the --no-color flag."""
+
+    @pytest.mark.parametrize("no_color, expected", [("true", True), ("false", False)])
+    def test_no_color_key_in_config_file(self, no_color, expected, tmp_path, monkeypatch):
+        import vba_edit.console as console_module
+        from vba_edit.office_cli import OfficeVBACLI
+
+        workbook = tmp_path / "Book.xlsm"
+        workbook.touch()
+        config = tmp_path / "vba-config.toml"
+        config.write_text(f"[general]\nfile = '{workbook}'\nno_color = {no_color}\n", encoding="utf-8")
+
+        # disable_colors() replaces these module attributes; monkeypatch puts them back afterwards
+        for name in ("console", "error_console"):
+            monkeypatch.setattr(console_module, name, getattr(console_module, name))
+        monkeypatch.setattr(console_module, "_colors_disabled", False)
+        monkeypatch.setattr(sys, "argv", ["excel-vba", "export", "--conf", str(config)])
+        monkeypatch.setattr("vba_edit.office_cli.setup_logging", lambda **_kwargs: None)
+        seen = []
+        monkeypatch.setattr(
+            OfficeVBACLI,
+            "handle_office_vba_command",
+            lambda self, args: seen.append((args.file, console_module._colors_disabled)),
+        )
+
+        OfficeVBACLI("excel").main()
+
+        assert seen == [(str(workbook), expected)]
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

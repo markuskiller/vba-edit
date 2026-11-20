@@ -1,0 +1,200 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>vba-edit: write VBA in the editor you love</title>
+  <meta name="description" content="vba-edit syncs the VBA project inside Excel, Word, PowerPoint and Access with plain files on disk. Edit in any editor, review in Git, and every save lands in Office.">
+  <meta property="og:title" content="vba-edit: write VBA in the editor you love">
+  <meta property="og:description" content="Live sync between Office VBA projects and plain files. Excel, Word, PowerPoint and Access.">
+  <meta property="og:type" content="website">
+  <link rel="icon" href="favicon.png" type="image/png">
+  <link rel="stylesheet" href="assets/site.css">
+  <script src="assets/theme.js"></script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+
+<header class="topbar">
+  <div class="wrap">
+    <a class="brand" href="index.html" aria-label="vba-edit home">
+      <span class="brand-mark" aria-hidden="true">vba-<br>edit</span>
+      <span class="brand-text">vba-edit<span class="caret" aria-hidden="true"></span></span>
+    </a>
+    <nav class="nav" aria-label="Main">
+      <a href="quickstart.html">Quickstart</a>
+      <a href="guide.html">Guide</a>
+    </nav>
+    <span class="spacer"></span>
+    <a class="icon-btn" href="https://github.com/markuskiller/vba-edit" aria-label="vba-edit on GitHub">
+      <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg>
+    </a>
+    <button class="icon-btn" type="button" data-theme-toggle aria-label="Switch between light and dark theme">
+      <svg class="only-light" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z"/></svg>
+      <svg class="only-dark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+    </button>
+  </div>
+</header>
+
+<main id="main">
+
+  <section class="hero">
+    <div class="wrap hero-grid">
+      <div>
+        <p class="eyebrow">Excel · Word · PowerPoint · Access</p>
+        <h1>Write VBA in the editor <em>you</em> love.</h1>
+        <p class="lede">vba-edit keeps the VBA project inside your Office file in sync with plain text files on disk. Edit them in VS Code or any other editor, review changes in Git, let an AI assistant help. Every save lands in Office.</p>
+        <div class="hero-actions">
+          <a class="btn btn-primary" href="quickstart.html">Start in five minutes <span class="arrow" aria-hidden="true">→</span></a>
+          <a class="btn btn-ghost" href="guide.html">Read the guide</a>
+        </div>
+        <p class="hero-meta"><span>Windows + desktop Office</span><span>No add-in to install in Office</span><span>Open source, BSD-3</span></p>
+      </div>
+      <div>
+        <div class="term" data-cast="edit">
+          <div class="term-bar"><span class="term-dots" aria-hidden="true"><i></i><i></i><i></i></span><span class="term-title">excel-vba edit: a real session, recorded</span></div>
+          <pre class="term-body" tabindex="0" aria-label="Terminal recording of an edit session">PS C:\Projects\budget&gt; excel-vba edit -f Budget.xlsm --vba-directory src
+(the recording needs JavaScript; the commands are shown as text)</pre>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="band tint">
+    <div class="wrap">
+      <div class="band-head">
+        <p class="eyebrow">How it works</p>
+        <h2>Your VBA project, as files</h2>
+        <p>The VBA editor built into Office keeps code locked inside the document. vba-edit talks to Office over its automation interface, writes each module to a file, and puts your changes back.</p>
+      </div>
+      <div class="flow" role="img" aria-label="Diagram: export copies modules from the Office VBA project to files; import and edit copy file changes back; the files can be tracked in Git.">
+        <div class="flow-box">
+          <h3>Office VBA project</h3>
+          <p>The modules inside your <code data-fixed>.xlsm</code>, <code data-fixed>.docm</code>, <code data-fixed>.pptm</code> or <code data-fixed>.accdb</code>.</p>
+          <ul><li>standard modules</li><li>class modules</li><li>UserForms</li><li>document modules</li></ul>
+        </div>
+        <div class="flow-arrows" aria-hidden="true">
+          <div class="flow-arrow"><b>export</b> →</div>
+          <div class="flow-arrow back">← <b>import</b></div>
+          <div class="flow-arrow back">← <b>edit</b>, on save</div>
+          <div class="flow-arrow exp">⇄ <b>bidirectional</b></div>
+        </div>
+        <div class="flow-box">
+          <h3>Files on disk</h3>
+          <p>One file per module, in a folder you choose. Any editor can open them.</p>
+          <ul><li>Module.bas</li><li>Class.cls</li><li>Form.frm + .frx</li><li>optional .toml config</li></ul>
+        </div>
+        <div class="flow-arrows" aria-hidden="true">
+          <div class="flow-arrow">your tools →</div>
+        </div>
+        <div class="flow-box">
+          <h3>Everything else</h3>
+          <p>Once code is text, the rest of the software world opens up.</p>
+          <ul><li>Git history and diffs</li><li>code review</li><li>AI coding assistants</li><li>search across projects</li></ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="band">
+    <div class="wrap">
+      <div class="band-head">
+        <p class="eyebrow">Both sides of one save</p>
+        <h2>Change a line here, see it there</h2>
+        <p>On the left, the exported module in an editor with one line changed. On the right, the VBA editor of the same workbook after that change was synced.</p>
+      </div>
+      <div class="split">
+        <div>
+          <div class="editor" aria-label="Reporting.bas shown in a code editor">
+            <div class="editor-tabs"><span class="on">Reporting.bas</span><span>Helpers.bas</span><span>Invoice.cls</span></div>
+<pre><span class="ln"><span class="c">'@Folder("Reports")</span></span><span class="ln"><span class="k">Option Explicit</span></span><span class="ln"> </span><span class="ln"><span class="k">Public Sub</span> BuildMonthlyReport()</span><span class="ln">    <span class="k">Dim</span> total <span class="k">As Currency</span></span><span class="ln">    total = SumColumn(Sheet1.Range(<span class="s">"B2:B13"</span>))</span><span class="ln">    Sheet1.Range(<span class="s">"B14"</span>).Value = total</span><span class="ln hl">    MsgBox <span class="s">"Total spend: "</span> &amp; FormatMoney(total)</span><span class="ln"><span class="k">End Sub</span></span></pre>
+          </div>
+          <p class="muted">The file as exported by vba-edit, drawn here as a code listing. Line 8 was edited and saved.</p>
+        </div>
+        <figure>
+          <div class="shot"><button type="button" aria-label="Enlarge screenshot"><img src="assets/img/vbe-synced.png" width="1200" height="720" loading="lazy" alt="The VBA editor showing module Reporting of Budget.xlsm with the line MsgBox &quot;Total spend: &quot; &amp; FormatMoney(total)"></button></div>
+          <figcaption><b>Screenshot.</b> The VBA editor of the sample workbook after the sync. It was taken on a German Office installation, which is why the menus read <i>Datei</i>, <i>Bearbeiten</i> and so on; vba-edit works with any Office language.</figcaption>
+        </figure>
+      </div>
+    </div>
+  </section>
+
+  <section class="band tint">
+    <div class="wrap">
+      <div class="band-head">
+        <p class="eyebrow">What you get</p>
+        <h2>One small tool per Office app, six commands</h2>
+        <p><code data-fixed>excel-vba</code>, <code data-fixed>word-vba</code>, <code data-fixed>powerpoint-vba</code> and <code data-fixed>access-vba</code> share the same commands and options. Each card opens the matching chapter of the guide.</p>
+      </div>
+      <div class="cards three">
+        <a class="card" href="guide.html#edit"><span class="card-ico">01 / edit</span><h3>Live editing</h3><p>Export once, then watch the folder. Saving a file updates the module in Office within a second or two.</p><span class="card-cmd">excel-vba edit -f Budget.xlsm</span></a>
+        <a class="card" href="guide.html#export"><span class="card-ico">02 / export · import</span><h3>One-off transfers</h3><p>Take a snapshot of all modules, or push a folder of files back into a document.</p><span class="card-cmd">excel-vba export --vba-directory src</span></a>
+        <a class="card" href="guide.html#bidirectional"><span class="card-ico">03 / --bidirectional <span class="badge exp">experimental</span></span><h3>Two-way sync</h3><p>Edits made in the VBA editor flow back to your files as well. Conflicts are paused, never overwritten.</p><span class="card-cmd">excel-vba edit --bidirectional --in-file-headers</span></a>
+        <a class="card" href="guide.html#headers"><span class="card-ico">04 / headers</span><h3>Classes and UserForms, intact</h3><p>Keep module attributes and form layouts with the code, in the file or beside it.</p><span class="card-cmd">--in-file-headers · --save-headers</span></a>
+        <a class="card" href="guide.html#folders"><span class="card-ico">05 / folders</span><h3>Rubberduck folders</h3><p><code data-fixed>'@Folder("Domain.Billing")</code> annotations become real directories, and back.</p><span class="card-cmd">--rubberduck-folders</span></a>
+        <a class="card" href="guide.html#filter"><span class="card-ico">06 / filter <span class="badge new">0.6</span></span><h3>Pick your modules</h3><p>Include or exclude modules by name or glob. Leave vendor code and locked forms alone.</p><span class="card-cmd">--include "Rep*" --exclude "Vendor_*"</span></a>
+        <a class="card" href="guide.html#references"><span class="card-ico">07 / references</span><h3>Library references</h3><p>List, validate, export and restore the references of a VBA project as a TOML file.</p><span class="card-cmd">excel-vba references list</span></a>
+        <a class="card" href="guide.html#config"><span class="card-ico">08 / config</span><h3>Config files and a GUI</h3><p>Store a project's options in TOML. A small window builds the file for you.</p><span class="card-cmd">excel-vba config-gen</span></a>
+        <a class="card" href="guide.html#safety"><span class="card-ico">09 / safety</span><h3>Guard rails</h3><p>Prompts before files are overwritten, forms that refuse to lose their layout, failed updates rolled back.</p><span class="card-cmd">--force-overwrite to skip prompts</span></a>
+      </div>
+    </div>
+  </section>
+
+  <section class="band">
+    <div class="wrap">
+      <div class="band-head">
+        <p class="eyebrow">Sample use cases</p>
+        <h2>Start from what you want to do</h2>
+        <p>Each of these is a worked example in the guide, with the commands to copy.</p>
+      </div>
+      <div class="cards three">
+        <a class="card" href="guide.html#uc-git"><h3>Put a workbook under version control</h3><p>Export once, commit, and review every later change as a normal diff.</p></a>
+        <a class="card" href="guide.html#uc-ai"><h3>Let an AI assistant work on your macros</h3><p>Give the assistant a folder of files instead of a locked binary, and test each change live.</p></a>
+        <a class="card" href="guide.html#uc-team"><h3>Share one setup across a team</h3><p>A config file and a references file in the repository make every checkout behave the same.</p></a>
+        <a class="card" href="guide.html#uc-vendor"><h3>Edit your code, not the vendor's</h3><p>Exclude third-party modules and locked forms from every command.</p></a>
+        <a class="card" href="guide.html#uc-refactor"><h3>Refactor offline, import selectively</h3><p>Work without Office running, then push back only the modules you touched.</p></a>
+        <a class="card" href="guide.html#uc-access"><h3>Work on an Access database</h3><p>Standard and class modules, plus the code behind forms and reports.</p></a>
+      </div>
+    </div>
+  </section>
+
+  <section class="band tint">
+    <div class="wrap">
+      <div class="band-head">
+        <p class="eyebrow">Where the project stands</p>
+        <h2>November 2026: 0.5.1 is stable, 0.6.0 is in pre-release</h2>
+        <p>These docs describe 0.6.0. Features that are not in the stable release yet carry a <span class="badge new">0.6</span> mark, and the two-way sync is marked <span class="badge exp">experimental</span>.</p>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Release</th><th>Where</th><th>What it adds</th></tr></thead>
+          <tbody>
+            <tr><td><strong>0.5.1</strong> stable</td><td>PyPI, <code data-fixed>uvx</code>, Windows binaries</td><td>Everything in these docs except the items below.</td></tr>
+            <tr><td><strong>0.6.0a4</strong> pre-release</td><td>TestPyPI and the GitHub pre-release page</td><td>Bidirectional editing with the focus-loss trigger, <code data-fixed>--include</code> / <code data-fixed>--exclude</code>, <code data-fixed>export</code> that leaves open documents alone, an import summary with exit code, Access form and report code, several UserForm import fixes. Needs Python 3.11 or later.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="muted">vba-edit is beta software. Keep a backup of important Office files, and keep the code in version control.</p>
+    </div>
+  </section>
+
+</main>
+
+<footer class="footer">
+  <div class="wrap">
+    <p>vba-edit is open source under the BSD 3-Clause licence. It builds on an idea first implemented for Excel in xlwings.</p>
+    <nav aria-label="Footer">
+      <a href="quickstart.html">Quickstart</a>
+      <a href="guide.html">Guide</a>
+      <a href="https://github.com/markuskiller/vba-edit">GitHub</a>
+      <a href="https://github.com/markuskiller/vba-edit/blob/dev/CHANGELOG.md">Changelog</a>
+      <a href="https://github.com/markuskiller/vba-edit/issues">Issues</a>
+      <a href="https://pypi.org/project/vba-edit/">PyPI</a>
+    </nav>
+  </div>
+</footer>
+
+<script src="assets/casts.js"></script>
+<script src="assets/site.js"></script>
+</body>
+</html>

@@ -777,3 +777,151 @@ class TestReferencesSavePersistence:
         """list / validate must NOT call doc.Save() — they don't change anything."""
         mock_doc = self._run_with_mocks(subcommand, tmp_path)
         mock_doc.Save.assert_not_called()
+
+
+class TestReferencesDocumentHandling:
+    """How the references commands get hold of the document and its VBA project."""
+
+    def _run(self, office_app, mock_app, document_path):
+        """Run `references validate -f <document>` with a mocked application; return the ReferenceManager mock."""
+        import argparse
+
+        from vba_edit.office_cli import OfficeVBACLI
+        from vba_edit.reference_manager import ReferenceManager
+
+        args = argparse.Namespace(refs_subcommand="validate", file=str(document_path), verbose=False, logfile=None)
+        mock_manager = MagicMock(spec=ReferenceManager)
+        mock_manager.list_references.return_value = []
+        with (
+            patch("win32com.client.Dispatch", return_value=mock_app),
+            patch("vba_edit.office_cli.ReferenceManager", return_value=mock_manager) as manager_class,
+            patch("vba_edit.office_cli.setup_logging"),
+        ):
+            OfficeVBACLI(office_app)._handle_references_command(args)
+        return manager_class
+
+    def test_a_workbook_that_is_already_open_is_used_and_left_open(self, tmp_path):
+        """Opening it again and closing it afterwards would discard the user's unsaved changes."""
+        workbook = tmp_path / "Book.xlsm"
+        workbook.write_text("")
+        open_workbook = MagicMock(FullName=str(workbook.resolve()).upper())
+        mock_app = MagicMock()
+        mock_app.Workbooks.Count = 1
+        mock_app.Workbooks.return_value = open_workbook
+
+        manager_class = self._run("excel", mock_app, workbook)
+
+        manager_class.assert_called_once_with(open_workbook, vb_project=None)
+        mock_app.Workbooks.Open.assert_not_called()
+        open_workbook.Close.assert_not_called()
+
+    def test_a_second_workbook_with_the_same_name_is_explained(self, tmp_path, caplog):
+        workbook = tmp_path / "Book.xlsm"
+        workbook.write_text("")
+        other = MagicMock(FullName="C:\\other\\Book.xlsm")
+        other.Name = "Book.xlsm"
+        mock_app = MagicMock()
+        mock_app.Workbooks.Count = 1
+        mock_app.Workbooks.return_value = other
+        mock_app.Workbooks.Open.return_value = None  # what Excel does in this situation
+
+        with pytest.raises(SystemExit) as stop:
+            self._run("excel", mock_app, workbook)
+
+        assert stop.value.code == 1
+        assert "cannot open a second one with the same name" in caplog.text
+        other.Close.assert_not_called()
+
+    def test_access_takes_the_project_from_the_application(self, tmp_path):
+        """An Access database object has no VBProject; the project hangs on the application."""
+        database_path = tmp_path / "Inventory.accdb"
+        database_path.write_text("")
+        database = MagicMock()
+        database.Name = str(database_path.resolve())
+        wizard_project = MagicMock(FileName="C:\\Office\\ACWZMAIN.ACCDE")
+        database_project = MagicMock(FileName=str(database_path.resolve()))
+        mock_app = MagicMock()
+        mock_app.CurrentDb.side_effect = [None, database]  # nothing open before, the database after
+        mock_app.VBE.VBProjects.Count = 2
+        mock_app.VBE.VBProjects.side_effect = lambda index: [wizard_project, database_project][index - 1]
+
+        manager_class = self._run("access", mock_app, database_path)
+
+        mock_app.OpenCurrentDatabase.assert_called_once_with(str(database_path.resolve()))
+        manager_class.assert_called_once_with(database, vb_project=database_project)
+        mock_app.CloseCurrentDatabase.assert_called_once()
+
+    def test_access_database_that_is_already_open_stays_open(self, tmp_path):
+        database_path = tmp_path / "Inventory.accdb"
+        database_path.write_text("")
+        database = MagicMock()
+        database.Name = str(database_path.resolve())
+        mock_app = MagicMock()
+        mock_app.CurrentDb.return_value = database
+
+        self._run("access", mock_app, database_path)
+
+        mock_app.OpenCurrentDatabase.assert_not_called()
+        mock_app.CloseCurrentDatabase.assert_not_called()
+
+    def test_reference_manager_accepts_a_project_for_a_document_without_one(self):
+        from types import SimpleNamespace
+
+        from vba_edit.reference_manager import ReferenceManager
+
+        database = SimpleNamespace(Name="C:\\data\\Inventory.accdb")  # no VBProject attribute
+        project = SimpleNamespace(Name="Inventory")
+
+        manager = ReferenceManager(database, vb_project=project)
+
+        assert manager.vb_project is project
+        assert manager._get_document_name() == "Inventory.accdb"
+
+
+class TestWithReferences:
+    """--with-references on export and import: the references need the document to be open."""
+
+    def _run(self, command, tmp_path, keep_open=False):
+        """Run the command with a mocked handler; return the order of the steps that matter."""
+        import argparse
+
+        from vba_edit.office_cli import OfficeVBACLI
+
+        steps = []
+        handler = MagicMock()
+        handler.vba_dir = tmp_path
+        handler.doc_path = tmp_path / "Book.xlsm"
+        handler.open_document.side_effect = lambda: steps.append("open")
+        handler.import_vba.side_effect = lambda: steps.append("code")
+        handler.close_document.side_effect = lambda: steps.append("close")
+        manager = MagicMock()
+        manager.export_to_toml.side_effect = lambda *_args, **_kwargs: steps.append("references")
+        manager.import_from_toml.side_effect = lambda *_args, **_kwargs: (
+            steps.append("references") or {"added": 1, "skipped": 0, "failed": 0}
+        )
+        args = argparse.Namespace(
+            command=command,
+            with_references=True,
+            keep_open=keep_open,
+            save_metadata=False,
+            force_overwrite=False,
+            verbose=False,
+        )
+        with (
+            patch("vba_edit.office_cli.ReferenceManager", return_value=manager),
+            patch("vba_edit.office_cli.handle_export_with_warnings") as export,
+        ):
+            export.side_effect = lambda *_args, **kwargs: steps.append(f"code keep_open={kwargs['keep_open']}")
+            OfficeVBACLI("excel")._run_vba_command(handler, args)
+        return steps
+
+    def test_export_writes_the_references_before_the_document_is_closed(self, tmp_path):
+        assert self._run("export", tmp_path) == ["code keep_open=True", "references", "close"]
+
+    def test_export_with_keep_open_leaves_the_document_open(self, tmp_path):
+        assert self._run("export", tmp_path, keep_open=True) == ["code keep_open=True", "references"]
+
+    def test_import_opens_the_document_before_restoring_the_references(self, tmp_path):
+        (tmp_path / "Book_refs.toml").write_text("")
+
+        assert self._run("import", tmp_path) == ["open", "references", "code"]

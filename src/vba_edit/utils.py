@@ -3,7 +3,10 @@ import logging
 import logging.handlers
 import os
 import re
+import shutil
 import sys
+import tempfile
+import time
 from functools import wraps
 from pathlib import Path
 from typing import Callable, Dict, Optional, Tuple
@@ -900,7 +903,14 @@ def get_windows_ansi_codepage() -> Optional[str]:
 
 
 class OfficeApp:
-    """Base class for Office application testing."""
+    """Base class for Office application testing.
+
+    The check works on a scratch document in a temporary folder of its own, so it can
+    neither overwrite nor delete a file of the user, and it only quits an application
+    it started itself.
+    """
+
+    scratch_name = "vba-edit-check"
 
     def __init__(self, app_name: str, prog_id: str):
         self.app_name = app_name
@@ -908,11 +918,19 @@ class OfficeApp:
         self.app = None
         self.doc = None
         self.test_file = None
+        self.test_dir = None
+        self.app_was_running = False
 
     def start(self) -> None:
         """Start the Office application."""
         try:
             self.app = win32com.client.Dispatch(self.prog_id)
+            # Dispatch attaches to a running instance when there is one. A freshly started
+            # automation instance is invisible, the user's own instance is visible.
+            try:
+                self.app_was_running = bool(self.app.Visible)
+            except Exception:
+                self.app_was_running = False
             if self.app_name != "access":
                 self.app.Visible = True
 
@@ -920,17 +938,35 @@ class OfficeApp:
             logger.warning(f"Failed to start {self.app_name}: {e}")
             raise
 
+    def scratch_file(self, extension: str) -> str:
+        """Path of the scratch document, in a new temporary folder that only this check uses."""
+        self.test_dir = tempfile.mkdtemp(prefix="vba-edit-check-")
+        self.test_file = str(Path(self.test_dir) / f"{self.scratch_name}{extension}")
+        return self.test_file
+
     def cleanup(self) -> None:
         """Clean up resources."""
         try:
             if hasattr(self, "cleanup_doc"):
                 self.cleanup_doc()
-            if self.app and hasattr(self.app, "Quit"):
+            if self.app and hasattr(self.app, "Quit") and not self.app_was_running:
                 self.app.Quit()
-            if self.test_file and os.path.exists(self.test_file):
-                os.unlink(self.test_file)
         except Exception as e:
             logger.error(f"Cleanup error for {self.app_name}: {e}")
+        finally:
+            self._remove_scratch_folder()
+
+    def _remove_scratch_folder(self) -> None:
+        """Delete the temporary folder; the application may hold the file for a moment after closing."""
+        if not self.test_dir:
+            return
+        for _attempt in range(10):
+            shutil.rmtree(self.test_dir, ignore_errors=True)
+            if not os.path.exists(self.test_dir):
+                break
+            time.sleep(0.3)
+        else:
+            logger.debug(f"Could not remove the scratch folder {self.test_dir}")
 
     def get_vba_error(self) -> Optional[Tuple[type, str, tuple]]:
         """Get VBA access error. Should be implemented by subclasses."""
@@ -947,9 +983,8 @@ class CheckWordApp(OfficeApp):
 
     def get_vba_error(self) -> Optional[Tuple[type, str, tuple]]:
         try:
-            self.test_file = str(Path.cwd() / "test.docm")
             self.doc = self.app.Documents.Add()
-            self.doc.SaveAs(self.test_file, FileFormat=13)  # wdFormatDocumentMacroEnabled
+            self.doc.SaveAs(self.scratch_file(".docm"), FileFormat=13)  # wdFormatDocumentMacroEnabled
             _ = self.doc.VBProject
             # Test if we can actually access VBA project methods
             _ = self.doc.VBProject.VBComponents.Count
@@ -968,9 +1003,8 @@ class CheckExcelApp(OfficeApp):
 
     def get_vba_error(self) -> Optional[Tuple[type, str, tuple]]:
         try:
-            self.test_file = str(Path.cwd() / "test.xlsm")
             self.doc = self.app.Workbooks.Add()
-            self.doc.SaveAs(self.test_file, FileFormat=52)  # xlOpenXMLWorkbookMacroEnabled
+            self.doc.SaveAs(self.scratch_file(".xlsm"), FileFormat=52)  # xlOpenXMLWorkbookMacroEnabled
             _ = self.doc.VBProject
             # Test if we can actually access VBA project methods
             _ = self.doc.VBProject.VBComponents.Count
@@ -982,21 +1016,28 @@ class CheckExcelApp(OfficeApp):
 class CheckAccessApp(OfficeApp):
     def __init__(self):
         super().__init__("access", "Access.Application")
+        self.created_database = False
 
     def cleanup_doc(self):
-        if self.doc:
-            self.doc.Close()
-        self.app.CloseCurrentDatabase()
+        # Only the scratch database is closed, never a database the user has open
+        if self.created_database:
+            self.app.CloseCurrentDatabase()
+
+    def _database_is_open(self) -> bool:
+        try:
+            return self.app.CurrentDb() is not None
+        except Exception:
+            return False
 
     def get_vba_error(self) -> Optional[Tuple[type, str, tuple]]:
         try:
-            self.test_file = str(Path.cwd() / "test.accdb")
-            if os.path.exists(self.test_file):
-                os.unlink(self.test_file)
-
-            # Create empty database
-            self.app.NewCurrentDatabase(self.test_file)
-            self.doc = self.app.CurrentDb()
+            if self._database_is_open():
+                # Access shows one database at a time: test the open one, read-only, and leave it alone
+                self.app_was_running = True
+            else:
+                self.app.NewCurrentDatabase(self.scratch_file(".accdb"))
+                self.created_database = True
+                self.doc = self.app.CurrentDb()
             _ = self.app.VBE.ActiveVBProject
             # Test if we can actually access VBA project methods
             _ = self.app.VBE.ActiveVBProject.VBComponents.Count
@@ -1011,13 +1052,13 @@ class CheckPowerPointApp(OfficeApp):
 
     def cleanup_doc(self):
         if self.doc:
+            self.doc.Saved = True  # Presentation.Close takes no arguments; saved, it closes without asking
             self.doc.Close()
 
     def get_vba_error(self) -> Optional[Tuple[type, str, tuple]]:
         try:
-            self.test_file = str(Path.cwd() / "test.pptm")
             self.doc = self.app.Presentations.Add()
-            self.doc.SaveAs(self.test_file)  # PowerPoint defaults to macro-enabled format
+            self.doc.SaveAs(self.scratch_file(".pptm"))  # PowerPoint defaults to macro-enabled format
             _ = self.doc.VBProject
             # Test if we can actually access VBA project methods
             _ = self.doc.VBProject.VBComponents.Count

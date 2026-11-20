@@ -1,0 +1,208 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Quickstart · vba-edit</title>
+  <meta name="description" content="From nothing to live-editing the VBA code of an Office file in your own editor, in about five minutes.">
+  <link rel="icon" href="favicon.png" type="image/png">
+  <link rel="stylesheet" href="assets/site.css">
+  <script src="assets/theme.js"></script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+
+<header class="topbar">
+  <div class="wrap">
+    <a class="brand" href="index.html" aria-label="vba-edit home">
+      <span class="brand-mark" aria-hidden="true">vba-<br>edit</span>
+      <span class="brand-text">vba-edit<span class="caret" aria-hidden="true"></span></span>
+    </a>
+    <nav class="nav" aria-label="Main">
+      <a href="quickstart.html" aria-current="page">Quickstart</a>
+      <a href="guide.html">Guide</a>
+    </nav>
+    <span class="spacer"></span>
+    <a class="icon-btn" href="https://github.com/markuskiller/vba-edit" aria-label="vba-edit on GitHub">
+      <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg>
+    </a>
+    <button class="icon-btn" type="button" data-theme-toggle aria-label="Switch between light and dark theme">
+      <svg class="only-light" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z"/></svg>
+      <svg class="only-dark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+    </button>
+  </div>
+</header>
+
+<main id="main" class="wrap">
+
+  <div class="page-head">
+    <p class="eyebrow">Quickstart</p>
+    <h1>From a macro-enabled file to live editing</h1>
+    <p class="lede">Five steps, about five minutes. At the end, saving a file in your editor changes the code in <span data-app-name>Excel</span>, and your VBA is ready for Git.</p>
+
+    <div class="setup" role="group" aria-label="Your setup">
+      <span class="setup-label">Your setup</span>
+      <span class="seg" role="group" aria-label="Office application">
+        <button type="button" data-tool="excel"><i class="dot"></i>Excel</button>
+        <button type="button" data-tool="word"><i class="dot"></i>Word</button>
+        <button type="button" data-tool="powerpoint"><i class="dot"></i>PowerPoint</button>
+        <button type="button" data-tool="access"><i class="dot"></i>Access</button>
+      </span>
+      <span class="seg" role="group" aria-label="How you run the tool">
+        <button type="button" data-run="installed">installed</button>
+        <button type="button" data-run="uvx">uvx</button>
+        <button type="button" data-run="exe">.exe</button>
+      </span>
+      <span class="setup-hint">The commands below follow your choice. The recordings were made with Excel.</span>
+    </div>
+  </div>
+
+  <div class="steps">
+
+    <section class="step" id="get">
+      <h2>Get the tool <span class="time">1 min</span></h2>
+      <p>You need Windows and a desktop version of Microsoft Office. Pick whichever way of running vba-edit suits you; all three give you the same commands.</p>
+      <div class="tabs">
+        <div class="tablist" role="tablist" aria-label="Ways to run vba-edit">
+          <button type="button">uvx, nothing to install</button>
+          <button type="button">pip</button>
+          <button type="button">Windows .exe</button>
+        </div>
+        <div class="tabpanel">
+          <p>If you have <a href="https://docs.astral.sh/uv/">uv</a>, prefix any command with <code data-fixed>uvx</code>. It downloads the tool on first use and reuses that copy afterwards; <code data-fixed>uvx excel-vba@latest</code> fetches a newer release.</p>
+          <pre class="cmd" data-fixed><span class="p">PS&gt; </span>uvx excel-vba --help</pre>
+        </div>
+        <div class="tabpanel">
+          <p>With Python 3.11 or later, one package gives you all four tools.</p>
+          <pre class="cmd" data-fixed><span class="p">PS&gt; </span>pip install -U vba-edit
+<span class="p">PS&gt; </span>excel-vba --help</pre>
+        </div>
+        <div class="tabpanel">
+          <p>No Python at all: download <code data-fixed>excel-vba.exe</code>, <code data-fixed>word-vba.exe</code>, <code data-fixed>powerpoint-vba.exe</code> or <code data-fixed>access-vba.exe</code> from the <strong>Assets</strong> section of the <a href="https://github.com/markuskiller/vba-edit/releases/latest">latest release</a> and run it from a terminal in its folder, with a leading <code data-fixed>.\</code> as PowerShell requires.</p>
+          <pre class="cmd" data-fixed><span class="p">PS&gt; </span>.\excel-vba.exe --help</pre>
+          <p class="muted">The executables are not code-signed, so Windows SmartScreen may warn on first start. The <a href="https://github.com/markuskiller/vba-edit/blob/main/SECURITY_VERIFICATION.md">verification guide</a> shows how to check the SHA256 checksums.</p>
+        </div>
+      </div>
+      <div class="callout">
+        <p class="callout-title">Stable or pre-release?</p>
+        <p>These three routes give you the stable release, 0.5.1. Everything in this quickstart works with it. The guide marks the few features that need the 0.6.0 pre-release and <a href="guide.html#install-prerelease">shows how to install it</a>.</p>
+      </div>
+    </section>
+
+    <section class="step" id="trust">
+      <h2>Let Office share its VBA project <span class="time">1 min, once</span></h2>
+      <div data-only="excel word powerpoint">
+        <p>Office blocks programs from reading VBA code until you allow it. In <span data-app-name>Excel</span>, tick one box:</p>
+        <p class="crumbs" aria-label="Path in the Office menus"><span>File</span><i>›</i><span>Options</span><i>›</i><span>Trust Center</span><i>›</i><span>Trust Center Settings…</span><i>›</i><span>Macro Settings</span><i>›</i><span>☑ Trust access to the VBA project object model</span></p>
+        <p>Then let the tool confirm it.</p>
+      </div>
+      <div data-only="access" hidden>
+        <p>Access has no "Trust access to the VBA project object model" checkbox. What it needs instead is a database it trusts: keep the file in a <strong>trusted location</strong> (File › Options › Trust Center › Trust Center Settings… › Trusted Locations) or enable its content when Access asks.</p>
+        <p>Then let the tool confirm it can reach the VBA project.</p>
+      </div>
+      <div class="callout warn">
+        <p class="callout-title">Before you run the check: empty folder, <span data-app-name>Excel</span> closed</p>
+        <p>In the stable 0.5.1 and the pre-releases up to 0.6.0a4, the check creates a scratch file named <code data-fixed>test</code> with your application's file type (<code data-fixed>test.xlsm</code>, <code data-fixed>test.docm</code>, <code data-fixed>test.pptm</code>, <code data-fixed>test.accdb</code>) in the current folder, replaces or deletes a file of that name that is already there, and closes <span data-app-name>Excel</span> when it is done. So run it from an empty folder, with <span data-app-name>Excel</span> closed. Later versions use a temporary folder and leave an open <span data-app-name>Excel</span> alone.</p>
+      </div>
+      <pre class="cmd"><span class="p">PS&gt; </span>excel-vba check</pre>
+      <div class="term" data-cast="check">
+        <div class="term-bar"><span class="term-dots" aria-hidden="true"><i></i><i></i><i></i></span><span class="term-title">check</span></div>
+        <pre class="term-body" tabindex="0">PS C:\Projects\budget&gt; excel-vba check</pre>
+      </div>
+      <p>If the last line says <em>enabled</em>, you are done here. <code>excel-vba check all</code> tests all four applications in one go.</p>
+    </section>
+
+    <section class="step" id="edit">
+      <h2>Start an edit session <span class="time">30 s</span></h2>
+      <p>Open a terminal in the folder of your macro-enabled file and start <code>edit</code>. The sample here is a small budget <span data-app-noun>workbook</span> with five modules.</p>
+      <pre class="cmd"><span class="p">PS&gt; </span>excel-vba edit -f Budget.xlsm --vba-directory src</pre>
+      <div class="term" data-cast="edit" data-steps="0-2" data-running>
+        <div class="term-bar"><span class="term-dots" aria-hidden="true"><i></i><i></i><i></i></span><span class="term-title">edit: start</span></div>
+        <pre class="term-body" tabindex="0">PS C:\Projects\budget&gt; excel-vba edit -f Budget.xlsm --vba-directory src</pre>
+      </div>
+      <p>Three things just happened: vba-edit opened the file in <span data-app-name>Excel</span>, wrote every module to a file in <code data-fixed>src</code>, and began watching that folder. The session keeps running until you stop it.</p>
+      <div class="callout">
+        <p class="callout-title">Shorter still</p>
+        <p>Leave out <code data-fixed>-f</code> and vba-edit uses the <span data-app-noun>workbook</span> that is currently active in <span data-app-name>Excel</span>. Leave out <code data-fixed>--vba-directory</code> and the files land next to it.</p>
+      </div>
+    </section>
+
+    <section class="step" id="save">
+      <h2>Edit, save, look <span class="time">1 min</span></h2>
+      <p>Open the <code data-fixed>src</code> folder in your editor, change something in <code data-fixed>Reporting.bas</code> and save. The terminal reports the change, and the module in the VBA editor has it too. New files become new modules.</p>
+      <div class="term" data-cast="edit" data-steps="2-6" data-running>
+        <div class="term-bar"><span class="term-dots" aria-hidden="true"><i></i><i></i><i></i></span><span class="term-title">edit: two saves later</span></div>
+        <pre class="term-body" tabindex="0">1 change detected
+Processing changes in Reporting.bas
+Successfully processed: Reporting.bas</pre>
+      </div>
+      <div class="split">
+        <div>
+          <div class="editor" aria-label="Reporting.bas shown in a code editor">
+            <div class="editor-tabs"><span class="on">Reporting.bas</span><span>Forecast.bas</span></div>
+<pre><span class="ln"><span class="c">'@Folder("Reports")</span></span><span class="ln"><span class="k">Option Explicit</span></span><span class="ln"> </span><span class="ln"><span class="k">Public Sub</span> BuildMonthlyReport()</span><span class="ln">    <span class="k">Dim</span> total <span class="k">As Currency</span></span><span class="ln">    total = SumColumn(Sheet1.Range(<span class="s">"B2:B13"</span>))</span><span class="ln">    Sheet1.Range(<span class="s">"B14"</span>).Value = total</span><span class="ln hl">    MsgBox <span class="s">"Total spend: "</span> &amp; FormatMoney(total)</span><span class="ln"><span class="k">End Sub</span></span></pre>
+          </div>
+          <p class="muted">Your side: the file with line 8 changed (a code listing, not a screenshot).</p>
+        </div>
+        <figure>
+          <div class="shot"><button type="button" aria-label="Enlarge screenshot"><img src="assets/img/vbe-synced.png" width="1200" height="720" loading="lazy" alt="The VBA editor showing module Reporting with the edited MsgBox line"></button></div>
+          <figcaption><b>Screenshot.</b> Office's side after the save: the VBA editor shows the new line. Taken on a German Office installation, hence the German menu names.</figcaption>
+        </figure>
+      </div>
+      <div class="callout warn">
+        <p class="callout-title">One direction</p>
+        <p>A plain <code data-fixed>edit</code> session copies changes from your files into Office, not the other way round. Code you type into the VBA editor while it runs stays there until you <code data-fixed>export</code> it. Deleting a module's file deletes that module in Office. If you want both directions, the guide covers the experimental <a href="guide.html#bidirectional"><code data-fixed>--bidirectional</code></a> mode.</p>
+      </div>
+    </section>
+
+    <section class="step" id="keep">
+      <h2>Stop, and keep the history <span class="time">1 min</span></h2>
+      <p>Press <kbd>Ctrl</kbd>+<kbd>C</kbd> in the terminal to end the session. The file stays open in <span data-app-name>Excel</span>, already saved with your changes.</p>
+      <div class="term" data-cast="edit" data-steps="6-8">
+        <div class="term-bar"><span class="term-dots" aria-hidden="true"><i></i><i></i><i></i></span><span class="term-title">edit: stop</span></div>
+        <pre class="term-body" tabindex="0">^C
+Stopping VBA editor...
+VBA editor stopped.</pre>
+      </div>
+      <p>Your VBA now exists as text, which makes it a normal citizen of Git. Commit the exported folder once, and every later change shows up as a readable diff.</p>
+      <div class="term" data-cast="git" data-steps="2">
+        <div class="term-bar"><span class="term-dots" aria-hidden="true"><i></i><i></i><i></i></span><span class="term-title">git: baseline, edit, diff</span></div>
+        <pre class="term-body" tabindex="0">PS C:\Projects\budget&gt; git init -q -b main
+PS C:\Projects\budget&gt; git add src
+PS C:\Projects\budget&gt; git commit -q -m "Baseline export of Budget.xlsm"</pre>
+      </div>
+    </section>
+
+  </div>
+
+  <section class="band">
+    <div class="band-head">
+      <p class="eyebrow">Where next</p>
+      <h2>You have the core loop. Three good next stops:</h2>
+    </div>
+    <div class="next">
+      <a class="card" href="guide.html#headers"><h3>Using UserForms or class attributes?</h3><p>Add a header option before you export forms, so their layout survives the round trip.</p><span class="card-cmd">--in-file-headers</span></a>
+      <a class="card" href="guide.html#config"><h3>Tired of typing options?</h3><p>Put them in a config file. A small GUI writes it for you.</p><span class="card-cmd">excel-vba config-gen</span></a>
+      <a class="card" href="guide.html#editor-setup"><h3>Set up your editor</h3><p>Two settings make VS Code read VBA files with the right encoding and syntax.</p><span class="card-cmd">"files.encoding": "windows1252"</span></a>
+    </div>
+  </section>
+
+</main>
+
+<footer class="footer">
+  <div class="wrap">
+    <p>vba-edit is open source under the BSD 3-Clause licence. Beta software: keep a backup of important files.</p>
+    <nav aria-label="Footer">
+      <a href="index.html">Home</a>
+      <a href="guide.html">Guide</a>
+      <a href="https://github.com/markuskiller/vba-edit">GitHub</a>
+      <a href="https://github.com/markuskiller/vba-edit/blob/dev/CHANGELOG.md">Changelog</a>
+      <a href="https://github.com/markuskiller/vba-edit/issues">Issues</a>
+    </nav>
+  </div>
+</footer>
+
+<script src="assets/casts.js"></script>
+<script src="assets/site.js"></script>
+</body>
+</html>

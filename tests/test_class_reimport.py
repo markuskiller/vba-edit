@@ -5,6 +5,7 @@ from unittest.mock import Mock, patch
 
 import pytest
 
+from vba_edit.exceptions import VBAError
 from vba_edit.office_vba import (
     AccessVBAHandler,
     ExcelVBAHandler,
@@ -149,15 +150,18 @@ def test_member_attributes_force_a_full_import_even_with_the_same_header(handler
     assert "VB_UserMemId = 0" in components.imported[0]
 
 
-def test_unreadable_current_header_keeps_the_old_behaviour(handler):
+def test_a_class_that_cannot_be_exported_is_not_removed(handler):
+    """Without an export there is neither a header to compare nor a safety copy to fall back on."""
     widget = FakeComponent("Widget", HEADER, "Sub Old()\nEnd Sub")
     widget.Export = Mock(side_effect=RuntimeError("Export failed"))
     components = FakeComponents(widget)
     path = write_class(handler, HEADER, "Sub New()\nEnd Sub")
 
-    handler.import_component(path, components)
+    with pytest.raises(VBAError):
+        handler.import_component(path, components)
 
-    assert components.removed == ["Widget"]
+    assert components.removed == []
+    assert widget.CodeModule.body == "Sub Old()\nEnd Sub"
 
 
 def test_a_new_class_module_is_still_imported_with_its_header(handler):

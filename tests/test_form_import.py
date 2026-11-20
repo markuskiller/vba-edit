@@ -47,6 +47,18 @@ class FakeComponents:
         return component
 
 
+def existing_form():
+    """A UserForm already in the project; like the VBE, its Export writes a .frm and a .frx."""
+    component = Mock(Name="TestForm", Type=3)
+
+    def export(path):
+        Path(path).write_text(f"{FORM_HEADER}\n'old code\n", encoding="cp1252")
+        Path(path).with_suffix(".frx").write_bytes(b"old layout")
+
+    component.Export = export
+    return component
+
+
 @pytest.fixture
 def handler(tmp_path):
     workbook = tmp_path / "Book.xlsm"
@@ -69,7 +81,7 @@ def write_form(handler, with_header=True, with_frx=True):
 
 
 def test_existing_form_is_replaced_through_import_with_header_and_frx(handler):
-    existing = Mock(Name="TestForm", Type=3)
+    existing = existing_form()
     components = FakeComponents(existing)
 
     handler.import_component(write_form(handler), components)

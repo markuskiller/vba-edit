@@ -250,7 +250,7 @@ class ReferenceManager:
     # GUID validation pattern: {XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX}
     GUID_PATTERN = re.compile(r"^\{[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}\}$")
 
-    def __init__(self, document: Any):
+    def __init__(self, document: Any, vb_project: Any = None):
         """Initialize the ReferenceManager.
 
         Accepts both win32com COM objects and xlwings objects. When given an xlwings
@@ -259,6 +259,9 @@ class ReferenceManager:
 
         Args:
             document: Office document object (win32com COM object or xlwings workbook)
+            vb_project: The document's VBA project, for documents that do not have a VBProject
+                property. An Access database is one: its project is reached through the
+                application (``app.VBE.ActiveVBProject``).
 
         Raises:
             VBAAccessError: If VBA project access is denied
@@ -270,8 +273,11 @@ class ReferenceManager:
         logger.debug("Initializing ReferenceManager")
 
         try:
+            if vb_project is not None:
+                logger.debug("Using the VBA project that was passed in")
+                self.vb_project = vb_project
             # Handle xlwings objects (have .api attribute)
-            if hasattr(document, "api"):
+            elif hasattr(document, "api"):
                 logger.debug("Detected xlwings document object")
                 self.vb_project = document.api.VBProject
             # Handle win32com objects directly
@@ -305,7 +311,8 @@ class ReferenceManager:
     def _get_document_name(self) -> str:
         """Return the document's file name, or empty string on failure."""
         try:
-            return self.document.Name
+            # An Access database reports its full path as its name.
+            return Path(str(self.document.Name)).name
         except Exception:
             return ""
 

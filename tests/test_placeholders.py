@@ -1,5 +1,7 @@
 """Tests for placeholder format (v0.5.0+, legacy placeholders removed)."""
 
+import argparse
+
 import pytest
 
 from vba_edit.cli_common import (
@@ -9,6 +11,8 @@ from vba_edit.cli_common import (
     PLACEHOLDER_FILE_PATH,
     PLACEHOLDER_FILE_VBAPROJECT,
     get_placeholder_values,
+    get_placeholders_for_config_key,
+    resolve_all_placeholders,
     resolve_placeholders_in_value,
 )
 
@@ -149,6 +153,36 @@ class TestPlaceholderNoLegacy:
 
         # Config path should still be set
         assert placeholders[PLACEHOLDER_CONFIG_PATH] == "C:\\"
+
+
+class TestDocumentPathFromConfig:
+    """The `file` value: {config.path} is resolved in it, and {file.*} follow the path as it is opened."""
+
+    def test_config_path_placeholder_in_file(self):
+        args = argparse.Namespace(file="{config.path}/Budget.xlsm", vba_directory="{file.path}/src", logfile=None)
+
+        resolved = resolve_all_placeholders(args, "C:/Projects/budget/vba-config.toml")
+
+        assert resolved.file == "C:\\Projects\\budget/Budget.xlsm"
+        assert resolved.vba_directory == "C:\\Projects\\budget/src"
+
+    def test_file_supports_only_the_config_path_placeholder(self):
+        assert get_placeholders_for_config_key("file") == (PLACEHOLDER_CONFIG_PATH,)
+
+    def test_relative_file_is_not_moved_to_the_config_folder(self):
+        """A relative document path is opened from the current directory, so {file.path} must not
+        point into the folder of the config file."""
+        placeholders = get_placeholder_values(config_file_path="conf/vba-config.toml", file_path="Budget.xlsm")
+
+        assert placeholders[PLACEHOLDER_CONFIG_PATH] == "conf"
+        assert placeholders[PLACEHOLDER_FILE_PATH] == "."
+        assert placeholders[PLACEHOLDER_FILE_NAME] == "Budget"
+
+    def test_file_without_placeholder_is_left_alone(self):
+        args = argparse.Namespace(file="Budget.xlsm", vba_directory=None, logfile=None)
+
+        assert resolve_all_placeholders(args, "conf/vba-config.toml").file == "Budget.xlsm"
+        assert resolve_all_placeholders(argparse.Namespace(file=None), None).file is None
 
 
 if __name__ == "__main__":
