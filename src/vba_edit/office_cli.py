@@ -113,6 +113,8 @@ from vba_edit.office_vba import (
     WordVBAHandler,
     AccessVBAHandler,
     PowerPointVBAHandler,
+    find_open_document,
+    open_refused_message,
 )
 from vba_edit.path_utils import get_document_paths
 from vba_edit.utils import get_active_office_document, setup_logging
@@ -573,28 +575,30 @@ IMPORTANT: Requires "Trust access to the VBA project object model" enabled in {s
         """Derive the refs.toml path from the handler's document path."""
         return handler.vba_dir / f"{handler.doc_path.stem}_refs.toml"
 
-    def _auto_export_references(self, handler) -> None:
-        """Export VBA references alongside VBA code."""
+    def _auto_export_references(self, handler) -> bool:
+        """Export VBA references alongside VBA code. Returns False if that failed."""
         from vba_edit.console import info
 
         try:
             refs_file = self._get_refs_file(handler)
-            manager = ReferenceManager(handler.doc)
+            manager = ReferenceManager(handler.doc, vb_project=handler.get_vba_project())
             manager.export_to_toml(str(refs_file))
             info(f"References exported to: {refs_file.name}")
+            return True
         except Exception as e:
             self.logger.warning(f"Could not export references: {e}")
+            return False
 
-    def _auto_import_references(self, handler) -> None:
-        """Import VBA references from refs.toml if it exists."""
+    def _auto_import_references(self, handler) -> bool:
+        """Import VBA references from refs.toml if it exists. Returns False if any reference failed."""
         from vba_edit.console import info, warning
 
         try:
             refs_file = self._get_refs_file(handler)
             if not refs_file.exists():
                 self.logger.debug(f"No references file found at {refs_file}, skipping")
-                return
-            manager = ReferenceManager(handler.doc)
+                return True
+            manager = ReferenceManager(handler.doc, vb_project=handler.get_vba_project())
             stats = manager.import_from_toml(str(refs_file))
             added = stats.get("added", 0)
             skipped = stats.get("skipped", 0)
@@ -602,8 +606,10 @@ IMPORTANT: Requires "Trust access to the VBA project object model" enabled in {s
             info(f"References imported: {added} added, {skipped} skipped, {failed} failed")
             if failed:
                 warning(f"{failed} reference(s) could not be added — check log for details")
+            return not failed
         except Exception as e:
             self.logger.warning(f"Could not import references: {e}")
+            return False
 
     def _run_vba_command(self, handler: Any, args: argparse.Namespace) -> None:
         """Execute the VBA edit/import/export command with error handling."""
@@ -654,21 +660,36 @@ IMPORTANT: Requires "Trust access to the VBA project object model" enabled in {s
                     sys.exit(1)
             elif args.command == "import":
                 # Auto-import references before VBA import
+                references_ok = True
                 if getattr(args, "with_references", False):
-                    self._auto_import_references(handler)
+                    # The references are written into the open document; import_vba() would open it only later.
+                    handler.open_document()
+                    references_ok = self._auto_import_references(handler)
                 handler.import_vba()
+                if not references_ok:
+                    # The code was imported all the same; the exit code still has to say that something failed.
+                    raise VBAError("The VBA files were imported, but not all references could be restored.")
             elif args.command == "export":
-                handle_export_with_warnings(
-                    handler,
-                    save_metadata=getattr(args, "save_metadata", False),
-                    overwrite=True,
-                    interactive=True,
-                    force_overwrite=getattr(args, "force_overwrite", False),
-                    keep_open=getattr(args, "keep_open", False),
-                )
-                # Auto-export references after VBA export
-                if getattr(args, "with_references", False):
-                    self._auto_export_references(handler)
+                with_references = getattr(args, "with_references", False)
+                keep_open = getattr(args, "keep_open", False)
+                references_ok = True
+                try:
+                    handle_export_with_warnings(
+                        handler,
+                        save_metadata=getattr(args, "save_metadata", False),
+                        overwrite=True,
+                        interactive=True,
+                        force_overwrite=getattr(args, "force_overwrite", False),
+                        # The references are read from the open document, so it is closed after them.
+                        keep_open=keep_open or with_references,
+                    )
+                    if with_references:
+                        references_ok = self._auto_export_references(handler)
+                finally:
+                    if with_references and not keep_open:
+                        handler.close_document()
+                if not references_ok:
+                    raise VBAError("The VBA modules were exported, but the references could not be.")
         except (DocumentClosedError, RPCError) as e:
             self.logger.error(str(e))
             sys.exit(1)
@@ -728,9 +749,9 @@ IMPORTANT: Requires "Trust access to the VBA project object model" enabled in {s
                 self.logger.error(f"Failed to resolve paths: {str(e)}")
                 sys.exit(1)
 
-            # Determine encoding
+            # Encoding of the source files: fixed, or (None) detected for each file by the handler
             encoding = None if getattr(args, "detect_encoding", False) else args.encoding
-            self.logger.debug(f"Using encoding: {encoding or 'auto-detect'}")
+            self.logger.debug(f"Source file encoding: {encoding or 'detected per file'}")
 
             # Validate header options
             validate_header_options(args)
@@ -782,35 +803,61 @@ IMPORTANT: Requires "Trust access to the VBA project object model" enabled in {s
         opened_doc = False
         doc = None
 
-        if self.office_app == "excel":
-            if file_arg:
-                doc = app.Workbooks.Open(doc_path)
-                opened_doc = True
-            else:
-                doc = app.ActiveWorkbook
-        elif self.office_app == "word":
-            if file_arg:
-                doc = app.Documents.Open(doc_path)
-                opened_doc = True
-            else:
-                doc = app.ActiveDocument
-        elif self.office_app == "access":
-            if file_arg:
+        if self.office_app == "access":
+            if file_arg and not self._is_current_database(app, doc_path):
                 app.OpenCurrentDatabase(doc_path)
                 opened_doc = True
             doc = app.CurrentDb()
-        elif self.office_app == "powerpoint":
+        else:
+            collection_name, active_name = {
+                "excel": ("Workbooks", "ActiveWorkbook"),
+                "word": ("Documents", "ActiveDocument"),
+                "powerpoint": ("Presentations", "ActivePresentation"),
+            }[self.office_app]
             if file_arg:
-                doc = app.Presentations.Open(doc_path)
-                opened_doc = True
+                collection = getattr(app, collection_name)
+                # A document the user already has open is used as it is and left open afterwards.
+                doc = find_open_document(collection, "FullName", doc_path)
+                if doc is None:
+                    doc = collection.Open(doc_path)
+                    if doc is None:
+                        message = open_refused_message(collection, self.config["app_name"], file_type, Path(doc_path))
+                        self.logger.error(message)
+                        sys.exit(1)
+                    opened_doc = True
             else:
-                doc = app.ActivePresentation
+                doc = getattr(app, active_name)
 
         if doc is None:
             self.logger.error(f"No active {file_type} found. Open a {file_type} first.")
             sys.exit(1)
 
         return doc, opened_doc
+
+    @staticmethod
+    def _is_current_database(app: Any, doc_path: str) -> bool:
+        """True if Access already has this database open."""
+        try:
+            current = app.CurrentDb()
+            return current is not None and str(current.Name).casefold() == doc_path.casefold()
+        except Exception:
+            return False
+
+    def _access_vb_project(self, app: Any, doc_path: str) -> Any:
+        """The VBA project of the open database.
+
+        Access keeps the project on the application, not on the database object. Besides the
+        database's own project, the editor can hold projects of library databases and add-ins.
+        """
+        try:
+            projects = app.VBE.VBProjects
+            for index in range(1, int(projects.Count) + 1):
+                project = projects(index)
+                if str(project.FileName).casefold() == doc_path.casefold():
+                    return project
+        except Exception as e:
+            self.logger.debug(f"Could not match the VBA project by file name: {e}")
+        return app.VBE.ActiveVBProject
 
     def _dispatch_refs_subcommand(
         self,
@@ -819,8 +866,11 @@ IMPORTANT: Requires "Trust access to the VBA project object model" enabled in {s
         args: argparse.Namespace,
         doc_path: str,
         refs_file: Optional[str],
-    ) -> None:
-        """Execute the specific references subcommand against the given manager."""
+    ) -> int:
+        """Execute the specific references subcommand against the given manager.
+
+        Returns the number of references that could not be processed (import only).
+        """
         from vba_edit.console import info, success
 
         no_default = getattr(args, "no_default", False)
@@ -843,7 +893,7 @@ IMPORTANT: Requires "Trust access to the VBA project object model" enabled in {s
                 info(f"NOTE: Skipped {len(skipped)} reference(s) without GUID: {', '.join(skipped)}")
 
         elif subcommand == "import":
-            self._dispatch_refs_import(manager, args, refs_file)
+            return self._dispatch_refs_import(manager, args, refs_file)
 
         elif subcommand == "list":
             self._dispatch_refs_list(manager, doc_path, no_default, no_installed, no_custom)
@@ -856,8 +906,10 @@ IMPORTANT: Requires "Trust access to the VBA project object model" enabled in {s
         elif subcommand == "validate":
             self._dispatch_refs_validate(manager, doc_path)
 
-    def _dispatch_refs_import(self, manager: Any, args: argparse.Namespace, refs_file: Optional[str]) -> None:
-        """Handle the 'references import' subcommand."""
+        return 0
+
+    def _dispatch_refs_import(self, manager: Any, args: argparse.Namespace, refs_file: Optional[str]) -> int:
+        """Handle the 'references import' subcommand. Returns the number of failed references."""
         from vba_edit.console import success, warning
 
         if not refs_file or not Path(refs_file).exists():
@@ -875,20 +927,27 @@ IMPORTANT: Requires "Trust access to the VBA project object model" enabled in {s
             removed = stats.get("removed", 0)
             protected = stats.get("protected", 0)
             failed = stats.get("failed", 0)
-            success(
+            summary = (
                 f"References synced: {added} added, {skipped} unchanged, "
                 f"{removed} removed, {protected} protected, {failed} failed"
             )
             if failed:
+                warning(summary)
                 warning(f"{failed} reference(s) could not be processed — check log for details")
+            else:
+                success(summary)
         else:
             stats = manager.import_from_toml(refs_file)
             added = stats.get("added", 0)
             skipped = stats.get("skipped", 0)
             failed = stats.get("failed", 0)
-            success(f"References imported: {added} added, {skipped} skipped, {failed} failed")
+            summary = f"References imported: {added} added, {skipped} skipped, {failed} failed"
             if failed:
+                warning(summary)
                 warning(f"{failed} reference(s) could not be added — check log for details")
+            else:
+                success(summary)
+        return failed
 
     def _dispatch_refs_list(
         self,
@@ -1027,8 +1086,9 @@ IMPORTANT: Requires "Trust access to the VBA project object model" enabled in {s
             app.Visible = True
 
             doc, opened_doc = self._open_doc_for_references(app, file_arg, doc_path, file_type)
-            manager = ReferenceManager(doc)
-            self._dispatch_refs_subcommand(manager, subcommand, args, doc_path, refs_file)
+            vb_project = self._access_vb_project(app, doc_path) if self.office_app == "access" else None
+            manager = ReferenceManager(doc, vb_project=vb_project)
+            failed = self._dispatch_refs_subcommand(manager, subcommand, args, doc_path, refs_file)
 
             # Persist reference changes to disk for mutating subcommands.
             # Must happen here (before finally/_close_refs_doc) because
@@ -1043,6 +1103,10 @@ IMPORTANT: Requires "Trust access to the VBA project object model" enabled in {s
                     self.logger.debug(f"Document saved after references '{subcommand}' operation")
                 except Exception as save_err:
                     self.logger.warning(f"Could not save document after references '{subcommand}': {save_err}")
+
+            # The references that could be processed are saved above; the exit code reports the rest.
+            if failed:
+                sys.exit(1)
 
         except VBAReferenceError as e:
             self.logger.error(f"Reference error: {e}")
@@ -1103,6 +1167,14 @@ IMPORTANT: Requires "Trust access to the VBA project object model" enabled in {s
     def main(self) -> None:
         """Main entry point for the Office VBA CLI."""
         try:
+            # Redirected output uses the ANSI code page on Windows, which has no "✓" or "⚠".
+            # Print a replacement character there instead of failing with a UnicodeEncodeError.
+            for stream in (sys.stdout, sys.stderr):
+                try:
+                    stream.reconfigure(errors="replace")
+                except Exception:
+                    pass
+
             # Check for --no-color flag BEFORE creating parser
             # This ensures help messages honor the flag
             if "--no-color" in sys.argv or "--no-colour" in sys.argv:
@@ -1132,13 +1204,25 @@ IMPORTANT: Requires "Trust access to the VBA project object model" enabled in {s
                 except (SystemExit, Exception):
                     pass  # Fall back to legacy is-None check
 
+            # A config file that cannot be read stops the command. Carrying on with the defaults
+            # would run it without the file and folder the config names, on whatever document
+            # happens to be active. (The reason was printed by _load_cli_config.)
+            if config_load_failed:
+                error("Nothing was done. Correct the configuration file or run the command without --conf.")
+                sys.exit(1)
+
             # Apply configuration and resolve placeholders BEFORE setting up logging
-            if not config_load_failed:
-                if config and getattr(args, "conf", None):
-                    args = merge_config_with_args(args, config, cli_explicit=cli_explicit)
-                    args = resolve_all_placeholders(args, args.conf)
-                else:
-                    args = resolve_all_placeholders(args, None)
+            if config and getattr(args, "conf", None):
+                args = merge_config_with_args(args, config, cli_explicit=cli_explicit)
+                args = resolve_all_placeholders(args, args.conf)
+            else:
+                args = resolve_all_placeholders(args, None)
+
+            # no_color from a config file is only known now (the --no-color flag was handled above)
+            if getattr(args, "no_color", False):
+                from vba_edit.console import disable_colors
+
+                disable_colors()
 
             # Set up logging first
             setup_logging(verbose=getattr(args, "verbose", False), logfile=getattr(args, "logfile", None))

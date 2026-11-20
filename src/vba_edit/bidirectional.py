@@ -279,7 +279,8 @@ class OfficeAdapter:
         temporary = self.state_dir / f"export-{uuid.uuid4().hex}.txt"
         try:
             component.Export(str(temporary))
-            raw = temporary.read_text(encoding=h.encoding)
+            # The VBA editor exports in its own code page, whatever encoding the source files use
+            raw = temporary.read_text(encoding=getattr(h, "office_encoding", None) or h.encoding)
         finally:
             temporary.unlink(missing_ok=True)
         snapshot = Snapshot.parse(name, kind, name + EXTENSIONS[kind], raw)
@@ -459,7 +460,9 @@ class SyncSession:
             self.persist()
         path = self.state["paused"][name]["artifacts"]
         logger.warning(
-            'PAUSED %s: %s. Review %s; restart with --sync-resolve office|files --sync-component "%s" after review.',
+            "PAUSED %s: %s. Review %s. A disagreement about the code is settled by restarting with "
+            '--sync-resolve office|files --sync-component "%s"; a moved, renamed or deleted component '
+            "needs a step of your own first (guide: Bidirectional editing, Clearing a pause).",
             name,
             reason,
             path,

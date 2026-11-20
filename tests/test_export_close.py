@@ -6,7 +6,8 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from vba_edit.office_vba import ExcelVBAHandler, WordVBAHandler
+from vba_edit.exceptions import VBAError
+from vba_edit.office_vba import ExcelVBAHandler, PowerPointVBAHandler, WordVBAHandler
 
 
 class FakeDocument:
@@ -153,3 +154,71 @@ def test_mock_applications_fall_back_to_opening(handler):
     app.Workbooks.Open.assert_called_once_with(str(handler.doc_path))
     assert handler._document_was_open is False
     assert handler._app_was_running is False
+
+
+class RefusingCollection(FakeCollection):
+    """Excel returns nothing, without an error, for a second workbook with the same file name."""
+
+    def Open(self, path):
+        return None
+
+
+def test_a_second_workbook_with_the_same_name_is_explained(handler, caplog):
+    app = FakeApp(True)
+    app.Workbooks = RefusingCollection(FakeDocument("C:\\other\\BOOK.xlsm"))
+
+    with caplog.at_level(logging.ERROR), pytest.raises(VBAError):
+        attach(handler, app)
+
+    assert handler.doc is None
+    assert "C:\\other\\BOOK.xlsm" in caplog.text
+    assert "cannot open a second one with the same name" in caplog.text
+
+
+def test_a_document_that_was_not_opened_is_an_error_not_a_none(handler, caplog):
+    app = FakeApp(True)
+    app.Workbooks = RefusingCollection(FakeDocument("C:\\other\\Unrelated.xlsm"))
+
+    with caplog.at_level(logging.ERROR), pytest.raises(VBAError):
+        attach(handler, app)
+
+    assert "Excel did not open the workbook" in caplog.text
+
+
+class FakePresentation:
+    def __init__(self, full_name):
+        self.FullName = full_name
+        self.Name = full_name.rsplit("\\", 1)[-1]
+        self.Saved = False
+        self.closed = False
+
+    def Close(self):  # unlike Workbook.Close and Document.Close, this one takes no arguments
+        self.closed = True
+
+
+class FakePresentations(FakeCollection):
+    def __iter__(self):
+        return iter(self.documents)
+
+    def Open(self, path):
+        presentation = FakePresentation(path)
+        self.documents.append(presentation)
+        return presentation
+
+
+def test_a_presentation_vba_edit_opened_is_closed_again(tmp_path):
+    deck = tmp_path / "Deck.pptm"
+    deck.touch()
+    with patch("vba_edit.office_vba.win32com.client.Dispatch"):
+        handler = PowerPointVBAHandler(doc_path=str(deck), vba_dir=str(tmp_path / "src"))
+    app = FakeApp(False)
+    app.Presentations = FakePresentations()
+
+    attach(handler, app)
+    opened = handler.doc
+    handler.close_document()
+
+    assert opened.closed is True
+    assert opened.Saved is True  # so that PowerPoint does not ask
+    assert handler.doc is None
+    assert app.quit is True

@@ -20,7 +20,8 @@ uvx powerpoint-vba edit -f myfile.pptm
 uvx access-vba edit -f myfile.accdb
 ```
 
-> **Note:** The ``uvx`` command runs the tool without installing it permanently — same as: ``uv tool run excel-vba``
+> **Note:** The ``uvx`` command runs the tool without installing it permanently — same as: ``uv tool run excel-vba``.
+> It downloads the latest release on first use and reuses that copy afterwards; run ``uvx excel-vba@latest --version`` to fetch a newer release.
 
 ### Python Package
 ```bash
@@ -102,6 +103,8 @@ Enable VBA access in Office:
 ✅ **Trust access to the VBA project object model**
 
 > 💡 Can't find it? Run `uvx excel-vba check` (or `excel-vba check` if installed) to verify settings
+>
+> ⚠️ Up to 0.6.0a4 (0.5.1 included), `check` creates a scratch file named `test.xlsm` / `test.docm` / `test.pptm` / `test.accdb` in the current directory, replaces or deletes a file of that name, and closes the application. Run it from an empty folder with the application closed. Later versions use a temporary folder.
 
 ### VS Code Settings (Recommended)
 
@@ -351,6 +354,7 @@ minor = 0
 | "Trust access" error | Run `uvx excel-vba check` (or `excel-vba check`) for diagnostics |
 | Changes not syncing | Save the file in your editor |
 | Forms not working | Add `--in-file-headers` flag |
+| "cannot open a second one with the same name" | Excel only opens one workbook per file name. Close the other workbook with that name |
 
 
 ## Safety Features
@@ -518,7 +522,7 @@ The same file can be reused with `edit`, `import`, `export`, and `references` co
 - `no_color` - Disable colorized terminal output (true/false)
 
 **[references] section:**
-- `refs_file` - Path to VBA references file (default: `vba-references.toml`)
+- `refs_file` - Path to the references file of `references export` / `references import` (default: `{document}_refs.toml` next to the document)
 - `no_default` - Exclude default references from listing (true/false)
 - `no_installed` - Exclude installed COM library references from listing (true/false)
 - `no_custom` - Exclude custom file-path references from listing (true/false)
@@ -532,14 +536,17 @@ The same file can be reused with `edit`, `import`, `export`, and `references` co
 
 ### Configuration Placeholders
 
-Configuration values support dynamic placeholders for flexible path management.
+Path values support dynamic placeholders for flexible path management.
 
 **Available placeholders**
-- `{config.path}` - Directory containing the config file
-- `{file.name}` - Document filename without extension
-- `{file.fullname}` - Document filename with extension
-- `{file.path}` - Directory containing the document
-- `{file.vbaproject}` - VBA project name (resolved at runtime)
+
+| Placeholder | Becomes | Can be used in |
+|-------------|---------|----------------|
+| `{config.path}` | Directory containing the config file | `file`, `vba_directory`, `logfile` |
+| `{file.name}` | Document filename without extension | `vba_directory`, `logfile` |
+| `{file.fullname}` | Document filename with extension | `vba_directory`, `logfile` |
+| `{file.path}` | Directory containing the document | `vba_directory`, `logfile` |
+| `{file.vbaproject}` | VBA project name (resolved at runtime) | `vba_directory` |
 
 **Example with placeholders:**
 
@@ -550,13 +557,14 @@ vba_directory = "{file.path}/{file.name}-vba"
 # This resolves to: C:/Projects/MyApp/MyWorkbook-vba
 ```
 
-**Relative paths example:**
+**Relative paths**
+
+A relative path is resolved from the directory the command is run in, not from the location of the config file. Start a path with `{config.path}` to tie it to the config file instead; the command then works from any directory:
 
 ```toml
 [general]
-file = "../documents/report.xlsm"
-vba_directory = "{config.path}/vba-modules"
-# vba_directory is relative to config file location
+file = "{config.path}/MyWorkbook.xlsm"
+vba_directory = "{config.path}/src/vba"
 ```
 
 ### Command-Line Override
